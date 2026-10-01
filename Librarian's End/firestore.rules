@@ -1,0 +1,373 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+// ══════════════════════════════════════════════════════════════
+//  TOMEVA — Firestore Security Rules (Revised: Anonymous Sync + Kiosk Approval)
+//
+//  Identity model:
+//    • Staff/Teacher  → signed in with Google, email ends @staff.example
+//                      email_verified == true (prevents spoofed unverified emails)
+//    • Kiosk          → email/password + active library-scoped registry entry
+//                      provisioned by verified institution staff (one-time setup)
+//    • Student        → signed in with Google (any email), must be
+//                      pre-authorized in /authorized_students with group
+//    • Anonymous      → Firebase Anonymous Auth (for aggregate sync only)
+//
+//  Architecture:
+//    Tomeva desktop app (kiosk):
+//      - Anonymous auth for aggregate catalog/stats sync (no PII)
+//      - Registered email/password for book request approval/issue
+//      - NO interactive login in daily use
+//    Admin portal (browser):
+//      - Staff sign-in (verified @staff.example) for control flag, student mgmt
+//    Student search portal:
+//      - Public read of /public/catalog
+//      - Sign-in required for book requests (validated against authorized_students)
+//
+//  Offline-First Invariant:
+//    Cloud failures or security mitigations must NEVER block local
+//    physical desk workflows. Kiosk sync is deferred when offline.
+// ══════════════════════════════════════════════════════════════
+
+    // ── Helper: is the caller signed in with a VERIFIED @staff.example account? ──
+    function isStaff() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches('(?i).*@staff\\.example$');
+    }
+
+    // Provisioning is an institution staff operation.
+    function isKioskAdmin(libraryId) {
+      return request.auth != null
+        && libraryId == 'main'
+        && isStaff()
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
+    // Consult the registry on every request, including already-issued tokens.
+    function isKiosk(libraryId) {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'password'
+        && exists(/databases/$(database)/documents/kiosk_accounts/$(request.auth.uid))
+        && get(/databases/$(database)/documents/kiosk_accounts/$(request.auth.uid)).data.active == true
+        && get(/databases/$(database)/documents/kiosk_accounts/$(request.auth.uid)).data.libraryId == libraryId
+        && get(/databases/$(database)/documents/kiosk_accounts/$(request.auth.uid)).data.email == request.auth.token.email;
+    }
+
+    // ── Helper: staff OR kiosk (for write operations librarian terminal performs) ──
+    function isStaffOrKiosk(libraryId) {
+      return isStaff() || isKiosk(libraryId);
+    }
+
+    // Both anonymous-writable aggregate documents must have the public schema.
+    // In particular, the legacy root may never regain circulation fields.
+    function isPublicCatalog() {
+      return request.resource.data.keys().hasAll([
+          'stats', 'availableList', 'issuedList', 'damagedList',
+          'last_synced', 'last_synced_iso', 'sync_version'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'stats', 'availableList', 'issuedList', 'damagedList',
+          'last_synced', 'last_synced_iso', 'sync_version'
+        ])
+        && request.resource.data.stats is map
+        && request.resource.data.stats.keys().hasAll([
+          'total_books', 'available', 'issued', 'damaged', 'under_repair', 'lost'
+        ])
+        && request.resource.data.stats.keys().hasOnly([
+          'total_books', 'available', 'issued', 'damaged', 'under_repair', 'lost'
+        ])
+        && request.resource.data.availableList is list
+        && request.resource.data.issuedList is list
+        && request.resource.data.damagedList is list
+        && request.resource.data.last_synced is timestamp
+        && request.resource.data.last_synced_iso is string
+        && request.resource.data.sync_version is number
+        && request.resource.data.sync_version >= 6;
+    }
+
+    match /libraries/{libraryId} {
+
+      // Release versions and schedules are public; institution staff authorize rollout.
+      match /update_approvals/{component} {
+        allow read: if true;
+        allow create, update: if isKioskAdmin(libraryId)
+          && component in ['admin', 'librarian']
+          && request.resource.data.keys().hasOnly(['version', 'policy', 'notBefore', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['version', 'policy', 'notBefore', 'updatedAt'])
+          && request.resource.data.version is string
+          && request.resource.data.version.matches('^[0-9]+[.][0-9]+[.][0-9]+$')
+          && request.resource.data.version.size() <= 40
+          && request.resource.data.policy in ['approved', 'paused']
+          && request.resource.data.notBefore is timestamp
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if isKioskAdmin(libraryId);
+      }
+
+      // ── PUBLIC CATALOG (students browse availability without auth) ────
+      match /public/catalog {
+        allow read: if true;
+        // Written by kiosk via anonymous auth (aggregate sync, no PII)
+        allow create, update: if request.auth != null && isPublicCatalog();
+        allow delete: if false;
+      }
+
+      // ── RESTRICTED CIRCULATION (PII — staff/kiosk only) ────────────
+      match /restricted/circulation {
+        allow read: if isStaff();
+        // Written by kiosk (needs active registration) or staff
+        allow create, update: if isStaffOrKiosk(libraryId);
+        allow delete: if false;
+      }
+
+      // ── MAIN SYNC DOCUMENT (legacy path — kept for transition) ─────
+      //     Contains aggregated stats + catalog (no PII after PRB-03 split)
+      //     Written via ANONYMOUS auth — no kiosk claim required
+      // Old deployed root documents may still contain borrower data. Keep them
+      // staff-only until a replacement sync removes those fields on the server.
+      allow read: if isStaff();
+
+      allow create, update: if request.auth != null && isPublicCatalog();
+
+      allow delete: if false;
+
+
+      // ── CONTROL FLAG (admin sets exam suspend, librarian + students read) ──
+      match /meta/control {
+        allow read: if true;
+
+        // ONLY staff (verified @staff.example) may toggle issuance_suspended
+        // Kiosk explicitly EXCLUDED — physical desk cannot suspend issuance remotely
+        // Anonymous auth EXCLUDED
+        allow create, update: if isStaff()
+          && request.resource.data.keys().hasAll([
+            'issuance_suspended', 'suspend_reason',
+            'updated_at', 'updated_by'
+          ])
+          && request.resource.data.issuance_suspended is bool
+          && request.resource.data.suspend_reason is string
+          && request.resource.data.suspend_reason.size() <= 200
+          && request.resource.data.updated_by in ['admin'];
+
+        allow delete: if false;
+      }
+
+
+      // ── AUTHORIZED STUDENTS (staff-managed access + group list) ──
+      match /authorized_students/{studentEmail} {
+        allow read: if request.auth != null;
+
+        allow create, update: if isStaff()
+          && request.resource.data.keys().hasAll(['email', 'name', 'group', 'added_by', 'added_at'])
+          && request.resource.data.email is string
+          && request.resource.data.email == studentEmail
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 100
+          && request.resource.data.group in ['Regular', 'Literary Club', 'Editorial Board'];
+
+        allow delete: if isStaff();
+      }
+
+
+      // ── STUDENT LOGINS (self-reported profile at first sign-in) ──
+      match /student_logins/{studentEmail} {
+        allow read: if request.auth != null;
+
+        allow create, update: if request.auth != null
+          && request.auth.token.email == studentEmail
+          && request.resource.data.keys().hasAll(['email', 'name', 'class', 'section', 'adm_no', 'first_login_at', 'last_login_at'])
+          && request.resource.data.email == studentEmail
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100
+          && request.resource.data.class is string   && request.resource.data.class.size()   <= 20
+          && request.resource.data.section is string && request.resource.data.section.size() <= 10
+          && request.resource.data.adm_no is string  && request.resource.data.adm_no.size()  <= 40;
+
+        allow delete: if isStaff();
+      }
+
+
+      // ── LIBRARIAN → ADMIN NOTIFICATIONS ──────────────────────────
+      match /notifications/{notifId} {
+        allow read: if isStaffOrKiosk(libraryId);
+
+        // Registered kiosk or staff can create notifications to admin
+        // Anonymous cannot
+        allow create: if isStaffOrKiosk(libraryId)
+          && request.resource.data.keys().hasAll([
+            'from', 'to', 'type', 'subject', 'body',
+            'read', 'timestamp', 'timestamp_iso'
+          ])
+          && request.resource.data.from    == 'librarian'
+          && request.resource.data.to      == 'admin'
+          && request.resource.data.type    in ['MESSAGE', 'ALERT', 'WARNING']
+          && request.resource.data.subject is string
+          && request.resource.data.body    is string
+          && request.resource.data.subject.size() > 0
+          && request.resource.data.subject.size() <= 200
+          && request.resource.data.body.size()    <= 2000;
+
+        allow update: if isStaffOrKiosk(libraryId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+
+        allow delete: if false;
+      }
+
+
+      // ── ADMIN → LIBRARIAN NOTIFICATIONS ──────────────────────────
+      match /admin_notifications/{notifId} {
+        allow read: if isStaffOrKiosk(libraryId);
+
+        // Only staff (admin) can create notifications to librarian
+        allow create: if isStaff()
+          && request.resource.data.keys().hasAll([
+            'from', 'to', 'type', 'subject', 'body',
+            'read', 'timestamp', 'timestamp_iso'
+          ])
+          && request.resource.data.from    == 'admin'
+          && request.resource.data.to      == 'librarian'
+          && request.resource.data.type    in ['MESSAGE', 'ALERT', 'WARNING']
+          && request.resource.data.subject is string
+          && request.resource.data.body    is string
+          && request.resource.data.subject.size() > 0
+          && request.resource.data.subject.size() <= 200
+          && request.resource.data.body.size()    <= 2000;
+
+        // Kiosk or staff can mark as read
+        allow update: if isStaffOrKiosk(libraryId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+
+        allow delete: if false;
+      }
+
+      // Student messages are protected content; push carries only a generic alert.
+      match /student_messages/{messageId} {
+        allow get, list: if isStaff() || (request.auth != null
+          && request.auth.token.email_verified == true
+          && request.auth.token.email == resource.data.recipient_email
+          && exists(/databases/$(database)/documents/libraries/$(libraryId)/authorized_students/$(request.auth.token.email)));
+        allow create: if isStaff()
+          && request.resource.data.keys().hasOnly(['recipient_email', 'eventType', 'body', 'timestamp'])
+          && request.resource.data.keys().hasAll(['recipient_email', 'eventType', 'body', 'timestamp'])
+          && request.resource.data.recipient_email is string
+          && request.resource.data.recipient_email.size() <= 320
+          && exists(/databases/$(database)/documents/libraries/$(libraryId)/authorized_students/$(request.resource.data.recipient_email))
+          && request.resource.data.eventType == 'STUDENT_MESSAGE'
+          && request.resource.data.body is string
+          && request.resource.data.body.size() > 0
+          && request.resource.data.body.size() <= 2000
+          && request.resource.data.timestamp == request.time;
+        allow update, delete: if false;
+      }
+
+      // ── STUDENT BOOK REQUESTS ────────────────────────────────────
+      match /book_requests/{requestId} {
+
+        allow read: if isStaffOrKiosk(libraryId) || (request.auth != null
+          && request.auth.token.email_verified == true
+          && request.auth.token.email == resource.data.requester_email);
+
+        // Students create requests (validated against their authorized_students record)
+        allow create: if request.auth != null
+          && request.resource.data.keys().hasAll([
+            'adm_no', 'student_name', 'class', 'section', 'group',
+            'book_access_no', 'book_title', 'priority',
+            'note', 'status', 'timestamp', 'timestamp_iso',
+            'requester_email'
+          ])
+          && request.resource.data.requester_email == request.auth.token.email
+          && request.resource.data.adm_no.size()        > 0  && request.resource.data.adm_no.size()        <= 40
+          && request.resource.data.student_name.size()  > 0  && request.resource.data.student_name.size()  <= 100
+          && request.resource.data.class.size()         <= 20
+          && request.resource.data.section.size()       <= 10
+          && request.resource.data.book_access_no.size() > 0 && request.resource.data.book_access_no.size() <= 40
+          && request.resource.data.book_title.size()     > 0 && request.resource.data.book_title.size()     <= 200
+          && request.resource.data.priority is bool
+          && request.resource.data.note.size()           <= 300
+          && request.resource.data.status                == 'Pending'
+          && (
+               // Staff/Teacher — auto-verified by domain, always priority
+               (isStaff()
+                 && request.resource.data.group == 'Staff'
+                 && request.resource.data.priority == true)
+               ||
+               // Verified student — group MUST match authorized_students record
+               (exists(/databases/$(database)/documents/libraries/$(libraryId)/authorized_students/$(request.auth.token.email))
+                 && request.resource.data.group ==
+                      get(/databases/$(database)/documents/libraries/$(libraryId)/authorized_students/$(request.auth.token.email)).data.group
+                 && request.resource.data.priority ==
+                      (request.resource.data.group in ['Literary Club', 'Editorial Board']))
+             );
+
+        // UPDATE:
+        // - Staff or Kiosk (with active registration) can transition to Approved/Declined/Issued
+        // - Student can ONLY transition their own Pending → Cancelled
+        // - Anonymous CANNOT update (prevents student self-approval via signInAnonymously)
+        allow update: if
+          // Case A: Staff or Kiosk — full status transitions
+          (isStaffOrKiosk(libraryId)
+            && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['status', 'decision_note', 'decided_at', 'decided_at_iso'])
+            && request.resource.data.status in ['Pending', 'Approved', 'Declined', 'Issued'])
+          ||
+          // Case B: Student requester — ONLY cancel own pending request
+          (request.auth != null
+            && request.auth.token.email == resource.data.requester_email
+            && resource.data.status == 'Pending'
+            && request.resource.data.status == 'Cancelled'
+            && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['status', 'decision_note', 'decided_at', 'decided_at_iso']));
+
+        // Delete: Staff only
+        allow delete: if isStaff();
+      }
+    }
+
+
+    match /kiosk_admins/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list, write: if false;
+    }
+
+    // Metadata only: never store passwords or password hashes here.
+    match /kiosk_accounts/{uid} {
+      allow get: if request.auth != null &&
+        (request.auth.uid == uid || isKioskAdmin(resource.data.libraryId));
+      allow list: if isKioskAdmin(resource.data.libraryId);
+      allow create: if isKioskAdmin(request.resource.data.libraryId)
+        && request.resource.data.keys().hasAll(['email', 'label', 'libraryId', 'active', 'createdBy', 'createdAt', 'revokedBy', 'revokedAt'])
+        && request.resource.data.keys().hasOnly(['email', 'label', 'libraryId', 'active', 'createdBy', 'createdAt', 'revokedBy', 'revokedAt'])
+        && request.resource.data.email is string
+        && request.resource.data.email.matches('^kiosk-[a-f0-9]{32}@kiosk[.]tomeva[.]invalid$')
+        && request.resource.data.label is string
+        && request.resource.data.label.size() > 0 && request.resource.data.label.size() <= 80
+        && request.resource.data.active == true
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.revokedBy == null && request.resource.data.revokedAt == null;
+      allow update: if isKioskAdmin(resource.data.libraryId)
+        && resource.data.active == true
+        && request.resource.data.active == false
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active', 'revokedBy', 'revokedAt'])
+        && request.resource.data.revokedBy == request.auth.uid
+        && request.resource.data.revokedAt == request.time;
+      allow delete: if false;
+    }
+
+    // ── KIOSK REGISTRY (server-side only, Admin SDK) ────────────────
+    //     Stores provisioned workstation secrets for mintKioskToken
+    //     NEVER readable/writable by clients
+    match /kiosk_registry/{workstationId} {
+      allow read, write: if false;  // Admin SDK only
+    }
+
+
+    // ── DENY ALL OTHER COLLECTIONS ──────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

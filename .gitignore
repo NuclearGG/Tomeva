@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+node_modules-*/
+
+# Build output and packaged apps
+.firebase/
+dist/
+build/
+out/
+release/
+*.exe
+*.blockmap
+builder-debug.yml
+builder-effective-config.yaml
+effectiveConfig/
+
+# Logs and runtime output
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+firebase-debug.log
+test-results/
+coverage/
+
+# Local config and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+serviceAccount*.json
+credentials*.json
+secrets*.json
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

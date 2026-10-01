@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com; img-src 'self' data:; base-uri 'self'; form-action 'self';">
+  <title>Tomeva</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar">
+      <div class="sidebar-logo">
+        <img src="assets/logo.png" alt="Tomeva" class="logo-image">
+        <p>Library Management</p>
+      </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item" data-page="dashboard">
+        <span class="nav-icon">🏠</span> Dashboard
+      </button>
+
+      <div class="nav-divider"></div>
+      <button class="nav-item" data-page="issue">
+        <span class="nav-icon">📤</span> Issue Book
+      </button>
+      <button class="nav-item" data-page="return">
+        <span class="nav-icon">📥</span> Return Book
+      </button>
+      <button class="nav-item" data-page="fines">
+        <span class="nav-icon">💰</span> Fines
+      </button>
+      <button class="nav-item" data-page="damage">
+        <span class="nav-icon">⚠️</span> Report Damage
+      </button>
+
+      <div class="nav-divider"></div>
+      <button class="nav-item" data-page="search">
+        <span class="nav-icon">🔍</span> Search
+      </button>
+      <button class="nav-item" data-page="records">
+        <span class="nav-icon">📋</span> Records
+      </button>
+      <button class="nav-item" data-page="books">
+        <span class="nav-icon">📚</span> Book Catalogue
+      </button>
+      <button class="nav-item" data-page="students">
+        <span class="nav-icon">🎓</span> Students
+      </button>
+
+      <div class="nav-divider"></div>
+      <button class="nav-item" data-page="requests">
+        <span class="nav-icon">📩</span> Book Requests
+        <span id="requests-nav-badge" class="notif-nav-badge" style="display:none">0</span>
+      </button>
+      <button class="nav-item" data-page="notifications">
+        <span class="nav-icon">🔔</span> Notifications
+        <span id="notif-badge" class="notif-nav-badge" style="display:none">0</span>
+      </button>
+      <button class="nav-item" data-page="settings">
+        <span class="nav-icon">⚙️</span> Settings
+      </button>
+    </nav>
+    <div class="sidebar-sync-panel">
+      <div id="sync-status-badge" class="sync-badge sync-idle">Sync Ready</div>
+      <div id="last-sync-time" class="sync-last-time">Not synced yet</div>
+      <button class="sync-manual-btn" onclick="FirebaseSync.syncNow(true)">↑ Sync Now</button>
+      <button id="workstation-lock-shortcut" class="sync-manual-btn" type="button" hidden>🔒 Lock workstation · Ctrl+L</button>
+    </div>
+  </aside>
+
+  <!-- ══ MAIN ══ -->
+  <div class="main-content">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="page-title-area">
+        <h2>Dashboard</h2>
+        <p>Overview of library activity</p>
+      </div>
+      <div class="topbar-right">
+        <div class="search-bar">
+          <span>🔍</span>
+          <input id="topbar-search" type="text" placeholder="Quick search…">
+        </div>
+      </div>
+    </div>
+
+    <!-- Suspend Banner (shown when admin pauses issuance) -->
+    <div id="suspend-banner" style="display:none"></div>
+
+    <!-- Page Body -->
+    <div class="page-body">
+
+      <!-- ══════════════════ DASHBOARD ══════════════════ -->
+      <div id="page-dashboard" class="page-view">
+
+        <div class="stat-grid">
+          <div class="stat-card blue">
+            <span class="stat-icon">📤</span>
+            <div class="stat-value" id="stat-issued">0</div>
+            <div class="stat-label">Currently Issued</div>
+          </div>
+          <div class="stat-card coral">
+            <span class="stat-icon">⏰</span>
+            <div class="stat-value" id="stat-overdue">0</div>
+            <div class="stat-label">Overdue Books</div>
+          </div>
+          <div class="stat-card green">
+            <span class="stat-icon">📥</span>
+            <div class="stat-value" id="stat-returned">0</div>
+            <div class="stat-label">Returned Today</div>
+          </div>
+          <div class="stat-card yellow">
+            <span class="stat-icon">💰</span>
+            <div class="stat-value" id="stat-fines">₹0</div>
+            <div class="stat-label">Pending Fines</div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="action-cards">
+          <div class="action-card blue" onclick="navigate('issue')">
+            <span class="action-card-icon">📤</span>
+            <h3>Issue a Book</h3>
+            <p>Lend a book to a student. Auto-generates due date and records the transaction.</p>
+          </div>
+          <div class="action-card green" onclick="navigate('return')">
+            <span class="action-card-icon">📥</span>
+            <h3>Return a Book</h3>
+            <p>Process a return. Detects borrower automatically and calculates any late fines.</p>
+          </div>
+          <div class="action-card yellow" onclick="navigate('fines')">
+            <span class="action-card-icon">💰</span>
+            <h3>Manage Fines</h3>
+            <p>View pending fines and mark them as paid when collected.</p>
+          </div>
+          <div class="action-card coral" onclick="navigate('damage')">
+            <span class="action-card-icon">⚠️</span>
+            <h3>Report Damage</h3>
+            <p>Record a damaged book, set severity, and add repair notes.</p>
+          </div>
+        </div>
+
+        <!-- Overdue -->
+        <div class="list-card">
+          <div class="list-card-header">
+            <div>
+              <div class="card-title">⏰ Overdue Books</div>
+              <div class="card-subtitle">Books past their due date</div>
+            </div>
+          </div>
+          <div style="padding:16px 24px">
+            <div id="overdue-list" class="search-results-list"></div>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="list-card">
+          <div class="list-card-header">
+            <div>
+              <div class="card-title">📋 Recent Activity</div>
+              <div class="card-subtitle">Latest 8 transactions</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="navigate('records')">View All →</button>
+          </div>
+          <div class="table-wrap">
+            <div id="recent-list"></div>
+          </div>
+        </div>
+
+      </div><!-- /dashboard -->
+
+
+      <!-- ══════════════════ ISSUE ══════════════════ -->
+      <div id="page-issue" class="page-view">
+        <div class="grid-2">
+
+          <div class="card" id="issue-card">
+            <div class="card-header">
+              <div>
+                <div class="card-title" id="issue-card-title">📤 Issue a Book</div>
+                <div class="card-subtitle" id="issue-card-subtitle">Enter student and book details</div>
+              </div>
+            </div>
+
+            <!-- Student / Teacher toggle -->
+            <div class="issue-mode-toggle">
+              <button type="button" class="issue-mode-btn active" id="issue-mode-student-btn" onclick="setIssueMode('student')">
+                🎓 Student
+              </button>
+              <button type="button" class="issue-mode-btn" id="issue-mode-teacher-btn" onclick="setIssueMode('teacher')">
+                👨‍🏫 Teacher
+              </button>
+            </div>
+
+            <!-- STUDENT FORM -->
+            <div id="issue-form-student">
+              <div class="form-group">
+                <label>ADM No (Admission Number)</label>
+                <input id="issue-student-id" type="text" placeholder="e.g. ADM001" autocomplete="off">
+                <p id="student-preview" class="field-hint"></p>
+              </div>
+            </div>
+
+            <!-- TEACHER FORM -->
+            <div id="issue-form-teacher" style="display:none">
+              <div class="form-group">
+                <label>Teacher Name</label>
+                <input id="issue-teacher-name" type="text" placeholder="e.g. Mrs. Anjali Rao" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label>Email <span style="font-weight:400; color:var(--text-light)">(optional)</span></label>
+                <input id="issue-teacher-email" type="email" placeholder="e.g. anjali.rao@meacademy.in" autocomplete="off">
+              </div>
+              <div class="alert alert-info" style="margin-bottom:16px">
+                <span class="alert-icon">ℹ️</span>
+                <span>Staff loans have <strong>no due date</strong> — the book stays issued until manually returned, and no fine ever applies.</span>
+              </div>
+            </div>
+
+            <!-- SHARED: book field -->
+            <div class="form-group">
+              <label>Access No</label>
+              <input id="issue-book-id" type="text" placeholder="e.g. F099/01" autocomplete="off">
+              <p id="book-preview" class="field-hint"></p>
+            </div>
+
+            <div id="issue-result" class="result-box"></div>
+
+            <div id="issue-override-row" style="display:none; margin-bottom:12px">
+              <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--coral-dark); cursor:pointer; font-weight:600">
+                <input type="checkbox" id="issue-override-check" style="width:16px; height:16px; cursor:pointer">
+                Override suspension and issue anyway
+              </label>
+            </div>
+            <div class="mt-16">
+              <button id="issue-btn" class="btn btn-blue btn-full btn-lg">📤 Issue Book</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="card" id="issue-info-card" style="background:var(--blue); border-color:var(--blue-mid)">
+              <div class="card-title" id="issue-info-title" style="color:var(--blue-dark); margin-bottom:14px">How to Issue</div>
+              <ol id="issue-info-steps" style="padding-left:18px; color:var(--text-muted); font-size:14px; line-height:2">
+                <li>Enter the <strong>ADM No</strong> (from student card)</li>
+                <li>Enter the <strong>Access No</strong> (from inside book cover)</li>
+                <li>Verify the name shown below the field</li>
+                <li>Click <strong>Issue Book</strong></li>
+              </ol>
+              <hr class="sep">
+              <div id="issue-info-terms" style="font-size:13px; color:var(--text-muted)">
+                <strong style="color:var(--blue-dark)">Loan Period:</strong> <span id="loan-days-display">14</span> days<br>
+                <strong style="color:var(--blue-dark)">Fine:</strong> ₹<span id="fine-rate-display">2</span> per day after due date
+              </div>
+            </div>
+
+            <div class="card" id="quick-lookup-card" style="margin-top:16px">
+              <div class="card-title" style="margin-bottom:14px">🔍 Quick Student Lookup</div>
+              <div class="form-group" style="margin-bottom:10px">
+                <input type="text" id="quick-student-search" placeholder="Search student name or ID…" oninput="quickStudentSearch(this.value)">
+              </div>
+              <div id="quick-student-results"></div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /issue -->
+
+
+      <!-- ══════════════════ RETURN ══════════════════ -->
+      <div id="page-return" class="page-view">
+        <div class="grid-2">
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">📥 Return a Book</div>
+                <div class="card-subtitle">Process a book return</div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Access No</label>
+              <input id="return-book-id" type="text" placeholder="e.g. F099/01" autocomplete="off">
+              <div id="return-book-preview" class="field-hint" style="line-height:1.7; margin-top:6px"></div>
+            </div>
+
+            <div id="return-result" class="result-box"></div>
+
+            <div class="mt-16">
+              <button id="return-btn" class="btn btn-green btn-full btn-lg">📥 Process Return</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="card" style="background:var(--green); border-color:var(--green-mid)">
+              <div class="card-title" style="color:var(--green-dark); margin-bottom:14px">About Returns</div>
+              <ul style="padding-left:18px; color:var(--text-muted); font-size:14px; line-height:2">
+                <li>Borrower is detected <strong>automatically</strong></li>
+                <li>Fine is calculated if overdue</li>
+                <li>Book status resets to <strong>Available</strong></li>
+                <li>Pending fine moves to Fines section</li>
+              </ul>
+            </div>
+
+            <div class="card" style="margin-top:16px">
+              <div class="card-title" style="margin-bottom:14px">📋 Currently Issued</div>
+              <div id="currently-issued-list" style="font-size:13px; color:var(--text-muted)">
+                Loading…
+              </div>
+              <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="_loadCurrentlyIssued()">Refresh</button>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /return -->
+
+
+      <!-- ══════════════════ FINES ══════════════════ -->
+      <div id="page-fines" class="page-view">
+
+        <div class="grid-2">
+          <div class="card" style="background:var(--yellow); border-color:var(--yellow-mid); flex-direction:row; display:flex; align-items:center; justify-content:space-between; padding:22px 28px">
+            <div>
+              <div style="font-size:13px; color:var(--yellow-dark); font-weight:600; text-transform:uppercase; letter-spacing:0.05em">Total Pending Fines</div>
+              <div style="font-family:'Fraunces',serif; font-size:38px; font-weight:700; color:var(--yellow-dark)" id="total-fines-due">₹0</div>
+            </div>
+            <span style="font-size:48px">💰</span>
+          </div>
+          <div class="card" style="background:var(--green); border-color:var(--green-mid); flex-direction:row; display:flex; align-items:center; justify-content:space-between; padding:22px 28px">
+            <div>
+              <div style="font-size:13px; color:var(--green-dark); font-weight:600; text-transform:uppercase; letter-spacing:0.05em">Total Collected (All-time)</div>
+              <div style="font-family:'Fraunces',serif; font-size:38px; font-weight:700; color:var(--green-dark)" id="total-fines-collected">₹0</div>
+            </div>
+            <span style="font-size:48px">✅</span>
+          </div>
+        </div>
+
+        <div class="list-card">
+          <div class="list-card-header">
+            <div>
+              <div class="card-title" id="fines-list-title">Pending Fines</div>
+              <div class="card-subtitle" id="fines-list-subtitle">Click "Mark Paid" after collecting the fine</div>
+            </div>
+            <div class="flex gap-8">
+              <button class="btn btn-ghost btn-sm" id="fines-tab-pending" onclick="switchFinesTab('pending')">Pending</button>
+              <button class="btn btn-ghost btn-sm" id="fines-tab-collected" onclick="switchFinesTab('collected')">Collected</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Txn ID</th>
+                  <th>Student</th>
+                  <th>Book</th>
+                  <th>Returned On</th>
+                  <th>Fine Amount</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="fines-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /fines -->
+
+
+      <!-- ══════════════════ DAMAGE ══════════════════ -->
+      <div id="page-damage" class="page-view">
+        <div class="grid-2">
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">⚠️ Report Damage</div>
+                <div class="card-subtitle">Record a damaged book</div>
+              </div>
+            </div>
+
+            <div id="damage-form">
+              <div class="form-group">
+                <label>Access No</label>
+                <input id="damage-book-id" type="text" placeholder="e.g. F099/01" autocomplete="off">
+                <p id="damage-book-preview" class="field-hint"></p>
+              </div>
+
+              <div class="form-group">
+                <label>Damage Description</label>
+                <textarea id="damage-desc" placeholder="Describe the damage in detail…"></textarea>
+              </div>
+
+              <div class="form-group">
+                <label>Severity</label>
+                <div class="severity-chips">
+                  <div class="severity-chip selected" data-severity="Minor Damage">Minor Damage</div>
+                  <div class="severity-chip" data-severity="Repair Needed">Repair Needed</div>
+                  <div class="severity-chip" data-severity="Unusable">Unusable / Lost</div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Repair Notes <span style="font-weight:400;color:var(--text-light)">(optional)</span></label>
+                <input id="damage-notes" type="text" placeholder="e.g. Needs binding repair">
+              </div>
+
+              <div class="form-group">
+                <label>Responsible Student ID <span style="font-weight:400;color:var(--text-light)">(optional)</span></label>
+                <input id="damage-responsible" type="text" placeholder="e.g. DB-10A-001">
+              </div>
+            </div>
+
+            <button id="damage-submit" class="btn btn-coral btn-full btn-lg">⚠️ Submit Damage Report</button>
+          </div>
+
+          <div>
+            <div class="card" style="background:var(--coral); border-color:var(--coral-mid)">
+              <div class="card-title" style="color:var(--coral-dark); margin-bottom:14px">Severity Guide</div>
+              <div style="font-size:13.5px; color:var(--text-muted); display:flex; flex-direction:column; gap:12px;">
+                <div><strong style="color:var(--coral-dark)">Minor Damage</strong><br>Torn pages, pen marks, scuffed cover. Book still usable.</div>
+                <div><strong style="color:var(--coral-dark)">Repair Needed</strong><br>Broken spine, missing pages, severe water damage. Needs workshop.</div>
+                <div><strong style="color:var(--coral-dark)">Unusable / Lost</strong><br>Book is destroyed or cannot be found. Will be marked as Lost.</div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:16px">
+              <div class="card-header" style="margin-bottom:14px">
+                <div>
+                  <div class="card-title">📋 Damaged Books</div>
+                  <div class="card-subtitle">Click Restore after repair is complete</div>
+                </div>
+              </div>
+              <div id="damaged-books-list"></div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /damage -->
+
+
+      <!-- ══════════════════ SEARCH ══════════════════ -->
+      <div id="page-search" class="page-view">
+        <div class="card">
+          <div class="form-group" style="margin-bottom:0">
+            <div class="search-bar" style="padding:14px 18px; border-radius:14px">
+              <span style="font-size:18px">🔍</span>
+              <input id="global-search-input" type="text" placeholder="Search by book title, book ID, author, student name, or student ID…" style="width:100%; font-size:15px">
+            </div>
+          </div>
+        </div>
+
+        <div id="search-results" style="display:flex; flex-direction:column; gap:16px"></div>
+      </div><!-- /search -->
+
+
+      <!-- ══════════════════ RECORDS ══════════════════ -->
+      <div id="page-records" class="page-view">
+        <div class="list-card">
+          <div class="list-card-header">
+            <div>
+              <div class="card-title">📋 Transaction Records</div>
+              <div class="card-subtitle">Complete borrowing history</div>
+            </div>
+            <div class="flex gap-8">
+              <select id="records-filter" class="btn btn-ghost btn-sm" style="cursor:pointer">
+                <option value="all">All Transactions</option>
+                <option value="Active">Active</option>
+                <option value="Returned">Returned</option>
+                <option value="FinePending">Fine Pending</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Txn ID</th>
+                  <th>Book</th>
+                  <th>Student</th>
+                  <th>Issued</th>
+                  <th>Due</th>
+                  <th>Returned</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="records-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- /records -->
+
+
+      <!-- ══════════════════ BOOKS ══════════════════ -->
+      <div id="page-books" class="page-view">
+        <div class="list-card">
+          <div class="list-card-header">
+            <div>
+              <div class="card-title">📚 Book Catalogue</div>
+              <div class="card-subtitle">All physical books in the library</div>
+            </div>
+            <div class="flex gap-8">
+              <div class="search-bar" style="padding:8px 14px">
+                <span>🔍</span>
+                <input id="book-search" type="text" placeholder="Search books…">
+              </div>
+              <label class="btn btn-blue btn-sm" style="cursor:pointer" title="Import books from JSON file — replaces current catalogue">
+                ⬆ Import JSON
+                <input id="import-books-file" type="file" accept=".json" style="display:none">
+              </label>
+              <button id="add-book-btn" class="btn btn-primary btn-sm">+ Add Book</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Book ID</th>
+                  <th>Title</th>
+                  <th>Author</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="books-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- /books -->
+
+
+      <!-- ══════════════════ STUDENTS ══════════════════ -->
+      <div id="page-students" class="page-view">
+        <div class="list-card">
+          <div class="list-card-header">
+            <div>
+              <div class="card-title">🎓 Student Records</div>
+              <div class="card-subtitle">All registered students</div>
+            </div>
+            <div class="flex gap-8">
+              <div class="search-bar" style="padding:8px 14px">
+                <span>🔍</span>
+                <input id="student-search" type="text" placeholder="Search students…">
+              </div>
+              <label class="btn btn-blue btn-sm" style="cursor:pointer" title="Import students from JSON file — replaces current list">
+                ⬆ Import JSON
+                <input id="import-students-file" type="file" accept=".json" style="display:none">
+              </label>
+              <button id="add-student-btn" class="btn btn-primary btn-sm">+ Add Student</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ADM No</th>
+                  <th>Name</th>
+                  <th>Class</th>
+                  <th>Roll No</th>
+                  <th>Group</th>
+                  <th>Books Issued</th>
+                  <th>Overdue</th>
+                </tr>
+              </thead>
+              <tbody id="students-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- /students -->
+
+
+      <!-- ══════════════════ BOOK REQUESTS ══════════════════ -->
+      <div id="page-requests" class="page-view">
+
+        <div class="card" style="background:var(--purple); border-color:var(--purple-mid); display:flex; align-items:center; justify-content:space-between; padding:22px 28px">
+          <div>
+            <div style="font-size:13px; color:var(--purple-dark); font-weight:600; text-transform:uppercase; letter-spacing:0.05em">Pending Requests</div>
+            <div style="font-family:'Fraunces',serif; font-size:38px; font-weight:700; color:var(--purple-dark)" id="requests-pending-count">0</div>
+          </div>
+          <span style="font-size:48px">📩</span>
+        </div>
+
+        <div class="list-card">
+          <div class="list-card-header">
+            <div>
+              <div class="card-title">📩 Student Book Requests</div>
+              <div class="card-subtitle">Priority requests (Literary Club / Editorial Board) are shown first</div>
+            </div>
+            <div class="flex gap-8">
+              <select id="requests-filter" class="btn btn-ghost btn-sm" style="cursor:pointer">
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Declined">Declined</option>
+                <option value="Issued">Issued</option>
+                <option value="all">All</option>
+              </select>
+            </div>
+          </div>
+          <div style="padding:16px 24px">
+            <div id="requests-list">
+              <div class="empty-state"><span class="empty-icon">📩</span><h4>Loading requests…</h4></div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /requests -->
+
+      <!-- ══════════════════ NOTIFICATIONS ══════════════════ -->
+      <div id="page-notifications" class="page-view">
+
+        <!-- Compose panel -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">✉️ Send Message to Admin</div>
+              <div class="card-subtitle">Messages are delivered to the admin dashboard via Firebase</div>
+            </div>
+          </div>
+          <div class="grid-2" style="gap:16px; align-items:start">
+            <div>
+              <div class="form-group">
+                <label>Message Type</label>
+                <div class="notif-type-chips">
+                  <div class="notif-type-chip selected" data-type="MESSAGE">💬 Message</div>
+                  <div class="notif-type-chip" data-type="ALERT">🚨 Alert</div>
+                  <div class="notif-type-chip" data-type="WARNING">⚠️ Warning</div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Subject</label>
+                <input id="notif-subject" type="text" placeholder="Brief subject line…">
+              </div>
+              <div class="form-group">
+                <label>Message</label>
+                <textarea id="notif-body" placeholder="Type your message to the admin…" style="min-height:100px"></textarea>
+              </div>
+              <button id="send-notif-btn" class="btn btn-primary btn-full">✉️ Send to Admin</button>
+            </div>
+            <div class="card" style="background:var(--blue); border-color:var(--blue-mid); margin:0">
+              <div class="card-title" style="color:var(--blue-dark); margin-bottom:12px">Message Types</div>
+              <div style="display:flex; flex-direction:column; gap:12px; font-size:13.5px; color:var(--text-muted)">
+                <div><strong style="color:var(--blue-dark)">💬 Message</strong><br>General information, routine updates, requests.</div>
+                <div><strong style="color:var(--coral-dark)">🚨 Alert</strong><br>Urgent matters requiring immediate attention.</div>
+                <div><strong style="color:var(--yellow-dark)">⚠️ Warning</strong><br>Issues that need follow-up — overdue, damage, policy.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Incoming from Admin -->
+        <div class="list-card">
+          <div class="list-card-header">
+            <div>
+              <div class="card-title">📥 From Admin</div>
+              <div class="card-subtitle">Messages, alerts and warnings sent by the Principal / Vice Principal</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="loadIncomingNotifications()">↻ Refresh</button>
+          </div>
+          <div style="padding:16px 24px">
+            <div id="incoming-notif-list">
+              <div class="empty-state">
+                <span class="empty-icon">🔔</span>
+                <h4>No notifications yet</h4>
+                <p>Messages from the admin will appear here.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sent history -->
+        <div class="list-card">
+          <div class="list-card-header">
+            <div>
+              <div class="card-title">📤 Sent Messages</div>
+              <div class="card-subtitle">Messages you sent to the admin</div>
+            </div>
+          </div>
+          <div style="padding:16px 24px">
+            <div id="sent-notif-list">
+              <div class="empty-state">
+                <span class="empty-icon">📭</span>
+                <h4>No messages sent yet</h4>
+                <p>Your sent messages will appear here.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /notifications -->
+
+      <!-- ══════════════════ SETTINGS ══════════════════ -->
+      <div id="page-settings" class="page-view">
+
+        <div class="card workstation-settings">
+          <div class="card-title">🔒 Workstation Lock</div>
+          <p class="card-subtitle">Set a local 4-digit PIN to protect the desk when unattended. Unlocking works offline.</p>
+          <form id="workstation-pin-form" class="workstation-pin-form">
+            <label>New PIN <input id="workstation-new-pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" required></label>
+            <label>Current PIN <span id="workstation-current-label">(when changing)</span><input id="workstation-current-pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off"></label>
+            <label>Lock after inactivity <select id="workstation-idle-minutes"><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="15">15 minutes</option></select></label>
+            <button class="btn btn-primary" type="submit">Save PIN</button>
+            <button id="workstation-lock-now" class="btn btn-ghost" type="button" hidden>Lock now</button>
+          </form>
+          <p id="workstation-pin-status" class="workstation-pin-status" role="status"></p>
+        </div>
+
+        <div class="grid-2">
+
+          <div class="card">
+            <div class="card-title" style="margin-bottom:20px">⚙️ Library Configuration</div>
+
+            <div class="settings-row">
+              <div class="settings-label">
+                <h4>Fine Per Day</h4>
+                <p>Amount charged per day a book is overdue</p>
+              </div>
+              <div class="fine-rate-box">
+                <span>₹</span>
+                <input id="fine-rate" type="number" min="0" step="0.5" class="form-group" style="margin:0; padding:8px 12px; width:80px; border-radius:8px; border:1.5px solid var(--cream-dark); font-family:'DM Sans',sans-serif; font-size:14px; outline:none">
+                <span>/ day</span>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <div class="settings-label">
+                <h4>Loan Period</h4>
+                <p>Default number of days a book can be borrowed</p>
+              </div>
+              <div class="fine-rate-box">
+                <input id="loan-days" type="number" min="1" class="form-group" style="margin:0; padding:8px 12px; width:80px; border-radius:8px; border:1.5px solid var(--cream-dark); font-family:'DM Sans',sans-serif; font-size:14px; outline:none">
+                <span>days</span>
+              </div>
+            </div>
+
+            <div style="margin-top:20px">
+              <button id="save-settings" class="btn btn-primary">Save Settings</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title" style="margin-bottom:20px">💾 Backup & Restore</div>
+
+            <div class="settings-row">
+              <div class="settings-label">
+                <h4>Download Backup</h4>
+                <p>Save a complete database backup as a JSON file</p>
+              </div>
+              <button id="backup-btn" class="btn btn-blue btn-sm">⬇ Backup</button>
+            </div>
+
+            <div class="settings-row">
+              <div class="settings-label">
+                <h4>Restore from Backup</h4>
+                <p>Load a previously saved JSON backup file</p>
+              </div>
+              <label class="btn btn-green btn-sm" style="cursor:pointer">
+                ⬆ Restore
+                <input id="restore-file" type="file" accept=".json" style="display:none">
+              </label>
+            </div>
+
+            <div class="settings-row">
+              <div class="settings-label">
+                <h4>Undo Last Transaction</h4>
+                <p>Reverse the most recent issue or return</p>
+              </div>
+              <button id="undo-btn" class="btn btn-coral btn-sm">↩ Undo</button>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-header">
+            <div>
+              <div class="card-title">📜 Activity Log</div>
+              <div class="card-subtitle">Every issue, return, damage report, restore, and fine payment is written to a log file on disk</div>
+            </div>
+            <button class="btn btn-blue btn-sm" onclick="openActivityLogFolder()">📂 Open Log Folder</button>
+          </div>
+
+          <div class="sync-info-grid" id="log-stats-grid">
+            <div class="sync-info-card">
+              <div class="sic-label">This Month's File</div>
+              <div class="sic-value" id="log-current-file" style="font-size:13px; font-family:'DM Sans'">—</div>
+            </div>
+            <div class="sync-info-card">
+              <div class="sic-label">Entries Logged</div>
+              <div class="sic-value" id="log-entry-count">—</div>
+            </div>
+            <div class="sync-info-card">
+              <div class="sic-label">File Size</div>
+              <div class="sic-value" id="log-file-size">—</div>
+            </div>
+            <div class="sync-info-card">
+              <div class="sic-label">Log Location</div>
+              <div class="sic-value" style="font-size:11px; font-family:'DM Sans'; word-break:break-all" id="log-folder-path">—</div>
+            </div>
+          </div>
+
+          <hr class="sep">
+
+          <div class="flex" style="justify-content:space-between; align-items:center; margin-bottom:10px">
+            <div class="section-title" style="margin:0">Recent Entries</div>
+            <button class="btn btn-ghost btn-sm" onclick="refreshActivityLog()">↻ Refresh</button>
+          </div>
+          <pre id="log-preview" style="background:#2C2416; color:#82D4A8; font-family:monospace; font-size:11.5px; line-height:1.8; padding:16px; border-radius:12px; max-height:260px; overflow-y:auto; white-space:pre-wrap; word-break:break-all">Loading…</pre>
+        </div>
+
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-header">
+            <div>
+              <div class="card-title">☁️ Cloud Sync — Firebase</div>
+              <div class="card-subtitle">Read-only dashboard for Principal &amp; Vice Principal</div>
+            </div>
+            <div class="flex gap-8 flex-center">
+              <div id="sync-status-badge-settings" class="sync-badge sync-idle">Sync Ready</div>
+              <button class="btn btn-blue btn-sm" onclick="FirebaseSync.syncNow(true).then(renderSyncStats)">↑ Sync Now</button>
+            </div>
+          </div>
+
+          <div class="sync-info-grid" id="sync-stats-grid">
+            <div class="sync-info-card">
+              <div class="sic-label">Last Synced</div>
+              <div class="sic-value" id="settings-last-sync">—</div>
+            </div>
+            <div class="sync-info-card">
+              <div class="sic-label">Sync Interval</div>
+              <div class="sic-value">Every 60 min</div>
+            </div>
+            <div class="sync-info-card">
+              <div class="sic-label">Connection</div>
+              <div class="sic-value" id="settings-connection">Checking…</div>
+            </div>
+            <div class="sync-info-card">
+              <div class="sic-label">Firebase Project</div>
+              <div id="sync-project-id" class="sic-value" style="font-size:13px; font-family:'DM Sans'">Not configured</div>
+            </div>
+          </div>
+
+<hr class="sep">
+
+          <div style="margin-bottom:6px">
+            <div class="section-title" style="margin:0 0 4px">🔑 Kiosk Approval Credentials <span style="font-size:11px; color:var(--text-muted); font-weight:400">(one-time setup — unlocks Approve / Decline / Issue)</span></div>
+            <p style="font-size:13px; color:var(--text-muted); line-height:1.7; margin:0 0 10px">
+              Enter the special email and password created in <strong>Admin → Kiosk → Create credential</strong> to unlock request approvals on this machine. Credentials are stored encrypted on this computer. An administrator can revoke approval access at any time; local desk work remains available.
+            </p>
+            <div class="flex gap-8" style="align-items:center; flex-wrap:wrap">
+              <input id="kiosk-email-input" type="email" placeholder="Kiosk account email" autocomplete="off"
+                style="flex:1; min-width:200px; padding:10px 14px; border:1px solid var(--border); border-radius:10px; font-size:14px">
+              <input id="kiosk-password-input" type="password" placeholder="Kiosk account password" autocomplete="off"
+                style="flex:1; min-width:200px; padding:10px 14px; border:1px solid var(--border); border-radius:10px; font-size:14px">
+              <button class="btn btn-blue btn-sm" onclick="saveKioskCreds()">Save & Activate</button>
+              <span id="kiosk-creds-status" style="font-size:13px; color:var(--text-muted)">Checking…</span>
+            </div>
+          </div>
+
+          <hr class="sep">
+
+          <div style="font-size:13px; color:var(--text-muted); line-height:1.9">
+            <strong style="color:var(--text)">What gets synced (read-only for admins):</strong><br>
+            ✅ Books currently issued &nbsp;·&nbsp; ✅ Available books &nbsp;·&nbsp; ✅ Overdue books &nbsp;·&nbsp; ✅ Pending fines &nbsp;·&nbsp; ✅ Damaged books &nbsp;·&nbsp; ✅ Library statistics<br><br>
+            <strong style="color:var(--text)">What stays local only:</strong><br>
+            🔒 Full transaction history &nbsp;·&nbsp; 🔒 Complete student records &nbsp;·&nbsp; 🔒 Administrative controls &nbsp;·&nbsp; 🔒 Editing permissions
+          </div>
+        </div>
+
+        <div class="card" style="background:var(--cream)">
+          <div class="card-title" style="margin-bottom:10px">📌 About this System</div>
+          <p style="font-size:13.5px; color:var(--text-muted); line-height:1.8">
+            This is an <strong>offline-first</strong> library management system built for your school library.
+            It runs entirely on your local computer — no internet required.
+            Data is stored locally and can be backed up at any time using the backup function above.
+            <br><br>
+            <strong>Version:</strong> 1.0 &nbsp;|&nbsp; <strong>Stack:</strong> HTML · CSS · JS (Electron-ready) &nbsp;|&nbsp; <strong>Database:</strong> localStorage (swap for SQLite in Electron)
+          </p>
+        </div>
+
+      </div><!-- /settings -->
+
+    </div><!-- /page-body -->
+  </div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+
+<!-- ══ MODALS ══ -->
+
+<!-- Add Book Modal -->
+<div id="add-book-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">📚 Add New Book</div>
+    <div class="modal-sub">Each physical copy gets its own unique Access Number.</div>
+    <div class="grid-2" style="gap:12px">
+      <div class="form-group">
+        <label>Access No</label>
+        <input id="new-book-id" type="text" placeholder="e.g. F099/09">
+        <p class="field-hint">Must be unique.</p>
+      </div>
+      <div class="form-group">
+        <label>Author</label>
+        <input id="new-book-author" type="text" placeholder="Author name">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Title (Document)</label>
+      <input id="new-book-title" type="text" placeholder="Full book title">
+    </div>
+    <div class="grid-2" style="gap:12px">
+      <div class="form-group">
+        <label>Publisher</label>
+        <input id="new-book-publisher" type="text" placeholder="e.g. Penguin">
+      </div>
+      <div class="form-group">
+        <label>Cost (₹)</label>
+        <input id="new-book-cost" type="text" placeholder="e.g. 250">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Pages</label>
+      <input id="new-book-pages" type="text" placeholder="e.g. 373">
+    </div>
+    <div class="modal-actions">
+      <button id="close-add-book" class="btn btn-ghost">Cancel</button>
+      <button id="save-book-btn" class="btn btn-primary">Add Book</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Student Modal -->
+<div id="add-student-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">🎓 Add New Student</div>
+    <div class="modal-sub">Students are identified by their Admission Number.</div>
+    <div class="grid-2" style="gap:12px">
+      <div class="form-group">
+        <label>ADM No</label>
+        <input id="new-student-adm" type="text" placeholder="e.g. ADM2024001">
+      </div>
+      <div class="form-group">
+        <label>Roll No</label>
+        <input id="new-student-roll" type="text" placeholder="e.g. 23">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Full Name</label>
+      <input id="new-student-name" type="text" placeholder="Student's full name">
+    </div>
+    <div class="form-group">
+      <label>Email (optional, used to match portal authorization)</label>
+      <input id="new-student-email" type="email" placeholder="student@example.com">
+    </div>
+    <div class="grid-2" style="gap:12px">
+      <div class="form-group">
+        <label>Class</label>
+        <input id="new-student-class" type="text" placeholder="10">
+      </div>
+      <div class="form-group">
+        <label>Section</label>
+        <input id="new-student-section" type="text" placeholder="A">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Group / Role</label>
+      <select id="new-student-group">
+        <option value="Regular">Regular Student</option>
+        <option value="Literary Club">Literary Club Member</option>
+        <option value="Editorial Board">Editorial Board Member</option>
+      </select>
+      <p class="field-hint">Club and Board members get priority on the student request portal.</p>
+    </div>
+    <div class="modal-actions">
+      <button id="close-add-student" class="btn btn-ghost">Cancel</button>
+      <button id="save-student-btn" class="btn btn-primary">Add Student</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Restore Book Modal -->
+<div id="restore-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">🔧 Restore Book</div>
+    <div class="modal-sub">Mark this book as repaired and return it to Available status.</div>
+
+    <div class="card" style="background:var(--green); border-color:var(--green-mid); margin-bottom:20px; padding:16px 20px">
+      <div style="font-size:13px; color:var(--text-muted); display:flex; flex-direction:column; gap:6px">
+        <div><strong style="color:var(--text)">Book ID:</strong> <span id="restore-book-id-display" class="td-id"></span></div>
+        <div><strong style="color:var(--text)">Title:</strong> <span id="restore-book-title-display"></span></div>
+        <div><strong style="color:var(--text)">Current Status:</strong>
+          <span id="restore-book-status-display" style="color:var(--coral-dark); font-weight:600"></span>
+          &nbsp;→&nbsp;
+          <span style="color:var(--green-dark); font-weight:600">Available</span>
+        </div>
+      </div>
+    </div>
+
+    <input type="hidden" id="restore-book-id-hidden">
+
+    <div class="form-group">
+      <label>Restoration Notes <span style="font-weight:400; color:var(--text-light)">(optional)</span></label>
+      <textarea id="restore-notes" placeholder="e.g. Binding repaired, spine reinforced, new cover added…"></textarea>
+    </div>
+
+    <div class="alert alert-info" style="margin-bottom:0">
+      <span class="alert-icon">ℹ️</span>
+      <span>This will mark the book as <strong>Available</strong> and it can be issued to students again.</span>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('restore-modal').classList.remove('show')">Cancel</button>
+      <button class="btn btn-green" onclick="confirmRestore()">✅ Confirm Restore</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     SETUP / ONBOARDING OVERLAY
+     Shown on first launch when DB is empty.
+══════════════════════════════════════════ -->
+<div id="setup-overlay">
+  <div class="setup-card">
+
+<div class="setup-logo">
+        <span class="setup-logo-icon">📖</span>
+        <h1 class="setup-title">Welcome to <em>Tomeva</em></h1>
+        <p class="setup-sub">Let's get your library set up. Complete both steps below to begin.</p>
+      </div>
+
+    <div class="setup-steps">
+
+      <!-- Step 1: Books -->
+      <div class="setup-step" id="setup-step-books">
+        <div class="setup-step-header">
+          <div class="setup-step-num">1</div>
+          <div class="setup-step-info">
+            <div class="setup-step-title">📚 Load Book Catalogue</div>
+            <div class="setup-step-desc">Import your book database as a JSON file, or add books one by one.</div>
+          </div>
+          <div class="setup-step-done" id="setup-books-done" style="display:none">
+            <span class="done-icon">✅</span>
+            <span class="done-count" id="setup-book-count">0 books</span>
+          </div>
+        </div>
+
+        <div class="setup-step-body">
+          <div class="setup-format-hint">
+            Expected JSON format:
+            <code class="setup-code">{"access_no":"F099/01","document":"Book Title","author":"Author","publisher":"Publisher","cost":"250","pages":"373"}</code>
+          </div>
+          <div class="setup-actions">
+            <label class="setup-btn setup-btn-primary" title="Import a JSON file containing your book catalogue">
+              ⬆ Import Books JSON
+              <input type="file" id="setup-import-books" accept=".json" style="display:none">
+            </label>
+            <span class="setup-or">or</span>
+            <button class="setup-btn setup-btn-ghost" onclick="document.getElementById('add-book-modal').classList.add('show')">
+              + Add Single Book
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="setup-divider"></div>
+
+      <!-- Step 2: Students -->
+      <div class="setup-step" id="setup-step-students">
+        <div class="setup-step-header">
+          <div class="setup-step-num">2</div>
+          <div class="setup-step-info">
+            <div class="setup-step-title">🎓 Load Student Records</div>
+            <div class="setup-step-desc">Import your student list as a JSON file, or add students one by one.</div>
+          </div>
+          <div class="setup-step-done" id="setup-students-done" style="display:none">
+            <span class="done-icon">✅</span>
+            <span class="done-count" id="setup-student-count">0 students</span>
+          </div>
+        </div>
+
+        <div class="setup-step-body">
+          <div class="setup-format-hint">
+            Expected JSON format:
+            <code class="setup-code">{"adm_no":"ADM001","name":"Student Name","class":"10","section":"A","roll_no":"23"}</code>
+          </div>
+          <div class="setup-actions">
+            <label class="setup-btn setup-btn-primary" title="Import a JSON file containing your student list">
+              ⬆ Import Students JSON
+              <input type="file" id="setup-import-students" accept=".json" style="display:none">
+            </label>
+            <span class="setup-or">or</span>
+            <button class="setup-btn setup-btn-ghost" onclick="document.getElementById('add-student-modal').classList.add('show')">
+              + Add Single Student
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /setup-steps -->
+
+    <div class="setup-footer">
+      You can always import more data later from the <strong>Book Catalogue</strong> and <strong>Students</strong> pages.
+    </div>
+
+  </div><!-- /setup-card -->
+</div><!-- /setup-overlay -->
+
+<div id="workstation-lock-screen" class="workstation-lock-screen" role="dialog" aria-modal="true" aria-labelledby="workstation-lock-title" hidden>
+  <div class="workstation-lock-card">
+    <img src="assets/logo.png" alt="" class="workstation-lock-logo">
+    <h2 id="workstation-lock-title">Workstation locked</h2>
+    <p>Enter the local PIN to resume circulation.</p>
+    <form id="workstation-unlock-form">
+      <label for="workstation-unlock-pin">4-digit PIN</label>
+      <input id="workstation-unlock-pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" required>
+      <button class="btn btn-primary" type="submit">Unlock</button>
+    </form>
+    <p id="workstation-unlock-status" role="alert"></p>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<script>
+  // XSS-safe HTML escaping
+  function _esc(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/`/g, '&#96;');
+  }
+
+  // Quick student search for Issue page
+  function quickStudentSearch(q) {
+    const res = document.getElementById('quick-student-results');
+    if (!q) { res.innerHTML = ''; return; }
+    const students = LibraryDB.searchStudents(q).slice(0, 5);
+    if (!students.length) { res.innerHTML = '<p class="text-sm text-muted">No students found.</p>'; return; }
+    res.innerHTML = students.map(s =>
+      `<div class="search-result-item" data-student-id="${_esc(s.adm_no || s.student_id)}" style="margin-bottom:6px; cursor:pointer">
+        <div class="sr-left">
+          <h4 style="font-size:13px">${_esc(s.name || ((s.first_name || '') + ' ' + (s.last_name || '')).trim())}</h4>
+          <p>${_esc(s.adm_no || s.student_id)} · Class ${_esc(s.class)}${_esc(s.section)}</p>
+        </div>
+      </div>`
+    ).join('');
+
+    // Use event delegation instead of inline onclick
+    res.querySelectorAll('[data-student-id]').forEach(item => {
+      item.addEventListener('click', () => {
+        const id = item.dataset.studentId;
+        document.getElementById('issue-student-id').value = id;
+        document.getElementById('issue-student-id').dispatchEvent(new Event('input'));
+        res.innerHTML = '';
+        document.getElementById('quick-student-search').value = '';
+      });
+    });
+  }
+
+  // Currently issued list for Return page
+  // NOTE: loadCurrentlyIssued() lives in app.js as _loadCurrentlyIssued()
+  // (kept in sync with the current LokiJS schema — access_no/adm_no/teacher fields).
+
+  // Damaged books for damage page
+  // NOTE: LibraryDB.getSettings() must NOT be called here — LokiJS may not be
+  // ready yet. The loan/fine display is handled inside LibraryDB.onReady() in app.js.
+  document.addEventListener('DOMContentLoaded', () => {
+
+
+  // ── SETUP OVERLAY import handlers ──
+  document.getElementById('setup-import-books').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const res = LibraryDB.importBooks(e.target.result);
+      if (res.ok) {
+        showToast('✅ ' + res.count + ' books imported!', 'success');
+        checkSetupComplete();
+      } else {
+        showToast('❌ ' + res.msg, 'error');
+      }
+    };
+    reader.readAsText(file);
+    this.value = '';
+  });
+
+  document.getElementById('setup-import-students').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const res = LibraryDB.importStudents(e.target.result);
+      if (res.ok) {
+        showToast('✅ ' + res.count + ' students imported!', 'success');
+        checkSetupComplete();
+      } else {
+        showToast('❌ ' + res.msg, 'error');
+      }
+    };
+    reader.readAsText(file);
+    this.value = '';
+  });
+
+    // Load currently issued on return page nav
+    document.querySelector('[data-page="return"]').addEventListener('click', () => {
+      setTimeout(_loadCurrentlyIssued, 50);
+    });
+
+    // Load damaged books on damage page nav
+    document.querySelector('[data-page="damage"]').addEventListener('click', () => {
+      setTimeout(() => {
+        const el = document.getElementById('damaged-books-list');
+        const damaged = LibraryDB.getBooks().filter(b => ['Damaged','Under Repair','Lost'].includes(b.status));
+        if (!damaged.length) { el.innerHTML = '<p class="text-sm text-muted">No damaged books on record.</p>'; return; }
+        el.innerHTML = damaged.map(b => {
+          const badgeMap = { Damaged: 'badge-coral', 'Under Repair': 'badge-yellow', Lost: 'badge-gray' };
+          return `<div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--cream-dark); font-size:13px; gap:8px">
+            <div style="flex:1; min-width:0">
+              <strong>${_esc(b.title)}</strong><br>
+              <span class="td-id">${_esc(b.book_id)}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; flex-shrink:0">
+              <span class="badge ${badgeMap[b.status]}">${_esc(b.status)}</span>
+              <button class="btn btn-green btn-sm" data-book-id="${_esc(b.book_id)}" data-status="${_esc(b.status)}">🔧 Restore</button>
+            </div>
+          </div>`;
+        }).join('');
+
+        // Event delegation for restore buttons
+        el.querySelectorAll('[data-book-id]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            openRestoreModal(btn.dataset.bookId, btn.dataset.status);
+          });
+        });
+      }, 50);
+    });
+  });
+</script>
+
+
+
+  <!-- Packaged SDKs: starting the local library never waits for a CDN. -->
+  <script src="node_modules/firebase/firebase-app-compat.js"></script>
+  <script src="node_modules/firebase/firebase-auth-compat.js"></script>
+  <script src="node_modules/firebase/firebase-firestore-compat.js"></script>
+  <script src="node_modules/firebase/firebase-functions-compat.js"></script>
+
+  <!-- App scripts — order matters: db → sync → app -->
+  <script src="js/migrate-legacy-data.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/firebase-sync.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>

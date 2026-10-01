@@ -1,0 +1,65 @@
+{
+  "name": "tomeva-control-center",
+  "version": "1.0.0",
+  "description": "Institution-owned setup, deployment and update center for Tomeva",
+  "private": true,
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "start": "npm run build:ui && electron .",
+    "build:ui": "node scripts/build-ui.cjs",
+    "build:win": "npm run build:ui && node scripts/prepare-web-template.cjs && node scripts/prepare-release-channels.cjs && node scripts/prepare-desktop-installers.cjs && electron-builder --config electron-builder.config.cjs --win",
+    "build:mac": "npm run build:ui && node scripts/prepare-web-template.cjs && node scripts/prepare-release-channels.cjs && electron-builder --config electron-builder.config.cjs --mac",
+    "build:linux": "npm run build:ui && node scripts/prepare-web-template.cjs && node scripts/prepare-release-channels.cjs && electron-builder --config electron-builder.config.cjs --linux",
+    "test": "node --test test/*.test.cjs",
+    "test:desktop": "npm run build:ui && electron test/desktop-smoke.cjs"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.25.12"
+  },
+  "build": {
+    "appId": "org.tomeva.control-center",
+    "productName": "Tomeva Control Center",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "config-store.js",
+      "recovery.js",
+      "update-manager.js",
+      "desktop-releases.js",
+      "public-releases.json",
+      "web-helper.js",
+      "setup-export.js",
+      "ui/**",
+      "assets/**",
+      "auth-helper/**",
+      "web-template/search.html",
+      "web-template/assets/**",
+      "firebase-template/firestore.rules",
+      "firebase-template/firestore.indexes.json",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png"
+    }
+  }
+}

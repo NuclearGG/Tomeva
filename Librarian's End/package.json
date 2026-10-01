@@ -1,0 +1,132 @@
+{
+  "name": "tomeva",
+  "productName": "Tomeva",
+  "version": "1.0.0",
+  "description": "Offline-first library management system for school libraries",
+  "main": "main.js",
+  "scripts": {
+    "postinstall": "node scripts/verify-native.cjs",
+    "test:sqlite": "node test/run-electron-tests.cjs",
+    "test:desktop": "electron test/desktop-smoke.cjs",
+    "start": "npx electron .",
+    "dev": "npx electron . --inspect",
+    "build:win": "npx --no-install electron-builder --config electron-builder.config.cjs --win",
+    "build:mac": "npx --no-install electron-builder --config electron-builder.config.cjs --mac",
+    "build:linux": "npx --no-install electron-builder --config electron-builder.config.cjs --linux",
+    "test:rules": "jest test/firestore-rules.spec.js test/kiosk-rules.spec.js test/notification-rules.spec.js --runInBand --forceExit --detectOpenHandles",
+    "test:kiosk": "node --test test/kiosk-auth.test.cjs",
+    "test:kiosk:rules": "node --test test/kiosk-rules-rest.test.cjs"
+  },
+  "keywords": [
+    "library",
+    "electron",
+    "school",
+    "offline"
+  ],
+  "author": "Tomeva",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "electron": "^43.2.0",
+    "electron-builder": "^25.1.8",
+    "firebase-admin": "^12.7.0",
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "roots": ["<rootDir>/test"],
+    "testMatch": ["**/*.spec.js"],
+    "testEnvironment": "node"
+  },
+  "build": {
+    "npmRebuild": false,
+    "asarUnpack": ["node_modules/better-sqlite3/prebuilds/**"],
+    "appId": "com.tomeva.library",
+    "productName": "Tomeva",
+    "protocols": [{ "name": "Tomeva Librarian updates", "schemes": ["tomeva-librarian"] }],
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "main/**",
+      "js/**",
+      "css/**",
+      "assets/**",
+      "package.json",
+      { "from": "../desktop-integration", "to": "integration", "filter": ["*.cjs"] }
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Tomeva"
+    },
+    "mac": {
+      "icon": "assets/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.education"
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Education",
+      "maintainer": "Tomeva"
+    }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "better-sqlite3": "^13.0.3",
+    "firebase": "^12.19.0"
+  }
+}

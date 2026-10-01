@@ -1,0 +1,1987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com; img-src 'self' data:; base-uri 'self'; form-action 'self'; frame-src 'self' https://*.firebaseapp.com;">
+  <title>Tomeva — Book Search</title>
+  <link rel="icon" href="assets/icon.ico" sizes="any">
+  <link rel="icon" href="assets/icon.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="assets/icon.icns">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Glassmorphism Variables */
+      --glass-bg: rgba(255, 255, 255, 0.08);
+      --glass-bg-hover: rgba(255, 255, 255, 0.12);
+      --glass-border: rgba(255, 255, 255, 0.15);
+      --glass-border-highlight: rgba(255, 255, 255, 0.4);
+      --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+      --glass-blur: blur(16px);
+      
+      /* Text Colors for Dark Background */
+      --text:        #ffffff;
+      --text-muted:  rgba(255, 255, 255, 0.75);
+      --text-light:  rgba(255, 255, 255, 0.5);
+      
+      /* Accent Colors adjusted for dark mode */
+      --blue:        rgba(74, 144, 226, 0.2); --blue-dark: #6fb0ff; --blue-mid: #4a90e2;
+      --green:       rgba(80, 200, 120, 0.2); --green-dark: #69f0ae; --green-mid: #50c878;
+      --coral:       rgba(255, 107, 107, 0.2); --coral-dark: #ff8a8a; --coral-mid: #ff6b6b;
+      --yellow:      rgba(255, 213, 79, 0.2); --yellow-dark: #ffd54f;
+      
+      /* UI Variables */
+      --radius:      20px;
+      --transition:  0.3s cubic-bezier(.4,0,.2,1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── ANIMATED MESH GRADIENT BACKGROUND ── */
+    body {
+      font-family: 'DM Sans', sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      background: linear-gradient(125deg, #1f1c2c, #3a1c71, #d76d77, #1f1c2c);
+      background-size: 400% 400%;
+      animation: gradientBG 20s ease infinite;
+      background-attachment: fixed;
+    }
+
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: rgba(10, 10, 10, 0.25);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border-bottom: 1px solid var(--glass-border);
+      padding: 0 32px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-brand .logo { width: 28px; height: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+
+    .header-brand h1 {
+      font-family: 'Fraunces', serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .header-brand p {
+      font-size: 11px;
+      color: var(--text-light);
+      margin-top: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .header-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      padding: 6px 14px;
+      border-radius: 20px;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green-dark);
+      animation: pulse 2s infinite;
+      box-shadow: 0 0 8px var(--green-dark);
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* ── HERO SEARCH ── */
+    .hero {
+      padding: 56px 32px 48px;
+      text-align: center;
+      position: relative;
+    }
+
+    .hero-title {
+      font-family: 'Fraunces', serif;
+      font-size: 40px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 8px;
+      text-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .hero-title span {
+      color: var(--blue-dark);
+      font-style: italic;
+    }
+
+    .hero-subtitle {
+      font-size: 15px;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+    }
+
+    .search-box {
+      max-width: 640px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .search-input-wrap {
+      display: flex;
+      align-items: center;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 8px 8px 8px 24px;
+      box-shadow: var(--glass-shadow);
+      gap: 12px;
+      transition: var(--transition);
+    }
+    
+    .search-input-wrap:focus-within {
+      border-color: var(--glass-border-highlight);
+      background: var(--glass-bg-hover);
+    }
+
+    .search-input-wrap .search-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+      opacity: 0.7;
+    }
+
+    .search-input-wrap input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      color: var(--text);
+      background: transparent;
+      padding: 8px 0;
+    }
+
+    .search-input-wrap input::placeholder { color: var(--text-light); }
+
+    .search-btn {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border: 1px solid var(--glass-border);
+      color: white;
+      border-radius: 14px;
+      padding: 12px 28px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .search-btn:hover { background: rgba(255, 255, 255, 0.3); transform: scale(1.02); }
+    .search-btn:active { transform: scale(0.98); }
+
+    .search-hints {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .hint-chip {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--glass-bg);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--glass-border);
+      padding: 6px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .hint-chip:hover {
+      background: var(--glass-bg-hover);
+      color: white;
+      border-color: var(--glass-border-highlight);
+    }
+
+    /* ── MAIN CONTENT ── */
+    .main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 36px 24px 64px;
+    }
+
+    /* ── STATS BAR ── */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .stat-pill {
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: var(--glass-shadow);
+      transition: var(--transition);
+    }
+    
+    .stat-pill:hover { background: var(--glass-bg-hover); transform: translateY(-2px); }
+
+    .stat-pill-icon { font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }
+
+    .stat-pill-val {
+      font-family: 'Fraunces', serif;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .stat-pill-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    .stat-pill.green .stat-pill-val { color: var(--green-dark); }
+    .stat-pill.blue  .stat-pill-val { color: var(--blue-dark); }
+    .stat-pill.coral .stat-pill-val { color: var(--coral-dark); }
+
+    /* ── RESULTS SECTION ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-family: 'Fraunces', serif;
+      font-size: 22px;
+      font-weight: 700;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .results-count {
+      font-size: 13px;
+      color: var(--text);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 600;
+      backdrop-filter: blur(8px);
+    }
+
+    /* ── BOOK CARDS ── */
+    .book-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+    }
+
+    .book-card, .book-list-item, .state-card, .no-results {
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      box-shadow: var(--glass-shadow);
+      transition: all var(--transition);
+    }
+
+    .book-card {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      cursor: default;
+    }
+
+    .book-card:hover { 
+      transform: translateY(-4px); 
+      background: var(--glass-bg-hover);
+      border-color: var(--glass-border-highlight);
+    }
+
+    .book-card.available { border-color: rgba(80, 200, 120, 0.4); }
+    .book-card.unavailable { opacity: 0.8; }
+
+    .book-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .book-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--glass-border);
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.1);
+    }
+
+    .availability-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 6px 12px;
+      border-radius: 20px;
+      flex-shrink: 0;
+      border: 1px solid transparent;
+      backdrop-filter: blur(4px);
+    }
+
+    .availability-badge.available {
+      background: var(--green);
+      color: var(--green-dark);
+      border-color: rgba(105, 240, 174, 0.3);
+    }
+
+    .availability-badge.unavailable {
+      background: var(--coral);
+      color: var(--coral-dark);
+      border-color: rgba(255, 138, 138, 0.3);
+    }
+
+    .availability-badge .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 6px currentColor;
+    }
+
+    .book-title {
+      font-family: 'Fraunces', serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+    .book-author {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .book-id {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--glass-border);
+      padding: 4px 10px;
+      border-radius: 8px;
+      width: fit-content;
+    }
+
+    .book-card-footer {
+      border-top: 1px solid var(--glass-border);
+      padding-top: 14px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .book-card.available   .book-card-footer { color: var(--green-dark); }
+    .book-card.unavailable .book-card-footer { color: var(--coral-dark); }
+
+    /* ── LIST VIEW (search results) ── */
+    .book-list { display: flex; flex-direction: column; gap: 12px; }
+
+    .book-list-item {
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .book-list-item:hover { 
+      transform: translateX(4px); 
+      background: var(--glass-bg-hover);
+      border-color: var(--glass-border-highlight);
+    }
+    .book-list-item.available   { border-left: 4px solid var(--green-dark); }
+    .book-list-item.unavailable { border-left: 4px solid var(--coral-mid); opacity: 0.85; }
+
+    .bli-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--glass-border);
+    }
+
+    .bli-info { flex: 1; min-width: 0; }
+
+    .bli-title {
+      font-family: 'Fraunces', serif;
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .bli-meta {
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .bli-meta .sep { color: var(--text-light); }
+
+    .bli-right { flex-shrink: 0; text-align: right; }
+
+    /* ── EMPTY / LOADING ── */
+    .state-card, .no-results {
+      padding: 64px 32px;
+      text-align: center;
+    }
+
+    .state-icon { font-size: 56px; margin-bottom: 20px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2)); }
+    .state-title { font-family: 'Fraunces', serif; font-size: 24px; font-weight: 700; margin-bottom: 12px; }
+    .state-sub { font-size: 15px; color: var(--text-muted); line-height: 1.6; max-width: 400px; margin: 0 auto; }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--glass-border);
+      border-top-color: var(--blue-dark);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── FILTER CHIPS ── */
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .filter-label { font-size: 14px; font-weight: 600; color: var(--text-muted); margin-right: 6px; }
+
+    .filter-chip {
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      backdrop-filter: blur(8px);
+      color: var(--text-muted);
+      transition: all var(--transition);
+    }
+
+    .filter-chip:hover { border-color: var(--glass-border-highlight); color: white; background: var(--glass-bg-hover); }
+    .filter-chip.active { background: var(--blue); border-color: var(--blue-dark); color: var(--blue-dark); text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+    .filter-chip.active.green-chip { background: var(--green); border-color: var(--green-dark); color: var(--green-dark); }
+    .filter-chip.active.coral-chip { background: var(--coral); border-color: var(--coral-dark); color: var(--coral-dark); }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 32px;
+      font-size: 13px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--glass-border);
+      background: rgba(0, 0, 0, 0.15);
+      backdrop-filter: blur(10px);
+    }
+
+    footer strong { color: white; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .hero { padding: 40px 20px 36px; }
+      .hero-title { font-size: 32px; }
+      .stats-bar { grid-template-columns: 1fr 1fr; }
+      .stats-bar .stat-pill:last-child { grid-column: span 2; }
+      .book-grid { grid-template-columns: 1fr; }
+      .main { padding: 24px 16px 48px; }
+    }
+
+    /* ── HIGHLIGHT MATCH ── */
+    mark {
+      background: rgba(255, 213, 79, 0.4);
+      color: #fff;
+      border-radius: 4px;
+      padding: 0 4px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+
+    /* ── LAST UPDATED ── */
+    .last-updated {
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+    }
+  /* ════════════════════════════════════════
+     SUSPEND BANNER STRIP
+  ════════════════════════════════════════ */
+  .suspend-banner-strip {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: rgba(255, 107, 107, 0.15);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 107, 107, 0.3);
+    color: var(--coral-dark);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 14px 24px;
+    text-align: center;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  }
+
+  /* ════════════════════════════════════════
+     REQUEST BUTTON (on book cards / list items)
+  ════════════════════════════════════════ */
+  .request-btn {
+    margin-top: 6px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid var(--glass-border);
+    color: white;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+    backdrop-filter: blur(4px);
+  }
+
+  .request-btn:hover { background: rgba(255, 255, 255, 0.25); border-color: var(--glass-border-highlight); transform: scale(1.02); }
+  .request-btn:active { transform: scale(0.98); }
+
+  .request-btn-sm {
+    width: auto;
+    margin-top: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  .my-requests-btn {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+    box-shadow: var(--glass-shadow);
+  }
+
+  .my-requests-btn:hover { border-color: var(--blue-dark); background: rgba(74, 144, 226, 0.15); transform: translateY(-2px); }
+
+  /* ════════════════════════════════════════
+     REQUEST MODAL
+  ════════════════════════════════════════ */
+  .req-modal-overlay, .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .req-modal-overlay.show, .modal-overlay.show { display: flex; animation: fadeIn 0.3s ease; }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .req-modal, .modal {
+    background: rgba(30, 30, 40, 0.65);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 28px;
+    padding: 32px;
+    width: 480px;
+    max-width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    animation: modalPop 0.4s cubic-bezier(.34,1.56,.64,1);
+  }
+
+  @keyframes modalPop {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .req-modal-header, .modal-title {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 12px;
+  }
+
+  .req-modal-title, .modal-title {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  }
+
+  .req-modal-book {
+    font-size: 15px;
+    font-weight: 600;
+    color: white;
+    margin-top: 8px;
+  }
+
+  .req-modal-book-id {
+    font-size: 12px;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 8px;
+    margin-top: 6px;
+  }
+
+  .req-modal-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    font-size: 16px;
+    cursor: pointer;
+    color: white;
+    flex-shrink: 0;
+    transition: all var(--transition);
+  }
+
+  .req-modal-close:hover { background: rgba(255, 255, 255, 0.2); transform: rotate(90deg); }
+
+  .req-modal-error {
+    background: rgba(255, 107, 107, 0.2);
+    border: 1px solid rgba(255, 107, 107, 0.4);
+    color: #ffcccc;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 20px;
+    backdrop-filter: blur(8px);
+  }
+
+  .req-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .req-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  .req-form-group label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .req-optional { text-transform: none; font-weight: 400; color: var(--text-light); }
+
+  .req-form-group input,
+  .req-form-group select,
+  .req-form-group textarea {
+    padding: 12px 16px;
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: white;
+    background: rgba(0, 0, 0, 0.2);
+    outline: none;
+    transition: all var(--transition);
+  }
+  
+  .req-form-group select option {
+    background: #2a2a35;
+    color: white;
+  }
+
+  .req-form-group input:focus,
+  .req-form-group select:focus,
+  .req-form-group textarea:focus {
+    border-color: var(--blue-dark);
+    background: rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.2);
+  }
+
+  .req-form-group input::placeholder,
+  .req-form-group textarea::placeholder {
+    color: var(--text-light);
+  }
+
+  .req-form-group textarea { resize: vertical; min-height: 80px; }
+
+  .req-priority-hint {
+    background: rgba(156, 39, 176, 0.2);
+    border: 1px solid rgba(156, 39, 176, 0.4);
+    color: #e1bee7;
+    font-size: 13px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    line-height: 1.5;
+    backdrop-filter: blur(8px);
+  }
+
+  .req-submit-btn, .btn-primary, .btn-coral {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid var(--glass-border-highlight);
+    color: white;
+    border-radius: 14px;
+    padding: 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition);
+    backdrop-filter: blur(8px);
+  }
+
+  .req-submit-btn:hover, .btn-primary:hover, .btn-coral:hover { background: rgba(255, 255, 255, 0.3); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+  .req-submit-btn:disabled { opacity: 0.5; cursor: default; transform: none; box-shadow: none; }
+  
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    padding: 14px;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all var(--transition);
+    font-weight: 600;
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.1); color: white; }
+  .modal-actions { display: flex; gap: 12px; margin-top: 24px; }
+  .modal-actions button { flex: 1; }
+
+  /* ════════════════════════════════════════
+     MY REQUESTS LIST
+  ════════════════════════════════════════ */
+  .my-request-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    border-radius: 16px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.05);
+    margin-bottom: 12px;
+    transition: all var(--transition);
+  }
+  
+  .my-request-item:hover { background: rgba(255,255,255,0.1); }
+
+  .my-request-item.status-approved { border-color: rgba(80, 200, 120, 0.4); background: rgba(80, 200, 120, 0.1); }
+  .my-request-item.status-declined { border-color: rgba(255, 107, 107, 0.4); opacity: 0.8; }
+  .my-request-item.status-issued   { border-color: rgba(74, 144, 226, 0.4); background: rgba(74, 144, 226, 0.1); }
+
+  .mri-icon {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    border: 1px solid var(--glass-border);
+  }
+
+  .mri-body { flex: 1; min-width: 0; }
+  .mri-title { font-family: 'Fraunces', serif; font-size: 15px; font-weight: 700; color: white; }
+  .mri-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .mri-status { font-size: 13px; font-weight: 700; color: white; flex-shrink: 0; background: rgba(0,0,0,0.2); padding: 4px 10px; border-radius: 12px; }
+
+  /* ════════════════════════════════════════
+     SUCCESS TOAST
+  ════════════════════════════════════════ */
+  .success-toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(30px);
+    background: rgba(80, 200, 120, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    padding: 16px 28px;
+    border-radius: 20px;
+    font-size: 15px;
+    font-weight: 600;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(.34,1.56,.64,1);
+    z-index: 2000;
+  }
+
+  .success-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ════════════════════════════════════════
+     AUTH CHIP  (header sign-in indicator)
+  ════════════════════════════════════════ */
+  .auth-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid var(--glass-border);
+    padding: 8px 16px;
+    border-radius: 24px;
+    cursor: pointer;
+    transition: all var(--transition);
+    max-width: 200px;
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+  }
+
+  .auth-chip #auth-chip-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .auth-signed-out { color: var(--text-muted); background: rgba(255,255,255,0.05); }
+  .auth-signed-out:hover { background: rgba(255,255,255,0.15); color: white; border-color: var(--glass-border-highlight); }
+
+  .auth-signed-in-staff { background: rgba(80, 200, 120, 0.2); color: #b9f6ca; border-color: rgba(80, 200, 120, 0.4); }
+  .auth-signed-in-verified { background: rgba(74, 144, 226, 0.2); color: #bbdefb; border-color: rgba(74, 144, 226, 0.4); }
+  .auth-signed-in-unverified { background: rgba(255, 213, 79, 0.2); color: #ffecb3; border-color: rgba(255, 213, 79, 0.4); }
+
+  /* ════════════════════════════════════════
+     SIGN-IN GATE  (inside request modal)
+  ════════════════════════════════════════ */
+  .signin-gate {
+    text-align: center;
+    padding: 24px 12px;
+  }
+
+  .signin-gate .sg-icon { font-size: 48px; margin-bottom: 16px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); }
+  .signin-gate .sg-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; margin-bottom: 10px; color: white; }
+  .signin-gate .sg-sub { font-size: 14px; color: var(--text-muted); line-height: 1.6; margin-bottom: 24px; }
+
+  .google-signin-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 14px 28px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: all var(--transition);
+    backdrop-filter: blur(8px);
+    width: 100%;
+  }
+
+  .google-signin-btn:hover { background: rgba(255, 255, 255, 0.2); box-shadow: 0 8px 25px rgba(0,0,0,0.3); transform: translateY(-2px); border-color: var(--glass-border-highlight); }
+
+  .unverified-notice {
+    background: rgba(255, 213, 79, 0.15);
+    border: 1px solid rgba(255, 213, 79, 0.3);
+    color: #ffecb3;
+    border-radius: 14px;
+    padding: 20px;
+    font-size: 14px;
+    line-height: 1.6;
+    text-align: left;
+    backdrop-filter: blur(8px);
+  }
+
+  .verified-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(80, 200, 120, 0.2);
+    border: 1px solid rgba(80, 200, 120, 0.4);
+    color: #b9f6ca;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(8px);
+  }
+
+  .verified-chip.staff { background: rgba(156, 39, 176, 0.2); border-color: rgba(156, 39, 176, 0.4); color: #e1bee7; }
+
+  /* ════════════════════════════════════════
+     FULL-PAGE SIGN-IN GATE
+  ════════════════════════════════════════ */
+  .full-page-gate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 64px);
+    padding: 40px 20px;
+  }
+
+  .fpg-card {
+    background: rgba(25, 25, 35, 0.5);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 32px;
+    padding: 56px 48px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 32px 100px rgba(0,0,0,0.6);
+  }
+
+  .fpg-icon { font-size: 64px; display: block; margin-bottom: 24px; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.4)); }
+  img.fpg-icon { background: rgba(255,255,255,0.1); border-radius: 16px; padding: 12px; border: 1px solid rgba(255,255,255,0.2); }
+
+  .fpg-title {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 16px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  }
+
+  .fpg-sub {
+    font-size: 15px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    margin-bottom: 32px;
+  }
+
+  .fpg-loading {
+    margin-top: 20px;
+    font-size: 14px;
+    color: var(--text-light);
+  }
+
+  </style>
+</head>
+<body>
+<!-- The HTML body content and scripts remain exactly the same as they do not require restructuring for CSS visual changes -->
+
+<!-- HEADER -->
+<header>
+  <div class="header-brand">
+    <img class="logo" src="assets/logo.png" alt="Tomeva" width="28" height="28">
+    <div>
+      <h1>Tomeva</h1>
+      <p>School Library</p>
+    </div>
+  </div>
+  <div style="display:flex; align-items:center; gap:12px">
+    <div class="header-badge">
+      <div class="live-dot" id="live-dot" style="background:var(--text-muted)"></div>
+      <span id="header-status">Connecting…</span>
+    </div>
+    <div id="auth-chip" class="auth-chip auth-signed-out" onclick="handleAuthChipClick()">
+      <span id="auth-chip-icon">👤</span>
+      <span id="auth-chip-label">Sign in</span>
+    </div>
+  </div>
+</header>
+
+<!-- FULL-PAGE SIGN-IN GATE -->
+<div id="full-page-gate" class="full-page-gate">
+  <div class="fpg-card">
+
+    <div id="fpg-state-checking">
+      <img class="fpg-icon" src="assets/logo.png" alt="Tomeva" width="64" height="64" style="margin: 0 auto 24px;">
+      <div class="fpg-title">Tomeva</div>
+      <div class="fpg-loading">Checking sign-in status…</div>
+    </div>
+
+    <div id="fpg-state-signedout" style="display:none">
+      <img class="fpg-icon" src="assets/logo.png" alt="Tomeva" width="64" height="64" style="margin: 0 auto 24px;">
+      <div class="fpg-title">Sign in to view the library</div>
+      <div class="fpg-sub">Tomeva is available to <strong>MEACademy</strong> staff and authorized students. Sign in with your Google account to browse book availability and submit requests.</div>
+      <button class="google-signin-btn" onclick="doGoogleSignIn()">
+        <svg width="20" height="20" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.61z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.83.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.68 9c0-.59.1-1.17.27-1.7V4.97H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.03l2.99-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.97L3.95 7.3C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+        Sign in with Google
+      </button>
+    </div>
+
+    <div id="fpg-state-profile" style="display:none">
+      <span class="fpg-icon">📝</span>
+      <div class="fpg-title">Complete Your Profile</div>
+      <div class="fpg-sub">Signed in as <strong id="fpg-profile-email"></strong>. Tell us your class, section, and admission number so the librarian can find and verify you quickly.</div>
+      <div id="fpg-profile-error" class="req-modal-error" style="display:none"></div>
+      <div class="req-form-row" style="text-align:left">
+        <div class="req-form-group">
+          <label>Class</label>
+          <input id="fpg-profile-class" type="text" maxlength="20" placeholder="e.g. 10">
+        </div>
+        <div class="req-form-group">
+          <label>Section</label>
+          <input id="fpg-profile-section" type="text" maxlength="10" placeholder="e.g. A">
+        </div>
+      </div>
+      <div class="req-form-group" style="text-align:left">
+        <label>Admission Number</label>
+        <input id="fpg-profile-admno" type="text" maxlength="40" placeholder="e.g. ADM001">
+      </div>
+      <button class="req-submit-btn" id="fpg-profile-submit" onclick="submitLoginProfile()">Continue</button>
+    </div>
+
+    <div id="fpg-state-unverified" style="display:none">
+      <span class="fpg-icon">🔒</span>
+      <div class="fpg-title">Access Pending</div>
+      <div class="unverified-notice">
+        Signed in as <strong id="fpg-unverified-email"></strong>, but this account hasn't been verified for library access yet.<br><br>
+        Ask your librarian or the school admin office to add your email address in <strong>Student Access</strong> and assign your group. You'll be able to see book availability as soon as you're added.
+      </div>
+      <button class="google-signin-btn" style="margin-top:24px" onclick="doSignOut()">Sign out</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- MAIN APP CONTENT -->
+<div id="app-content" style="display:none">
+
+<div id="suspend-banner" class="suspend-banner-strip"></div>
+
+<div class="hero">
+  <div class="hero-title">Find a <span>Book</span></div>
+  <div class="hero-subtitle">Search by title, author, or book ID — see availability instantly</div>
+
+  <div class="search-box">
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input
+        id="search-input"
+        type="text"
+        placeholder="e.g. Harry Potter, Tolkien, HP001…"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+      >
+      <button class="search-btn" onclick="doSearch()">Search</button>
+    </div>
+
+    <div class="search-hints">
+      <span class="hint-chip" onclick="setSearch('Harry Potter')">Harry Potter</span>
+      <span class="hint-chip" onclick="setSearch('Tolkien')">Tolkien</span>
+      <span class="hint-chip" onclick="setSearch('Agatha Christie')">Agatha Christie</span>
+      <span class="hint-chip" onclick="setSearch('Science')">Science</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat-pill green">
+      <span class="stat-pill-icon">📗</span>
+      <div>
+        <div class="stat-pill-val" id="stat-available">—</div>
+        <div class="stat-pill-label">Available Now</div>
+      </div>
+    </div>
+    <div class="stat-pill blue">
+      <span class="stat-pill-icon">📤</span>
+      <div>
+        <div class="stat-pill-val" id="stat-issued">—</div>
+        <div class="stat-pill-label">Issued Out</div>
+      </div>
+    </div>
+    <div class="stat-pill coral">
+      <span class="stat-pill-icon">📚</span>
+      <div>
+        <div class="stat-pill-val" id="stat-total">—</div>
+        <div class="stat-pill-label">Total Books</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="last-updated" id="last-updated">Fetching library data…</div>
+
+  <div style="text-align:center; margin-bottom:32px">
+    <button class="my-requests-btn" onclick="openMyRequestsModal()">📋 My Requests</button>
+    <button class="my-requests-btn" onclick="openMyMessagesModal()">💬 My Messages</button>
+    <button class="my-requests-btn" id="push-button" type="button" style="display:none">🔔 Enable alerts while open</button>
+    <div id="push-status" role="status" style="font-size:12px;margin-top:8px"></div>
+  </div>
+
+  <div id="results-container">
+    <div class="state-card" id="loading-state">
+      <div class="spinner"></div>
+      <div class="state-title">Loading Tomeva…</div>
+      <div class="state-sub">Fetching the latest book data from the library system.</div>
+    </div>
+  </div>
+
+</div>
+
+</div>
+
+<footer>
+  <strong>Tomeva</strong> · School Library Book Search · Read-only student portal<br>
+  Data is synced from the librarian's system. Contact the librarian to issue or return books.
+</footer>
+
+<!-- REQUEST BOOK MODAL -->
+<div id="request-modal-overlay" class="req-modal-overlay">
+  <div class="req-modal">
+    <div class="req-modal-header">
+      <div>
+        <div class="req-modal-title">📩 Request This Book</div>
+        <div class="req-modal-book" id="req-modal-book-title"></div>
+        <div class="req-modal-book-id" id="req-modal-book-id"></div>
+      </div>
+      <button class="req-modal-close" onclick="closeRequestModal()">✕</button>
+    </div>
+
+    <div id="req-gate-signedout" class="signin-gate">
+      <span class="sg-icon">🔒</span>
+      <div class="sg-title">Sign in to request this book</div>
+      <div class="sg-sub">Use your school Google account to submit a book request. Verified accounts in the institution's staff domain are authorized automatically. Student accounts must be authorized by the librarian or admin office.</div>
+      <button class="google-signin-btn" onclick="doGoogleSignIn()">
+        <svg width="20" height="20" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.61z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.83.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.68 9c0-.59.1-1.17.27-1.7V4.97H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.03l2.99-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.97L3.95 7.3C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+        Sign in with Google
+      </button>
+    </div>
+
+    <div id="req-gate-unverified" class="signin-gate" style="display:none">
+      <span class="sg-icon">⚠️</span>
+      <div class="sg-title">Account not authorized yet</div>
+      <div class="unverified-notice">
+        Signed in as <strong id="req-unverified-email"></strong>, but this account hasn't been authorized for book requests yet.<br><br>
+        Ask your librarian or the school admin office to add your email address and assign your group (Regular / Literary Club / Editorial Board).
+      </div>
+      <button class="google-signin-btn" style="margin-top:24px" onclick="doSignOut()">Sign out</button>
+    </div>
+
+    <div id="req-form-verified" style="display:none">
+      <div id="req-verified-chip" class="verified-chip"></div>
+
+      <div id="req-modal-error" class="req-modal-error" style="display:none"></div>
+
+      <div class="req-form-row">
+        <div class="req-form-group">
+          <label>Admission Number</label>
+          <input id="req-adm-no" type="text" maxlength="40" placeholder="e.g. ADM001">
+        </div>
+        <div class="req-form-group">
+          <label>Roll No / Class</label>
+          <input id="req-class" type="text" maxlength="20" placeholder="10">
+        </div>
+      </div>
+      <div class="req-form-group">
+        <label>Full Name</label>
+        <input id="req-name" type="text" maxlength="100" placeholder="Your full name">
+      </div>
+      <div class="req-form-row">
+        <div class="req-form-group">
+          <label>Section</label>
+          <input id="req-section" type="text" maxlength="10" placeholder="A">
+        </div>
+        <div class="req-form-group">
+          <label>Group / Role</label>
+          <select id="req-group" disabled>
+            <option value="Regular">Regular Student</option>
+            <option value="Literary Club">⭐ Literary Club Member</option>
+            <option value="Editorial Board">⭐ Editorial Board Member</option>
+            <option value="Staff">🏫 School Staff</option>
+          </select>
+        </div>
+      </div>
+      <div class="req-form-group">
+        <label>Note <span class="req-optional">(optional, max 300 chars)</span></label>
+        <textarea id="req-note" maxlength="300" placeholder="e.g. Needed for the annual literary magazine deadline…"></textarea>
+      </div>
+
+      <div class="req-priority-hint" id="req-priority-hint">
+        ⭐ Your account is verified as a priority group — this request will be flagged for the librarian.
+      </div>
+
+      <button id="req-submit-btn" class="req-submit-btn" onclick="submitBookRequest()">📩 Submit Request</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- MY REQUESTS MODAL -->
+<div id="my-requests-overlay" class="req-modal-overlay">
+  <div class="req-modal">
+    <div class="req-modal-header">
+      <div class="req-modal-title">📋 My Requests</div>
+      <button class="req-modal-close" onclick="closeMyRequestsModal()">✕</button>
+    </div>
+    <div id="my-requests-list"></div>
+  </div>
+</div>
+
+<!-- STUDENT MESSAGES: protected content is fetched only after sign-in. -->
+<div id="my-messages-overlay" class="req-modal-overlay">
+  <div class="req-modal">
+    <div class="req-modal-header">
+      <div class="req-modal-title">💬 My Messages</div>
+      <button class="req-modal-close" onclick="closeMyMessagesModal()">✕</button>
+    </div>
+    <div id="my-messages-list"></div>
+  </div>
+</div>
+
+<script src="tomeva-config.js" defer></script>
+<script type="module">
+import { initializeApp }  from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, updateDoc, serverTimestamp, getDoc, query, where, getDocs, limit }
+  from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+
+function _esc(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/`/g, '&#96;');
+}
+
+function showConfirm(message, onConfirm) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay show';
+  modal.innerHTML = `
+    <div class="modal" style="max-width: 400px;">
+      <div class="modal-title">Confirm</div>
+      <p style="margin: 16px 0; color: var(--text-muted);">${_esc(message)}</p>
+      <div class="modal-actions">
+        <button class="btn-ghost" id="confirm-cancel">Cancel</button>
+        <button class="btn-coral" id="confirm-ok">Confirm</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('confirm-ok').addEventListener('click', () => {
+    modal.remove();
+    onConfirm(true);
+  });
+  document.getElementById('confirm-cancel').addEventListener('click', () => {
+    modal.remove();
+    onConfirm(false);
+  });
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.remove();
+      onConfirm(false);
+    }
+  });
+}
+
+function showAlert(message) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay show';
+  modal.innerHTML = `
+    <div class="modal" style="max-width: 400px;">
+      <div class="modal-title">Notice</div>
+      <p style="margin: 16px 0; color: var(--text-muted);">${_esc(message)}</p>
+      <div class="modal-actions">
+        <button class="btn-primary" id="alert-ok">OK</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('alert-ok').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
+  });
+}
+
+const webConfig = window.TOMEVA_WEB_CONFIG;
+if (!webConfig?.firebase || !webConfig.staffDomain) {
+  const panel = document.createElement('main'); panel.className = 'state-card';
+  const heading = document.createElement('h1'); heading.textContent = 'Tomeva Web setup is required';
+  const detail = document.createElement('p'); detail.textContent = 'Export the student web code from Control Center using your institution’s Firebase settings, then deploy the complete exported folder.';
+  panel.append(heading, detail); document.body.replaceChildren(panel);
+} else {
+const firebaseConfig = webConfig.firebase;
+
+const app  = initializeApp(firebaseConfig);
+const db   = getFirestore(app);
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+const LIBRARY_ID = webConfig.libraryId;
+const STAFF_DOMAIN = webConfig.staffDomain;
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    for (const registration of registrations) {
+      if (registration.active?.scriptURL.endsWith('/firebase-messaging-sw.js')) registration.unregister();
+    }
+  }).catch(() => {});
+}
+let alertListeners = [];
+function stopStudentAlerts() {
+  for (const unsubscribe of alertListeners) unsubscribe();
+  alertListeners = [];
+}
+function browserAlert(body, route) {
+  document.getElementById('push-status').textContent = body;
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const notification = new Notification('Tomeva Web', { body });
+  notification.onclick = () => {
+    window.focus();
+    if (route === 'messages') openMyMessagesModal();
+    else openMyRequestsModal();
+    notification.close();
+  };
+}
+async function enablePageAlerts() {
+  const status = document.getElementById('push-status');
+  if (!_currentUser || _userRole !== 'student') return;
+  if (!('Notification' in window) || !window.isSecureContext) { status.textContent = 'Browser alerts are unavailable here. Your inbox still works.'; return; }
+  const permission = await Notification.requestPermission();
+  status.textContent = permission === 'granted'
+    ? 'Alerts are enabled while this page is open.'
+    : 'Alerts are off. Your requests and messages remain available here.';
+}
+function startStudentAlerts(user) {
+  stopStudentAlerts();
+  const email = user.email.toLowerCase();
+  const requestStatus = new Map();
+  let requestsReady = false;
+  alertListeners.push(onSnapshot(query(collection(db, 'libraries', LIBRARY_ID, 'book_requests'), where('requester_email', '==', email)), snapshot => {
+    if (auth.currentUser?.uid !== user.uid) return;
+    for (const change of snapshot.docChanges()) {
+      const next = change.doc.data().status;
+      const previous = requestStatus.get(change.doc.id);
+      if (requestsReady && !snapshot.metadata.hasPendingWrites && change.type === 'modified' && next !== previous && ['Approved', 'Declined', 'Issued'].includes(next)) {
+        browserAlert('Your library request has been updated.', 'requests');
+      }
+      requestStatus.set(change.doc.id, next);
+    }
+    requestsReady = true;
+  }, error => { document.getElementById('push-status').textContent = 'Request alerts unavailable: ' + error.message; }));
+  let messagesReady = false;
+  alertListeners.push(onSnapshot(query(collection(db, 'libraries', LIBRARY_ID, 'student_messages'), where('recipient_email', '==', email)), snapshot => {
+    if (auth.currentUser?.uid !== user.uid) return;
+    if (messagesReady && !snapshot.metadata.hasPendingWrites && snapshot.docChanges().some(change => change.type === 'added')) {
+      browserAlert('You have a new library message.', 'messages');
+    }
+    messagesReady = true;
+  }, error => { document.getElementById('push-status').textContent = 'Message alerts unavailable: ' + error.message; }));
+  document.getElementById('push-status').textContent = ('Notification' in window && Notification.permission === 'granted')
+    ? 'Alerts are enabled while this page is open.' : 'Requests and messages update while this page is open.';
+}
+document.getElementById('push-button').addEventListener('click', enablePageAlerts);
+
+let _allBooks    = []; 
+let _lastUpdated = null;
+let _searchQuery = "";
+let _filter      = "all"; 
+let _controlState = { issuance_suspended: false, suspend_reason: "" };
+let _pendingRequestBook = null; 
+
+let _currentUser = null;       
+let _userRole    = null;       
+let _userGroup   = null;       
+
+window.doGoogleSignIn = async function() {
+  try { await signInWithPopup(auth, googleProvider); } catch (err) { showAlert("Sign-in failed: " + err.message); }
+};
+
+window.doSignOut = async function() {
+  sessionStorage.removeItem("libra_request_form");
+  stopStudentAlerts();
+  await signOut(auth);
+  closeRequestModal();
+};
+
+window.handleAuthChipClick = function() {
+  if (_currentUser) {
+    showConfirm("Sign out of " + _esc(_currentUser.email) + "?", (ok) => { if (ok) doSignOut(); });
+  } else {
+    doGoogleSignIn();
+  }
+};
+
+window.submitLoginProfile = async function() {
+  const errEl = document.getElementById("fpg-profile-error");
+  const cls     = document.getElementById("fpg-profile-class").value.trim();
+  const section = document.getElementById("fpg-profile-section").value.trim();
+  const admNo   = document.getElementById("fpg-profile-admno").value.trim();
+
+  if (!cls || !section || !admNo) {
+    errEl.textContent = "Please enter your class, section, and admission number.";
+    errEl.style.display = "block";
+    return;
+  }
+  if (!_currentUser) return;
+
+  const btn = document.getElementById("fpg-profile-submit");
+  btn.textContent = "Saving…";
+  btn.disabled = true;
+  errEl.style.display = "none";
+
+  const email = _currentUser.email.toLowerCase();
+  const name  = _currentUser.displayName || _currentUser.email;
+
+  try {
+    await setDoc(doc(db, "libraries", LIBRARY_ID, "student_logins", email), {
+      email, name, class: cls, section, adm_no: admNo,
+      first_login_at: serverTimestamp(),
+      last_login_at:  serverTimestamp(),
+    });
+    const emailEl = document.getElementById("fpg-unverified-email");
+    if (emailEl) emailEl.textContent = _currentUser.email;
+    if (window._showGateState) window._showGateState("unverified");
+  } catch (err) {
+    errEl.textContent = "Could not save your profile: " + err.message;
+    errEl.style.display = "block";
+    btn.textContent = "Continue";
+    btn.disabled = false;
+  }
+};
+
+async function resolveUserRole(user) {
+  if (!user || !user.email) return { role: "unverified", group: null };
+  const email = user.email.toLowerCase();
+  if (user.emailVerified && email.endsWith("@" + STAFF_DOMAIN)) return { role: "staff", group: "Staff" };
+  try {
+    const snap = await getDoc(doc(db, "libraries", LIBRARY_ID, "authorized_students", email));
+    if (snap.exists()) return { role: "student", group: snap.data().group || "Regular" };
+  } catch (err) {}
+  return { role: "unverified", group: null };
+}
+
+onAuthStateChanged(auth, async (user) => {
+  _currentUser = user;
+  const stateChecking   = document.getElementById("fpg-state-checking");
+  const stateSignedOut  = document.getElementById("fpg-state-signedout");
+  const stateProfile    = document.getElementById("fpg-state-profile");
+  const stateUnverified = document.getElementById("fpg-state-unverified");
+  const gateOuter       = document.getElementById("full-page-gate");
+  const content         = document.getElementById("app-content");
+
+  function showGateState(name) {
+    if (stateChecking)   stateChecking.style.display   = name === "checking"   ? "block" : "none";
+    if (stateSignedOut)  stateSignedOut.style.display  = name === "signedout"  ? "block" : "none";
+    if (stateProfile)    stateProfile.style.display    = name === "profile"    ? "block" : "none";
+    if (stateUnverified) stateUnverified.style.display = name === "unverified" ? "block" : "none";
+    if (gateOuter)  gateOuter.style.display  = name === "verified" ? "none"  : "flex";
+    if (content)    content.style.display    = name === "verified" ? "block" : "none";
+  }
+  window._showGateState = showGateState;
+
+  if (!user) {
+    stopStudentAlerts();
+    _userRole = null; _userGroup = null;
+    document.getElementById('push-button').style.display = 'none';
+    updateAuthChip(); updateRequestModalGate(); showGateState("signedout"); return;
+  }
+
+  showGateState("checking");
+  const resolved = await resolveUserRole(user);
+  _userRole  = resolved.role; _userGroup = resolved.group;
+  document.getElementById('push-button').style.display = _userRole === 'student' ? 'inline-block' : 'none';
+  if (_userRole === 'student') startStudentAlerts(user);
+  else stopStudentAlerts();
+  updateAuthChip(); updateRequestModalGate();
+
+  if (_userRole === "unverified") {
+    let hasProfile = false;
+    try {
+      const loginSnap = await getDoc(doc(db, "libraries", LIBRARY_ID, "student_logins", user.email.toLowerCase()));
+      hasProfile = loginSnap.exists();
+      if (hasProfile) {
+        await setDoc(doc(db, "libraries", LIBRARY_ID, "student_logins", user.email.toLowerCase()), { last_login_at: serverTimestamp() }, { merge: true });
+      }
+    } catch (err) {}
+
+    if (!hasProfile) {
+      document.getElementById("fpg-profile-email").textContent = user.email;
+      document.getElementById("fpg-profile-error").style.display = "none";
+      showGateState("profile");
+      return;
+    }
+    const emailEl = document.getElementById("fpg-unverified-email");
+    if (emailEl) emailEl.textContent = user.email;
+    showGateState("unverified");
+    return;
+  }
+  showGateState("verified");
+  const view = new URLSearchParams(location.search).get('view');
+  if (view === 'requests') openMyRequestsModal();
+  if (view === 'messages') openMyMessagesModal();
+});
+
+function updateAuthChip() {
+  const chip  = document.getElementById("auth-chip");
+  const icon  = document.getElementById("auth-chip-icon");
+  const label = document.getElementById("auth-chip-label");
+  if (!chip) return;
+
+  if (!_currentUser) {
+    chip.className = "auth-chip auth-signed-out"; icon.textContent = "👤"; label.textContent = "Sign in"; return;
+  }
+
+  const name = _currentUser.displayName || _currentUser.email;
+  if (_userRole === "staff") {
+    chip.className = "auth-chip auth-signed-in-staff"; icon.textContent = "🏫"; label.textContent = name;
+  } else if (_userRole === "student") {
+    chip.className = "auth-chip auth-signed-in-verified"; icon.textContent = _userGroup === "Regular" ? "🎓" : "⭐"; label.textContent = name;
+  } else {
+    chip.className = "auth-chip auth-signed-in-unverified"; icon.textContent = "⚠️"; label.textContent = name;
+  }
+}
+
+function updateRequestModalGate() {
+  const gateOut    = document.getElementById("req-gate-signedout");
+  const gateUnver  = document.getElementById("req-gate-unverified");
+  const formOk     = document.getElementById("req-form-verified");
+  if (!gateOut) return;
+
+  gateOut.style.display = "none"; gateUnver.style.display = "none"; formOk.style.display = "none";
+
+  if (!_currentUser) { gateOut.style.display = "block"; return; }
+  if (_userRole === "unverified") {
+    document.getElementById("req-unverified-email").textContent = _currentUser.email;
+    gateUnver.style.display = "block"; return;
+  }
+
+  formOk.style.display = "block";
+  const chip = document.getElementById("req-verified-chip");
+  const hint = document.getElementById("req-priority-hint");
+  const groupSelect = document.getElementById("req-group");
+  groupSelect.value = _userGroup;
+
+  if (_userRole === "staff") {
+    chip.className = "verified-chip staff";
+    chip.textContent = "🏫 Verified as School Staff (" + _currentUser.email + ")";
+    hint.style.display = "block";
+    hint.textContent = "🏫 Staff requests are automatically flagged as priority for the librarian.";
+  } else {
+    const isPriorityGroup = _userGroup === "Literary Club" || _userGroup === "Editorial Board";
+    chip.className = "verified-chip" + (isPriorityGroup ? " staff" : "");
+    chip.textContent = (isPriorityGroup ? "⭐" : "✅") + " Verified as " + _userGroup + " (" + _currentUser.email + ")";
+    hint.style.display = isPriorityGroup ? "block" : "none";
+  }
+}
+
+onSnapshot(doc(db, "libraries", LIBRARY_ID, "meta", "control"), (snap) => {
+  if (snap.exists()) {
+    const d = snap.data();
+    _controlState = { issuance_suspended: !!d.issuance_suspended, suspend_reason: d.suspend_reason || "" };
+  } else {
+    _controlState = { issuance_suspended: false, suspend_reason: "" };
+  }
+  renderSuspendBanner();
+});
+
+function renderSuspendBanner() {
+  const el = document.getElementById("suspend-banner");
+  if (!el) return;
+  if (_controlState.issuance_suspended) {
+    el.style.display = "flex";
+    el.innerHTML = `🚫 <span>Book issuance is currently paused${_controlState.suspend_reason ? " — " + escHtml(_controlState.suspend_reason) : ""}. You can still submit requests; the librarian will process them once issuance resumes.</span>`;
+  } else {
+    el.style.display = "none";
+  }
+}
+
+onSnapshot(doc(db, "libraries", LIBRARY_ID, "public", "catalog"), (snap) => {
+  if (!snap.exists()) { showError("No library data found yet. Please wait for the librarian to sync."); return; }
+
+  const data = snap.data();
+  _lastUpdated = data.last_synced_iso ? new Date(data.last_synced_iso) : new Date();
+
+  const available = (data.availableList || []).map(b => ({ ...b, availability: "available", status: "Available" }));
+  const issued    = (data.issuedList    || []).map(b => ({ ...b, availability: "unavailable", status: "Issued" }));
+  const damaged   = (data.damagedList   || []).map(b => ({ ...b, availability: "unavailable", status: b.status }));
+
+  const seen = new Set();
+  _allBooks = [];
+  for (const b of [...available, ...issued, ...damaged]) {
+    if (!seen.has(b.book_id)) { seen.add(b.book_id); _allBooks.push(b); }
+  }
+
+  const stats = data.stats || {};
+  setText("stat-available", stats.available ?? available.length);
+  setText("stat-issued",    stats.issued    ?? issued.length);
+  setText("stat-total",     stats.total_books ?? _allBooks.length);
+
+  const timeStr = _lastUpdated.toLocaleString("en-IN", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" });
+  setText("last-updated", `Last updated by librarian: ${timeStr}`);
+  setLive(true);
+  renderResults();
+}, (err) => {
+  setLive(false);
+  showError("Could not connect to the library. Check your internet connection.");
+});
+
+window.doSearch = function() { _searchQuery = document.getElementById("search-input").value.trim(); renderResults(); };
+window.setSearch = function(q) { document.getElementById("search-input").value = q; _searchQuery = q; renderResults(); };
+window.setFilter = function(f, el) {
+  _filter = f;
+  document.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
+  if (el) el.classList.add("active");
+  renderResults();
+};
+
+document.getElementById("search-input").addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
+document.getElementById("search-input").addEventListener("input", e => { _searchQuery = e.target.value.trim(); renderResults(); });
+
+function renderResults() {
+  const container = document.getElementById("results-container");
+  const q = _searchQuery.toLowerCase();
+  let books = _allBooks;
+
+  if (q) {
+    books = books.filter(b => (b.title || "").toLowerCase().includes(q) || (b.author || "").toLowerCase().includes(q) || (b.book_id|| "").toLowerCase().includes(q));
+  }
+
+  if (_filter === "available")   books = books.filter(b => b.availability === "available");
+  if (_filter === "unavailable") books = books.filter(b => b.availability === "unavailable");
+
+  if (_allBooks.length === 0) return;
+
+  const allCount   = _allBooks.length;
+  const availCount = _allBooks.filter(b => b.availability === "available").length;
+  const issuedCount= _allBooks.filter(b => b.availability === "unavailable").length;
+
+  let html = `<div class="filter-row">
+    <span class="filter-label">Filter:</span>
+    <span class="filter-chip ${_filter==="all"?"active":""}" onclick="setFilter('all', this)">All Books (${allCount})</span>
+    <span class="filter-chip green-chip ${_filter==="available"?"active green-chip":""}" onclick="setFilter('available', this)">✅ Available (${availCount})</span>
+    <span class="filter-chip coral-chip ${_filter==="unavailable"?"active coral-chip":""}" onclick="setFilter('unavailable', this)">📤 Issued Out (${issuedCount})</span>
+  </div>`;
+
+  if (q) {
+    html += `<div class="section-header"><div class="section-title">Search Results</div><div class="results-count">${books.length} book${books.length!==1?"s":""} found</div></div>`;
+    if (books.length === 0) {
+      html += `<div class="no-results"><span style="font-size:48px;display:block;margin-bottom:14px">📭</span><div style="font-family:'Fraunces',serif;font-size:20px;font-weight:700;margin-bottom:8px">No books found</div><div style="font-size:14px;color:var(--text-muted)">No results for "<strong>${escHtml(q)}</strong>".<br>Try a different title, author name, or book ID.</div></div>`;
+    } else {
+      html += `<div class="book-list">` + books.map(b => bookListItem(b, q)).join("") + `</div>`;
+    }
+  } else {
+    html += `<div class="section-header"><div class="section-title">${_filter === "available" ? "📗 Available Books" : _filter === "unavailable" ? "📤 Issued Out" : "📚 All Books"}</div><div class="results-count">${books.length} book${books.length!==1?"s":""}</div></div>`;
+    if (books.length === 0) {
+      html += `<div class="state-card"><span class="state-icon">📭</span><div class="state-title">Nothing here</div><div class="state-sub">No books match this filter.</div></div>`;
+    } else {
+      html += `<div class="book-grid">` + books.map(b => bookCard(b)).join("") + `</div>`;
+    }
+  }
+
+  container.innerHTML = html;
+  container.querySelectorAll(".request-btn[data-book-id]").forEach(btn => {
+    btn.addEventListener("click", () => { openRequestModal(btn.dataset.bookId, btn.dataset.bookTitle); });
+  });
+}
+
+function bookCard(b) {
+  const avail = b.availability === "available";
+  const icons = ["📘","📗","📙","📕","📒","📔"];
+  const icon  = icons[hashStr(b.book_id || b.title) % icons.length];
+  const footerText = avail ? "✅ Available now" : `📤 ${b.status === "Issued" ? "Currently issued out" : b.status}`;
+  return `<div class="book-card ${b.availability}">
+    <div class="book-card-top">
+      <div class="book-icon">${icon}</div>
+      <div class="availability-badge ${b.availability}"><div class="badge-dot"></div>${avail ? "Available" : "Not Available"}</div>
+    </div>
+    <div>
+      <div class="book-title">${escHtml(b.title || b.book_id)}</div>
+      ${b.author ? `<div class="book-author">✍️ ${escHtml(b.author)}</div>` : ""}
+    </div>
+    <div class="book-id">${escHtml(b.book_id)}</div>
+    <div class="book-card-footer">${footerText}</div>
+    <button class="request-btn" data-book-id="${escHtml(b.book_id)}" data-book-title="${escHtml(b.title || b.book_id)}">📩 Request This Book</button>
+  </div>`;
+}
+
+function bookListItem(b, q) {
+  const avail = b.availability === "available";
+  const icons = ["📘","📗","📙","📕","📒","📔"];
+  const icon  = icons[hashStr(b.book_id || b.title) % icons.length];
+  return `<div class="book-list-item ${b.availability}">
+    <div class="bli-icon">${icon}</div>
+    <div class="bli-info">
+      <div class="bli-title">${highlight(b.title || b.book_id, q)}</div>
+      <div class="bli-meta">${b.author ? `<span>✍️ ${highlight(b.author, q)}</span><span class="sep">·</span>` : ""}<span class="book-id">${highlight(b.book_id, q)}</span></div>
+    </div>
+    <div class="bli-right">
+      <div class="availability-badge ${b.availability}"><div class="badge-dot"></div>${avail ? "Available" : b.status === "Issued" ? "Issued Out" : b.status}</div>
+      <button class="request-btn request-btn-sm" data-book-id="${escHtml(b.book_id)}" data-book-title="${escHtml(b.title || b.book_id)}">📩 Request</button>
+    </div>
+  </div>`;
+}
+
+window.openRequestModal = function(bookId, bookTitle) {
+  _pendingRequestBook = { id: bookId, title: bookTitle };
+  document.getElementById("req-modal-book-title").textContent = bookTitle;
+  document.getElementById("req-modal-book-id").textContent    = bookId;
+  document.getElementById("req-modal-error").style.display = "none";
+  document.getElementById("request-modal-overlay").classList.add("show");
+  try {
+    const saved = JSON.parse(sessionStorage.getItem("libra_request_form") || "{}");
+    if (saved.adm_no)  document.getElementById("req-adm-no").value  = saved.adm_no;
+    if (saved.name)    document.getElementById("req-name").value    = saved.name;
+    if (saved.class)   document.getElementById("req-class").value   = saved.class;
+    if (saved.section) document.getElementById("req-section").value = saved.section;
+  } catch {}
+  updateRequestModalGate();
+};
+
+window.closeRequestModal = function() {
+  document.getElementById("request-modal-overlay").classList.remove("show");
+  document.getElementById("req-note").value = "";
+};
+
+window.submitBookRequest = async function() {
+  const errEl = document.getElementById("req-modal-error");
+  if (!_currentUser || _userRole === "unverified") {
+    errEl.textContent = "You must be signed in and verified to submit a request.";
+    errEl.style.display = "block"; return;
+  }
+  const adm_no  = document.getElementById("req-adm-no").value.trim();
+  const name    = document.getElementById("req-name").value.trim();
+  const cls     = document.getElementById("req-class").value.trim();
+  const section = document.getElementById("req-section").value.trim();
+  const note    = document.getElementById("req-note").value.trim();
+  const group      = _userGroup;
+  const isPriority = group === "Literary Club" || group === "Editorial Board" || group === "Staff";
+
+  if (!adm_no || !name) { errEl.textContent = "Please enter your Admission Number and Name."; errEl.style.display = "block"; return; }
+  if (!_pendingRequestBook) return;
+
+  try {
+    const q = query(collection(db, "libraries", LIBRARY_ID, "book_requests"), where("requester_email", "==", _currentUser.email), where("book_access_no", "==", _pendingRequestBook.id), where("status", "==", "Pending"), limit(1));
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) { errEl.textContent = "You already have a pending request for this book."; errEl.style.display = "block"; return; }
+  } catch (e) {}
+
+  const submitBtn = document.getElementById("req-submit-btn");
+  submitBtn.textContent = "Submitting…";
+  submitBtn.disabled = true; errEl.style.display = "none";
+
+  try {
+    await addDoc(collection(db, "libraries", LIBRARY_ID, "book_requests"), {
+      adm_no, student_name: name, class: cls, section, group, priority: isPriority, book_access_no: _pendingRequestBook.id, book_title: _pendingRequestBook.title, note, status: "Pending", timestamp: serverTimestamp(), timestamp_iso: new Date().toISOString(), requester_email: _currentUser.email,
+    });
+    sessionStorage.setItem("libra_request_form", JSON.stringify({ adm_no, name, class: cls, section }));
+    submitBtn.textContent = "📩 Submit Request"; submitBtn.disabled = false; closeRequestModal(); showRequestSuccessToast(isPriority);
+  } catch (err) {
+    errEl.textContent = "Could not submit request: " + err.message; errEl.style.display = "block"; submitBtn.textContent = "📩 Submit Request"; submitBtn.disabled = false;
+  }
+};
+
+function showRequestSuccessToast(isPriority) {
+  const t = document.createElement("div"); t.className = "success-toast";
+  t.innerHTML = (isPriority ? "⭐ Priority request" : "📩 Request") + " sent to the librarian!";
+  document.body.appendChild(t); requestAnimationFrame(() => t.classList.add("show"));
+  setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 300); }, 3200);
+}
+
+window.openMyRequestsModal = async function() {
+  document.getElementById("my-requests-overlay").classList.add("show");
+  const el = document.getElementById("my-requests-list");
+  if (!_currentUser || _userRole === 'unverified') { el.textContent = 'Sign in as an authorized student or staff member to view your requests.'; return; }
+  const email = _currentUser.email;
+  el.textContent = 'Loading your requests…';
+  try {
+    const snapshot = await getDocs(query(collection(db, 'libraries', LIBRARY_ID, 'book_requests'), where('requester_email', '==', email)));
+    if (_currentUser?.email !== email) return;
+    const rows = snapshot.docs.map(item => ({ id: item.id, ...item.data() }))
+      .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
+    if (!rows.length) { el.textContent = 'No requests yet. Requests you submit will appear here.'; return; }
+    const statusMap = { Pending: '⏳ Pending', Approved: '✅ Approved', Declined: '❌ Declined', Issued: '📚 Issued to you', Cancelled: '❌ Cancelled by you' };
+    el.replaceChildren();
+    for (const row of rows) {
+      const card = document.createElement('div'); card.className = 'my-request-item';
+      const body = document.createElement('div'); body.className = 'mri-body';
+      const title = document.createElement('div'); title.className = 'mri-title'; title.textContent = row.book_title || 'Book request';
+      const meta = document.createElement('div'); meta.className = 'mri-meta';
+      const date = row.timestamp?.toDate?.() || new Date(row.timestamp_iso || 0);
+      meta.textContent = `${row.book_access_no || ''} · ${date.toLocaleString('en-IN')}`;
+      const status = document.createElement('div'); status.className = 'mri-status'; status.textContent = statusMap[row.status] || row.status || 'Pending';
+      body.append(title, meta); card.append(body, status);
+      if (row.status === 'Pending') {
+        const cancel = document.createElement('button'); cancel.className = 'request-btn request-btn-sm';
+        cancel.textContent = 'Cancel'; cancel.addEventListener('click', () => cancelMyRequest(row.id, row.book_title || 'this book'));
+        card.append(cancel);
+      }
+      el.append(card);
+    }
+  } catch (error) { el.textContent = 'Could not load requests: ' + error.message; }
+};
+
+window.closeMyRequestsModal = function() { document.getElementById("my-requests-overlay").classList.remove("show"); };
+
+window.openMyMessagesModal = async function() {
+  if (!_currentUser || _userRole !== 'student') { showAlert('Sign in as an authorized student to read messages.'); return; }
+  const overlay = document.getElementById('my-messages-overlay');
+  const list = document.getElementById('my-messages-list');
+  overlay.classList.add('show');
+  list.textContent = 'Loading messages…';
+  try {
+    const snapshot = await getDocs(query(collection(db, 'libraries', LIBRARY_ID, 'student_messages'),
+      where('recipient_email', '==', _currentUser.email.toLowerCase())));
+    const messages = snapshot.docs.map(item => item.data())
+      .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
+    if (!messages.length) { list.textContent = 'No messages yet.'; return; }
+    list.replaceChildren();
+    for (const message of messages) {
+      const card = document.createElement('div');
+      card.className = 'my-request-item';
+      const body = document.createElement('div');
+      body.className = 'mri-body';
+      body.textContent = message.body || '';
+      card.appendChild(body);
+      list.appendChild(card);
+    }
+  } catch (error) { list.textContent = 'Could not load messages: ' + error.message; }
+};
+window.closeMyMessagesModal = function() { document.getElementById('my-messages-overlay').classList.remove('show'); };
+
+window.cancelMyRequest = async function(requestId, bookTitle) {
+  if (!_currentUser || _userRole === "unverified") {
+    showAlert("You must be signed in to cancel a request.");
+    return;
+  }
+  const confirmed = await new Promise(resolve => {
+    showConfirm(`Cancel your request for "${escHtml(bookTitle)}"?`, resolve);
+  });
+  if (!confirmed) return;
+  try {
+    await updateDoc(doc(db, "libraries", LIBRARY_ID, "book_requests", requestId), {
+      status: "Cancelled",
+      decision_note: "Cancelled by student",
+      decided_at: serverTimestamp(),
+      decided_at_iso: new Date().toISOString(),
+    });
+    // Refresh the modal
+    openMyRequestsModal();
+    showAlert("Request cancelled.");
+  } catch (err) {
+    showAlert("Could not cancel request: " + err.message);
+  }
+};
+
+function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+function escHtml(str) { return String(str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/`/g,"&#96;"); }
+function escapeRegExp(str) { return String(str || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+function highlight(str, q) {
+  if (!q || !str) return escHtml(str);
+  const safe = escHtml(str), safeQ = escHtml(q);
+  return safe.replace(new RegExp(escapeRegExp(safeQ), "gi"), m => `<mark>${m}</mark>`);
+}
+function hashStr(s) { let h = 0; for (let i = 0; i < (s||"").length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xFFFFFF; return Math.abs(h); }
+function setLive(online) {
+  const dot = document.getElementById("live-dot"), status = document.getElementById("header-status");
+  if (online) { dot.style.background = "var(--green-dark)"; status.textContent = "Live"; } else { dot.style.background = "var(--coral-dark)"; status.textContent = "Offline"; }
+}
+function showError(msg) { document.getElementById("results-container").innerHTML = `<div class="state-card"><span class="state-icon">📡</span><div class="state-title">Connection Issue</div><div class="state-sub">${escHtml(msg)}</div></div>`; setLive(false); }
+window.addEventListener("offline", () => setLive(false)); window.addEventListener("online", () => setLive(true));
+}
+</script>
+
+</body>
+</html>

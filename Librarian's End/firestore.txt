@@ -1,0 +1,241 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+// ══════════════════════════════════════════════════════════════
+//  LIVORÉ — Firestore Security Rules  (with Firebase Auth)
+    //
+    //  Identity model:
+    //    • Staff/Teacher  → signed in with Google, email ends @meacademy.in
+    //                        Auto-verified. No admin action needed.
+    //    • Student        → signed in with Google (any email), must be
+    //                        pre-authorized by staff in /authorized_students
+    //                        with an assigned group (Regular / Literary Club /
+    //                        Editorial Board). Unauthorized students can
+    //                        browse but cannot submit book requests.
+    //
+    //  Architecture:
+    //    Tomeva desktop app  → writes sync snapshot, reads control flag,
+    //                              reads/decides on book requests, sends notifications
+    //                              (still unauthenticated — local kiosk app)
+    //    Admin portal (browser) → reads snapshot, writes control flag (exam suspend),
+    //                              sends reply notifications (unauthenticated for these),
+    //                              manages /authorized_students (REQUIRES staff sign-in)
+    //    Student search portal  → reads snapshot + control flag (public, no login),
+    //                              creates book requests (REQUIRES sign-in + verification)
+    //
+    //  NOTE: The librarian app, admin dashboard stats, and notifications
+    //  remain on the original open trust model (school-internal tool, no
+    //  login wall) — only book-request submission and student-access
+    //  management now require real Firebase Auth identity, since those are
+    //  the two places where impersonation/forgery actually matters.
+    // ══════════════════════════════════════════════════════════════
+
+    // ── Helper: is the caller signed in with a @meacademy.in account? ──
+    function isStaff() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && request.auth.token.email.matches('(?i).*@meacademy\\.in$');
+    }
+
+    match /libraries/{libraryId} {
+
+      // ── MAIN SYNC DOCUMENT ───────────────────────────────────────
+      allow read: if true;
+
+      allow create, update: if
+        request.resource.data.keys().hasAll([
+          'stats', 'overdueList', 'issuedList',
+          'finesList', 'damagedList', 'availableList',
+          'last_synced', 'last_synced_iso', 'sync_version'
+        ])
+        && !request.resource.data.keys().hasAny([
+          'full_transactions', 'student_personal_data',
+          'admin_credentials', 'librarian_password',
+          'complete_student_records'
+        ])
+        && request.resource.data.stats is map
+        && request.resource.data.sync_version is number;
+
+      allow delete: if false;
+
+
+      // ── CONTROL FLAG  (admin sets, librarian + students read) ────
+      match /meta/control {
+        allow read: if true;
+
+        allow create, update: if
+          request.resource.data.keys().hasAll([
+            'issuance_suspended', 'suspend_reason',
+            'updated_at', 'updated_by'
+          ])
+          && request.resource.data.issuance_suspended is bool
+          && request.resource.data.suspend_reason is string
+          && request.resource.data.suspend_reason.size() <= 200
+          && request.resource.data.updated_by in ['admin', 'librarian'];
+
+        allow delete: if false;
+      }
+
+
+      // ── AUTHORIZED STUDENTS  (staff-managed access + group list) ─
+      //    /libraries/{id}/authorized_students/{email}
+      //    Document ID is the student's sign-in email (lowercased).
+      //    Only staff (@meacademy.in, signed in) may add/remove/change these.
+      //    Any signed-in user may read the list (used for self-lookup by
+      //    the search portal, and for the admin management table).
+      match /authorized_students/{studentEmail} {
+        allow read: if request.auth != null;
+
+        allow create, update: if isStaff()
+          && request.resource.data.keys().hasAll(['email', 'name', 'group', 'added_by', 'added_at'])
+          && request.resource.data.email is string
+          && request.resource.data.email == studentEmail
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 100
+          && request.resource.data.group in ['Regular', 'Literary Club', 'Editorial Board'];
+
+        allow delete: if isStaff();
+      }
+
+
+      // ── STUDENT LOGINS  (self-reported profile, captured at sign-in) ──
+      //    /libraries/{id}/student_logins/{email}
+      //    Written by the signed-in student themselves the first time they
+      //    sign in and haven't yet been authorized. Powers the admin's
+      //    "Pending Verification" list — staff can see who's waiting and
+      //    quickly assign a group without hunting for their email first.
+      //    This is intentionally a SEPARATE collection from
+      //    authorized_students: this one is self-reported and unverified;
+      //    authorized_students is the staff-approved source of truth.
+      match /student_logins/{studentEmail} {
+        allow read: if request.auth != null;
+
+        // A signed-in user may only create/update their OWN login record.
+        allow create, update: if request.auth != null
+          && request.auth.token.email == studentEmail
+          && request.resource.data.keys().hasAll(['email', 'name', 'class', 'section', 'adm_no', 'first_login_at', 'last_login_at'])
+          && request.resource.data.email == studentEmail
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100
+          && request.resource.data.class is string   && request.resource.data.class.size()   <= 20
+          && request.resource.data.section is string && request.resource.data.section.size() <= 10
+          && request.resource.data.adm_no is string  && request.resource.data.adm_no.size()  <= 40;
+
+        allow delete: if isStaff();
+      }
+
+
+      // ── LIBRARIAN → ADMIN NOTIFICATIONS ──────────────────────────
+      match /notifications/{notifId} {
+        allow read: if true;
+
+        allow create: if
+          request.resource.data.keys().hasAll([
+            'from', 'to', 'type', 'subject', 'body',
+            'read', 'timestamp', 'timestamp_iso'
+          ])
+          && request.resource.data.from    == 'librarian'
+          && request.resource.data.to      == 'admin'
+          && request.resource.data.type    in ['MESSAGE', 'ALERT', 'WARNING']
+          && request.resource.data.subject is string
+          && request.resource.data.body    is string
+          && request.resource.data.subject.size() > 0
+          && request.resource.data.subject.size() <= 200
+          && request.resource.data.body.size()    <= 2000;
+
+        allow update: if
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+
+        allow delete: if false;
+      }
+
+
+      // ── ADMIN → LIBRARIAN NOTIFICATIONS ──────────────────────────
+      match /admin_notifications/{notifId} {
+        allow read: if true;
+
+        allow create: if
+          request.resource.data.keys().hasAll([
+            'from', 'to', 'type', 'subject', 'body',
+            'read', 'timestamp', 'timestamp_iso'
+          ])
+          && request.resource.data.from    == 'admin'
+          && request.resource.data.to      == 'librarian'
+          && request.resource.data.type    in ['MESSAGE', 'ALERT', 'WARNING']
+          && request.resource.data.subject is string
+          && request.resource.data.body    is string
+          && request.resource.data.subject.size() > 0
+          && request.resource.data.subject.size() <= 200
+          && request.resource.data.body.size()    <= 2000;
+
+        allow update: if
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+
+        allow delete: if false;
+      }
+
+
+      // ── STUDENT BOOK REQUESTS  (NOW REQUIRES VERIFIED IDENTITY) ───
+      //    /libraries/{id}/book_requests/{requestId}
+      //    Created by a signed-in, verified user (staff or authorized
+      //    student). The submitted "group" and "priority" fields must
+      //    match what the server already knows about that identity —
+      //    they can no longer be freely typed by the client.
+      match /book_requests/{requestId} {
+
+//    Tomeva reads to review; admin reads for visibility.
+        allow read: if true;
+
+        allow create: if
+          request.auth != null
+          && request.resource.data.keys().hasAll([
+            'adm_no', 'student_name', 'class', 'section', 'group',
+            'book_access_no', 'book_title', 'priority',
+            'note', 'status', 'timestamp', 'timestamp_iso',
+            'requester_email'
+          ])
+          // The requester_email must be the caller's own verified email —
+          // prevents submitting a request "as" someone else.
+          && request.resource.data.requester_email == request.auth.token.email
+          && request.resource.data.adm_no.size()        > 0  && request.resource.data.adm_no.size()        <= 40
+          && request.resource.data.student_name.size()  > 0  && request.resource.data.student_name.size()  <= 100
+          && request.resource.data.class.size()         <= 20
+          && request.resource.data.section.size()       <= 10
+          && request.resource.data.book_access_no.size() > 0 && request.resource.data.book_access_no.size() <= 40
+          && request.resource.data.book_title.size()     > 0 && request.resource.data.book_title.size()     <= 200
+          && request.resource.data.priority is bool
+          && request.resource.data.note.size()           <= 300
+          && request.resource.data.status                == 'Pending'
+          && (
+               // Path 1: Staff/Teacher — auto-verified by domain, always priority.
+               (isStaff()
+                 && request.resource.data.group == 'Staff'
+                 && request.resource.data.priority == true)
+               ||
+// Path 2: Verified student — group MUST match their authorized record.
+                (exists(/databases/$(database)/documents/libraries/$(libraryId)/authorized_students/$(request.auth.token.email))
+                  && request.resource.data.group ==
+                       get(/databases/$(database)/documents/libraries/$(libraryId)/authorized_students/$(request.auth.token.email)).data.group
+                  && request.resource.data.priority ==
+                       (request.resource.data.group in ['Literary Club', 'Editorial Board']))
+             );
+
+//    Tomeva updates status (Approved / Declined / Issued) + decision note.
+        allow update: if
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'decision_note', 'decided_at', 'decided_at_iso'])
+          && request.resource.data.status in ['Pending', 'Approved', 'Declined', 'Issued'];
+
+        allow delete: if false;
+      }
+    }
+
+
+    // ── DENY ALL OTHER COLLECTIONS ──────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

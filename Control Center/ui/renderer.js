@@ -1,0 +1,203 @@
+(() => {
+  // src/renderer.js
+  var bridge = window.controlCenter;
+  var byId = (id) => document.getElementById(id);
+  var headings = {
+    recovery: ["Backup & recovery", "Institution-owned encrypted recovery for a replacement computer."],
+    overview: ["Overview", "Prepare Tomeva for a new institution Firebase project."],
+    setup: ["Firebase setup", "Enter project details, copy the complete rules, and export."],
+    packages: ["Setup packages", "Prepare configuration for the Librarian and Admin desktop apps."],
+    web: ["Student web code", "Export and check the institution\u2019s student site."],
+    updates: ["Software updates", "Review public Tomeva releases."]
+  };
+  var config = null;
+  function notice(message, kind = "") {
+    const el = byId("notice");
+    el.textContent = message;
+    el.className = "notice " + kind;
+    clearTimeout(notice.timer);
+    notice.timer = setTimeout(() => el.classList.add("hidden"), 1e4);
+  }
+  function navigate(page) {
+    if (!headings[page]) return;
+    document.querySelectorAll(".page").forEach((item) => item.classList.toggle("active", item.id === `page-${page}`));
+    document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === page));
+    byId("page-title").textContent = headings[page][0];
+    byId("page-description").textContent = headings[page][1];
+  }
+  document.querySelectorAll("[data-page]").forEach((item) => item.addEventListener("click", () => navigate(item.dataset.page)));
+  document.querySelectorAll("[data-go]").forEach((item) => item.addEventListener("click", () => navigate(item.dataset.go)));
+  bridge.onNavigate(navigate);
+  document.querySelectorAll("[data-export]").forEach((button) => button.addEventListener("click", () => exportPackages(button.dataset.export)));
+  function formValue() {
+    const form = byId("config-form").elements;
+    return {
+      firebase: Object.fromEntries(["projectId", "apiKey", "authDomain", "appId", "messagingSenderId", "storageBucket", "databaseURL", "measurementId"].map((key) => [key, form.namedItem(key).value.trim()])),
+      staffDomain: form.namedItem("staffDomain").value.trim(),
+      webUrl: form.namedItem("webUrl").value.trim()
+    };
+  }
+  function fillForm(value) {
+    if (!value) return;
+    const form = byId("config-form").elements;
+    for (const [key, valueText] of Object.entries({ ...value.firebase, staffDomain: value.staffDomain, webUrl: value.webUrl })) {
+      const field = form.namedItem(key);
+      if (field) field.value = valueText || "";
+    }
+  }
+  function showConfig() {
+    const project = config?.firebase.projectId;
+    byId("sidebar-institution").textContent = project || "No project entered";
+    byId("overview-setup").textContent = project ? "Project settings saved" : "Waiting for project details";
+    byId("overview-setup-detail").textContent = project ? `Ready to generate setup packages for ${project}.` : "A new Firebase project starts empty. Control Center supplies the rules and app configuration.";
+    byId("deploy-project").textContent = project || "YOUR_PROJECT";
+    byId("config-saved").textContent = project ? `Saved locally for ${project}` : "";
+  }
+  byId("config-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      config = await bridge.saveConfig(formValue());
+      showConfig();
+      await showRecovery();
+      navigate("recovery");
+      notice("Project settings saved. Create or update your Recovery Kit.", "success");
+    } catch (error) {
+      notice(error.message, "error");
+    }
+  });
+  async function exportPackages(component = "all") {
+    try {
+      const result = await bridge.exportSetup(formValue(), component);
+      if (!result.cancelled) notice(`${result.installersIncluded ? "Installers and configuration" : "Configuration packages (installers are not bundled in this development build)"} exported to ${result.path}`, "success");
+    } catch (error) {
+      navigate("setup");
+      notice(error.message, "error");
+    }
+  }
+  byId("export-setup").addEventListener("click", () => exportPackages());
+  byId("export-packages").addEventListener("click", () => exportPackages());
+  byId("copy-rules").addEventListener("click", async () => {
+    try {
+      await bridge.copyRules(formValue());
+      notice("Complete rules copied. Paste them into Firestore Database \u2192 Rules, test in Rules Playground, then Publish.", "success");
+    } catch (error) {
+      notice(error.message, "error");
+    }
+  });
+  byId("preview-rules").addEventListener("click", async () => {
+    try {
+      byId("rules-preview").textContent = await bridge.getRules(formValue());
+      byId("rules-preview").classList.remove("hidden");
+    } catch (error) {
+      notice(error.message, "error");
+    }
+  });
+  byId("export-web").addEventListener("click", async () => {
+    try {
+      const result = await bridge.exportWeb(formValue());
+      if (!result.cancelled) notice(`Student web code exported to ${result.path}`, "success");
+    } catch (error) {
+      navigate("setup");
+      notice(error.message, "error");
+    }
+  });
+  byId("check-web").addEventListener("click", async () => {
+    try {
+      const result = await bridge.checkWeb(formValue().webUrl);
+      byId("web-check-result").textContent = result.updateAvailable ? `Deployed ${result.deployedVersion}; package ${result.availableVersion} is available here.` : `Deployed version ${result.deployedVersion} is current.`;
+    } catch (error) {
+      byId("web-check-result").textContent = error.message;
+    }
+  });
+  async function showDesktopReleases() {
+    const releases = await bridge.updates.desktopReleases();
+    for (const component of ["librarian", "admin"]) {
+      const release = releases[component];
+      byId(`${component}-release`).textContent = release?.state === "current-release" ? `Latest public release: ${release.version}` : release?.state === "unconfigured" ? "Public release repository is not configured in this build." : `Release check failed: ${release?.message || "Unknown error"}`;
+    }
+  }
+  byId("update-check").addEventListener("click", () => {
+    bridge.updates.check();
+    showDesktopReleases().catch((error) => notice(error.message, "error"));
+  });
+  byId("update-download").addEventListener("click", () => bridge.updates.download());
+  byId("update-install").addEventListener("click", () => bridge.updates.install());
+  document.querySelectorAll("[data-desktop-update]").forEach((button) => button.addEventListener("click", () => {
+    bridge.updates.openDesktop(button.dataset.desktopUpdate).catch((error) => notice("Could not open the installed updater: " + error.message, "error"));
+  }));
+  function showUpdateStatus(status) {
+    const labels = { development: "Development build", checking: "Checking public releases", current: "Up to date", available: `Version ${status.availableVersion} available`, downloading: "Downloading update", ready: "Ready to install", error: "Update check needs attention", unconfigured: "Release channel not configured" };
+    byId("update-heading").textContent = labels[status.state] || status.state;
+    byId("update-status").textContent = status.message || ({ available: "Review the notes, then download when ready.", ready: "Restart to install the downloaded version.", development: "Update checks are available in installed builds.", unconfigured: "The release owner and repository must be configured when building the installer." }[status.state] || "");
+    byId("update-version").textContent = `Installed version ${status.version || "\u2014"}`;
+    byId("update-notes").textContent = Array.isArray(status.releaseNotes) ? status.releaseNotes.map((item) => item.note || "").join("\n") : String(status.releaseNotes || "");
+    byId("update-download").disabled = status.state !== "available";
+    byId("update-install").disabled = status.state !== "ready";
+    byId("update-progress").classList.toggle("hidden", status.state !== "downloading");
+    byId("update-progress").value = Number(status.percent) || 0;
+  }
+  bridge.updates.onStatus(showUpdateStatus);
+  (async () => {
+    try {
+      config = await bridge.getConfig();
+      fillForm(config);
+      showConfig();
+      byId("web-package-version").textContent = `Package v${await bridge.getVersion()}`;
+      showUpdateStatus(await bridge.updates.getStatus());
+      showDesktopReleases().catch((error) => notice(error.message, "error"));
+      await showRecovery();
+      if (!config) navigate("overview");
+    } catch (error) {
+      notice("Could not load setup: " + error.message, "error");
+    }
+  })();
+  async function showRecovery() {
+    const status = await bridge.recoveryStatus();
+    byId("recovery-status").textContent = !status.exists ? "Create a Recovery Kit to protect your setup" : status.stale ? "Your Recovery Kit should be updated" : "Recovery Kit is current";
+    byId("overview-recovery").textContent = byId("recovery-status").textContent;
+    byId("recovery-detail").textContent = status.exists ? `Created ${new Date(status.createdAt).toLocaleString()} \xB7 Format ${status.formatVersion}` : "Save project settings, then create an encrypted kit.";
+  }
+  document.querySelectorAll("[data-recovery]").forEach((button) => button.addEventListener("click", async () => {
+    const action = button.dataset.recovery;
+    const password = byId("recovery-password").value;
+    if (action === "create" && password !== byId("recovery-confirm").value) {
+      notice("Recovery passwords do not match.", "error");
+      return;
+    }
+    const buttons = document.querySelectorAll("[data-recovery]");
+    buttons.forEach((item) => {
+      item.disabled = true;
+    });
+    try {
+      const result = await bridge.recoveryRun(action, password);
+      if (!result.cancelled) {
+        if (action === "restore") {
+          config = await bridge.getConfig();
+          fillForm(config);
+          showConfig();
+        }
+        await showRecovery();
+        notice(result.valid ? `Recovery Kit valid: integrity, encryption, institution settings and format verified for ${result.projectId}.${action === "restore" ? " Local setup restored." : " Current setup was not changed."}` : `Encrypted Recovery Kit saved to ${result.path}`, "success");
+      }
+    } catch (error) {
+      notice(error.message, "error");
+    } finally {
+      byId("recovery-password").value = "";
+      byId("recovery-confirm").value = "";
+      buttons.forEach((item) => {
+        item.disabled = false;
+      });
+    }
+  }));
+  document.querySelectorAll("[data-install]").forEach((button) => button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      const result = await bridge.installPackage(formValue(), button.dataset.install);
+      if (!result.cancelled) notice("Installer opened with your institution configuration. Follow its installation prompts.", "success");
+    } catch (error) {
+      notice(error.message, "error");
+    } finally {
+      button.disabled = false;
+    }
+  }));
+})();

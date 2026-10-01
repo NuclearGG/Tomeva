@@ -1,0 +1,8 @@
+{
+  "indexes": [{ "collectionGroup": "book_requests", "queryScope": "COLLECTION", "fields": [
+    { "fieldPath": "requester_email", "order": "ASCENDING" },
+    { "fieldPath": "book_access_no", "order": "ASCENDING" },
+    { "fieldPath": "status", "order": "ASCENDING" }
+  ] }],
+  "fieldOverrides": []
+}
