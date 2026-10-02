@@ -9,7 +9,9 @@ let appUpdater;
 const oauth = new OAuthFlow({
   getLoginUrl: () => {
     const config = institution.read();
-    return config ? `https://${config.firebase.projectId}.web.app/admin-sign-in/` : null;
+    if (!config) return null;
+    const base = config.webUrl || `https://${config.firebase.projectId}.web.app/`;
+    return new URL('admin-sign-in/', base.endsWith('/') ? base : new URL('.', base)).href;
   },
   openExternal: (url) => shell.openExternal(url),
   notify: (result) => {
@@ -46,7 +48,7 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadFile('index.html');
+  mainWindow.loadFile(path.join(__dirname, 'index.html'));
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     openHttpsUrl(url);
     return { action: 'deny' };

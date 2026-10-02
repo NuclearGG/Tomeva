@@ -1,36 +1,39 @@
 # Tomeva Control Center
 
-This separate Electron application generates setup packages locally. It requires no account or Google sign-in. The setup person supplies Firebase web app configuration for a brand new institution project. Tomeva Admin and Tomeva Librarian handle daily library operations.
+Control Center is the only application institutions download manually. It is a separate, login-free setup and software distribution app. The setup person supplies their Firebase web configuration in the step-by-step wizard.
 
-## Run
+## Institution setup
 
-From this folder, run `npm install`, then `npm start`. The setup screen asks the institution to enter its own Firebase **web app** configuration. Do not enter a service-account key. This app keeps the configuration in its Electron user-data folder and backs up the previous copy when it changes.
+Enter the **Institution name** and **Staff email domain** in Firebase setup. The name travels with desktop setup files, encrypted recovery kits and the student web configuration; the student welcome screen displays it. Existing setup files remain readable, and Control Center asks for the name before saving or exporting again. After editing these settings, regenerate and distribute the affected packages.
 
-## Free Spark setup
+Control Center generates Firestore rules from the **Staff email domain** entered for each institution. Preview, Copy rules, desktop setup folders, and Student Portal exports all use the same generator. Each generated rules file identifies its Firebase project and staff domain. Publish that institution's `PASTE_IN_FIRESTORE_RULES.txt`; the repository's `firestore.rules` is a template containing `staff.example` and must not be deployed directly. After changing the staff domain, regenerate and publish the rules and import the matching desktop configuration, then sign in again in Admin.
 
-1. In the institution's Firebase project, create Cloud Firestore and enable Google, Anonymous, and Email/Password sign-in. Add the project's `web.app` domain to Firebase Auth authorized domains.
-2. Enter the exact Firebase web app values and staff email domain in **Institution setup**. Save them.
-3. Click **Copy Firestore rules**. In Firebase Console, open **Firestore Database → Rules**, paste the complete text into the rules editor, test sample paths in **Rules Playground**, then **Publish**. The Rules Playground tests rules; it is not the editor that publishes them.
-4. Click **Export all packages**. It includes `Librarian-Setup`, `Admin-Setup`, `PASTE_IN_FIRESTORE_RULES.txt`, `firestore.rules`, `firestore.indexes.json`, and the complete student app code in `public`. Desktop setup folders contain their installers, configuration and handoff instructions in Windows release builds.
-5. From that exported folder on an institution-controlled computer, run `firebase login`, then `firebase deploy --project YOUR_PROJECT_ID --only hosting`. If Firestore reports a missing composite index, create the listed index using its console link or `firestore.indexes.json`.
-6. Import the respective `institution.json` into Tomeva Librarian and Tomeva Admin using File → Import institution setup in Librarian and Setup → Import institution setup in Admin. Sign in inside Admin's End with a verified staff Google account and provision each kiosk there. Librarian's first sync creates the catalogue in the new project.
+Run `npm run test:rules` in Librarian's End with its Firestore emulator before deploying rules. `firestore.txt` is also a template, not an institution-ready rules file. Legacy Cloud Function deployments must set `TOMEVA_STAFF_DOMAIN` to the same staff domain; missing configuration denies staff operations. Current exports use the kiosk account flow and do not need Cloud Functions.
 
-Desktop notifications use live Firestore listeners while the desktop apps run. Student browser alerts work while Tomeva Web is open and the student grants permission. Browser alerts cannot be delivered after the site is closed in this Spark only design. Student requests and messages remain available in Firestore when they return.
+1. Create an institution-owned Firebase project, enable Firestore and Google/Anonymous/Email-Password Authentication, and enter its exact web configuration and staff domain.
+2. Copy the complete generated Firestore rules into Firebase Console → Firestore Database → Rules. Test using Rules Playground, then publish. No Cloud Functions or Blaze plan is required; Spark quotas apply.
+3. In Setup packages choose Windows or Linux, then download each desktop package separately or generate all packages. Control Center retrieves the latest official software from **NuclearGG/Tomeva GitHub Releases**, verifies its SHA-256 and size, and adds the institution configuration locally. Local-install buttons download and launch the appropriate package on this computer.
+4. Copy the entire generated desktop folder to its destination computer. Keep `institution.json` beside the installer/AppImage. Fresh profiles import it automatically; existing profiles preserve their saved settings. Use Import institution setup to intentionally change them.
+5. Generate the Student Portal package. Deploy its `public` directory to your own Firebase Hosting, school website, Apache or Nginx over HTTPS. Configure the hosting domain in Firebase Auth. The package includes the Admin sign-in helper. For custom hosting, enter the site's URL in Control Center before exporting desktop configurations.
+6. Authorized staff sign in to Admin to provision kiosks, manage students and approve software rollout. Daily Librarian circulation stays offline-first.
+7. Create and verify an encrypted Recovery Kit. Store a copy away from this computer and the password separately.
 
-## Releases
+GitHub receives no institution configuration, credentials or database. Control Center has no permanent internal binary cache and does not ship other installers inside its own installer. User-requested exports remain in the selected output directory. Failed downloads remove their `.part` file and incomplete bundles are clearly marked.
 
-Windows release builds now embed the Librarian and Admin installers. Keep each exported installer beside its `institution.json` when transferring to another computer. A fresh installation imports that configuration automatically; existing installations preserve their saved settings. Setup packages has separate export and local-install buttons for both desktop apps.
+The official repository currently needs published assets before live downloads can work. Control Center reports missing releases/assets clearly; there is no custom download server or manual-GitHub fallback.
 
-## Recovery and approval
+## Updates and recovery
 
-Create the prompted encrypted Recovery Kit after saving settings. Backup & recovery supports creation/rotation, safe verification, another encrypted copy and replacement-computer restore. Changed settings mark the kit stale. Manual recovery uses the existing Firebase configuration. Staff authentication remains in Admin.
+Control Center updates itself from GitHub with a local checkpoint before installation. Admin's Update approvals page stores an exact version, approved/paused policy and start time in institution Firestore. Each desktop app downloads that approved GitHub tag, verifies the Electron update metadata, rechecks authorization and asks before restart. A newer public release does not override an older institution-approved version.
 
-Admin's Update approvals page stores an exact version, approved/paused policy and start time in the institution's Firestore. Desktop updaters check approval before download and again before installation. Control Center checkpoints its local state before self-update. See [the full safety audit](../documentation/RECOVERY_AND_UPDATE_SAFETY.md).
+Backup & recovery supports encrypted kit creation/rotation, verification, export of another encrypted copy and restore. Settings changes mark old kits stale. The institution owns the password; Tomeva has no recovery key. Manual recovery uses existing Firebase settings and authorized Admin accounts. Kits contain bootstrap settings, not Librarian circulation data.
 
-Build both desktop NSIS installers first. By default Control Center reads their `dist` folders; set `TOMEVA_DESKTOP_BUILD_DIR=dist-release` for that output directory, then run `npm run build:win`. Missing binaries stop the Windows distribution build. Development exports identify configuration-only packages.
+See [distribution architecture](../documentation/SOFTWARE_DISTRIBUTION.md) and [recovery safety audit](../documentation/RECOVERY_AND_UPDATE_SAFETY.md).
 
-Public release binaries are separate from the institution's Firebase project. Build installers with `TOMEVA_RELEASE_OWNER`, `TOMEVA_RELEASE_REPO`, `TOMEVA_LIBRARIAN_RELEASE_REPO`, and `TOMEVA_ADMIN_RELEASE_REPO` set to the project's public GitHub release repositories. Build and publish signed releases from trusted release infrastructure. Each installed app owns its update installation; Control Center checks its own updater and displays the other public release versions. Its buttons open the installed desktop apps' update flows. Local data lives in Electron user-data folders, outside installer resources. Librarian makes a SQLite backup before installing a downloaded update.
+## Development and publishing
 
-## Verification
+Run `npm install`, then `npm start`. Tests: `npm test`, `npm run test:desktop`. Desktop smoke tests use controlled GitHub fixtures, including both operating-system packages and a real Student ZIP; they do not publish or install software.
 
-`npm test` checks config preservation and release metadata lookup. `npm run test:desktop` checks the isolated Electron app, setup export, clipboard rules, and web export. The Firestore emulator tests run from `Librarian's End` using `firebase emulators:exec --only firestore --project demo-tomeva "npm run test:rules"` with a current Java runtime.
+Build each desktop app from its own folder with `npm run build:win` or `npm run build:linux`. Outputs are in each app's **dist** directory. From the repository root run `node scripts/collect-release.cjs win` (or `linux`) and `node scripts/package-student.cjs`. The collector keeps component update metadata separate. All package versions must match the `vX.Y.Z` release tag.
+
+The GitHub release workflow builds Windows and Linux separately and assembles a publisher-reviewed draft release. Only software and templates enter those assets. Signing requires the publisher's signing identity; local unsigned builds do not imply authenticated publisher identity. Do not claim automatic rollback.

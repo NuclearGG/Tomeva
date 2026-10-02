@@ -10,11 +10,15 @@ function validate(data) {
   }
   if (!/^[a-z0-9-]{4,80}$/.test(data.firebase.projectId)) throw new Error('Invalid project ID.');
   const firebase = Object.fromEntries(['apiKey', 'projectId', 'authDomain', 'appId', 'messagingSenderId', 'storageBucket', 'measurementId', 'databaseURL'].filter(key => typeof data.firebase[key] === 'string').map(key => [key, data.firebase[key]]));
-  return { firebase, libraryId: 'main', staffDomain: data.staffDomain };
+  const webUrl = typeof data.webUrl === 'string' ? data.webUrl : '';
+  if (webUrl) { const url = new URL(webUrl); if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Invalid institution web URL.'); }
+  const institutionName = typeof data.institutionName === 'string' ? data.institutionName.trim() : '';
+  if (institutionName.length > 200) throw new Error('Invalid institution name.');
+  return { institutionName, firebase, libraryId: 'main', staffDomain: data.staffDomain, webUrl };
 }
 function read() {
   if (!fs.existsSync(filename())) {
-    const supplied = path.join(app.isPackaged ? path.dirname(app.getPath('exe')) : app.getAppPath(), 'institution.json');
+    const supplied = path.join(app.isPackaged ? path.dirname(process.platform === 'linux' && process.env.APPIMAGE ? process.env.APPIMAGE : app.getPath('exe')) : app.getAppPath(), 'institution.json');
     if (!fs.existsSync(supplied)) return null;
     if (fs.statSync(supplied).size > 32768) throw new Error('Institution configuration is too large.');
     const config = validate(JSON.parse(fs.readFileSync(supplied, 'utf8')));

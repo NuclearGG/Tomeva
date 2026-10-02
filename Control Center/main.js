@@ -9,6 +9,19 @@ const { checkDesktopReleases } = require('./desktop-releases');
 
 let window = null;
 let updater = null;
+let provisioning = null;
+async function distribute(action) {
+  if (provisioning) throw new Error('A package download is already running. Wait or cancel it first.');
+  provisioning = new AbortController();
+  let lastProgress = 0;
+  const progress = status => {
+    if (status.state === 'downloading' && Date.now() - lastProgress < 200) return;
+    lastProgress = Date.now(); send('distribution:progress', status);
+  };
+  progress({ state: 'checking', name: 'Checking official GitHub Releases' });
+  try { return await action({ signal: provisioning.signal, progress }); }
+  finally { provisioning = null; send('distribution:progress', { state: 'idle' }); }
+}
 const configStore = createConfigStore(app.getPath('userData'));
 const recovery = require('./recovery').createRecovery({ userData: app.getPath('userData'), store: configStore, dialog, getWindow: () => window, version: app.getVersion() });
 
@@ -50,21 +63,27 @@ handle('updates:open-desktop', component => {
   if (!Object.hasOwn(urls, component)) throw new Error('Unknown Tomeva component.');
   return shell.openExternal(urls[component]);
 });
-handle('web:export', value => exportWebPackage(window, value));
+handle('web:export', value => distribute(options => exportWebPackage(window, value, options)));
 handle('web:check', url => checkWebDeployment(url));
-handle('setup:export', (value, component) => exportSetupBundle(window, value, component));
+handle('setup:export', (value, component, platform) => distribute(options => exportSetupBundle(window, value, component, platform, options)));
 handle('setup:install', async (value, component) => {
   if (!['librarian', 'admin'].includes(component)) throw new Error('Unknown installer.');
-  const result = await exportSetupBundle(window, value, component);
+  if (!['win32', 'linux'].includes(process.platform)) throw new Error('Local installation supports Windows and Linux. Export a package for another computer.');
+  const result = await distribute(options => exportSetupBundle(window, value, component, process.platform === 'linux' ? 'linux' : 'win', options));
   if (result.cancelled) return result;
-  if (!result.installerPath) throw new Error('This build does not include the desktop installer. Build the Windows distribution first.');
-  const error = await shell.openPath(result.installerPath);
-  if (error) throw new Error(error);
+  if (!result.installerPath) throw new Error('No verified installer was downloaded.');
+  if (process.platform === 'linux') {
+    await new Promise((resolve, reject) => {
+      const child = require('node:child_process').spawn(result.installerPath, [], { detached: true, stdio: 'ignore' });
+      child.once('error', reject); child.once('spawn', () => { child.unref(); resolve(); });
+    });
+  } else { const error = await shell.openPath(result.installerPath); if (error) throw new Error(error); }
   return result;
 });
 handle('setup:copy-rules', value => copyRules(value, clipboard));
 handle('setup:rules', value => getRules(value));
 ipcMain.on('updates:check', event => { if (fromWindow(event)) updater?.check(); });
+ipcMain.on('distribution:cancel', event => { if (fromWindow(event)) provisioning?.abort(); });
 ipcMain.on('updates:download', event => { if (fromWindow(event)) updater?.download(); });
 ipcMain.on('updates:install', event => { if (fromWindow(event)) updater?.install(); });
 

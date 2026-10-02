@@ -38,6 +38,15 @@ const auth = admin.auth();
 const MAX_ATTEMPTS_PER_HOUR = 20;
 const TOKEN_TTL_SECONDS = 3600; // 1 hour (custom token expiry)
 const LIBRARY_ID = 'main';
+// Legacy deployments must set this to the Control Center staff domain.
+// An unset domain denies access; there is no institution-specific fallback.
+const STAFF_DOMAIN = (process.env.TOMEVA_STAFF_DOMAIN || '').trim().toLowerCase();
+function isInstitutionStaff(token) {
+  return /^[a-z0-9.-]+\.[a-z]{2,}$/.test(STAFF_DOMAIN)
+    && token.email_verified === true
+    && typeof token.email === 'string'
+    && token.email.toLowerCase().endsWith('@' + STAFF_DOMAIN);
+}
 
 /**
  * Rate limiting using Firestore counters (simple sliding window)
@@ -214,14 +223,8 @@ exports.provisionKiosk = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
   }
 
-  // Check staff claim (set via custom claims on staff accounts)
-  if (!context.auth.token.kiosk && !context.auth.token.staff) {
-    // Fallback: check email domain + verified
-    const email = context.auth.token.email || '';
-    const verified = context.auth.token.email_verified === true;
-    if (!email.endsWith('@meacademy.in') || !verified) {
-      throw new functions.https.HttpsError('permission-denied', 'Staff access required');
-    }
+  if (!isInstitutionStaff(context.auth.token)) {
+    throw new functions.https.HttpsError('permission-denied', 'Staff access required');
   }
 
   const { workstationId, libraryId } = data || {};
@@ -262,9 +265,7 @@ exports.deactivateKiosk = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
   }
 
-  const email = context.auth.token.email || '';
-  const verified = context.auth.token.email_verified === true;
-  if (!email.endsWith('@meacademy.in') || !verified) {
+  if (!isInstitutionStaff(context.auth.token)) {
     throw new functions.https.HttpsError('permission-denied', 'Staff access required');
   }
 

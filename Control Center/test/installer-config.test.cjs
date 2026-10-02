@@ -10,7 +10,7 @@ test('installer-side configuration bootstraps a new profile and never replaces s
   const config = { firebase: { apiKey: 'public', projectId: 'demo-school', authDomain: 'demo-school.firebaseapp.com', appId: '1:1:web:abc', messagingSenderId: '1' }, staffDomain: 'school.edu', libraryId: 'main' };
   fs.writeFileSync(path.join(dir, 'institution.json'), JSON.stringify(config));
   const mod = { exports: {} };
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../desktop-integration/institution-config.cjs'), 'utf8'), { module: mod, require: name => name === 'electron' ? { app: { isPackaged: true, getPath: name => name === 'exe' ? path.join(dir, 'Tomeva.exe') : profile } } : require(name) });
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../desktop-integration/institution-config.cjs'), 'utf8'), { module: mod, process: { platform: 'win32', env: {} }, require: name => name === 'electron' ? { app: { isPackaged: true, getPath: name => name === 'exe' ? path.join(dir, 'Tomeva.exe') : profile } } : require(name) });
   assert.equal(mod.exports.read().firebase.projectId, 'demo-school');
   fs.writeFileSync(path.join(dir, 'institution.json'), JSON.stringify({ ...config, staffDomain: 'other.edu' }));
   assert.equal(mod.exports.read().staffDomain, 'school.edu');

@@ -71,7 +71,7 @@ const db   = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 const LIBRARY_ID = webConfig.libraryId;
-const STAFF_DOMAIN = webConfig.staffDomain || "meacademy.in";
+const STAFF_DOMAIN = webConfig.staffDomain;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(registrations => {
     for (const registration of registrations) {

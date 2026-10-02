@@ -8,19 +8,21 @@
   "scripts": {
     "start": "npm run build:ui && electron .",
     "build:ui": "node scripts/build-ui.cjs",
-    "build:win": "npm run build:ui && node scripts/prepare-web-template.cjs && node scripts/prepare-release-channels.cjs && node scripts/prepare-desktop-installers.cjs && electron-builder --config electron-builder.config.cjs --win",
-    "build:mac": "npm run build:ui && node scripts/prepare-web-template.cjs && node scripts/prepare-release-channels.cjs && electron-builder --config electron-builder.config.cjs --mac",
-    "build:linux": "npm run build:ui && node scripts/prepare-web-template.cjs && node scripts/prepare-release-channels.cjs && electron-builder --config electron-builder.config.cjs --linux",
+    "build:win": "npm run build:ui && node scripts/prepare-rules.cjs && node scripts/prepare-release-channels.cjs && electron-builder --config electron-builder.config.cjs --win",
+    "build:mac": "npm run build:ui && node scripts/prepare-rules.cjs && node scripts/prepare-release-channels.cjs && electron-builder --config electron-builder.config.cjs --mac",
+    "build:linux": "npm run build:ui && node scripts/prepare-rules.cjs && node scripts/prepare-release-channels.cjs && electron-builder --config electron-builder.config.cjs --linux",
     "test": "node --test test/*.test.cjs",
     "test:desktop": "npm run build:ui && electron test/desktop-smoke.cjs"
   },
   "dependencies": {
-    "electron-updater": "^6.8.9"
+    "electron-updater": "^6.8.9",
+    "yauzl": "^3.2.0"
   },
   "devDependencies": {
     "electron": "^43.2.0",
     "electron-builder": "^26.15.3",
-    "esbuild": "^0.25.12"
+    "esbuild": "^0.25.12",
+    "yazl": "^3.3.1"
   },
   "build": {
     "appId": "org.tomeva.control-center",
@@ -38,14 +40,14 @@
       "public-releases.json",
       "web-helper.js",
       "setup-export.js",
+      "rules-config.js",
       "ui/**",
       "assets/**",
-      "auth-helper/**",
-      "web-template/search.html",
-      "web-template/assets/**",
       "firebase-template/firestore.rules",
       "firebase-template/firestore.indexes.json",
-      "package.json"
+      "package.json",
+      "github-distribution.js",
+      "web-distribution.js"
     ],
     "win": {
       "target": "nsis",
@@ -60,6 +62,7 @@
     "linux": {
       "target": "AppImage",
       "icon": "assets/icon.png"
-    }
+    },
+    "artifactName": "tomeva-control-center-${version}-${os}-${arch}.${ext}"
   }
 }

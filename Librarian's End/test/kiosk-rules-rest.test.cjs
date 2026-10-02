@@ -16,9 +16,11 @@ function token(uid, claims = {}) {
     firebase: { sign_in_provider: 'password', identities: {} }, ...claims,
   }) + '.';
 }
-const admin = token('rest-admin', { email: 'owner@example.org', firebase: { sign_in_provider: 'google.com' } });
+const admin = token('rest-admin', { email: 'owner@staff.example', email_verified: true, firebase: { sign_in_provider: 'google.com' } });
 const kiosk = token('rest-desk', { email, email_verified: false });
 function value(v) {
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(value) } };
+  if (v && typeof v === 'object') return { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, item]) => [k, value(item)])) } };
   if (v === null) return { nullValue: null };
   if (typeof v === 'boolean') return { booleanValue: v };
   if (typeof v === 'number') return { integerValue: String(v) };
@@ -79,10 +81,10 @@ test('kiosk cannot grant/revoke credentials, read private circulation, or set ad
   denied(await read('libraries/main/restricted/circulation', kiosk));
   denied(await write('libraries/main/meta/control', { issuance_suspended: true, suspend_reason: '', updated_by: 'admin' }, kiosk, { times: ['updated_at'] }));
 });
-test('Google accounts can provision without a grant or domain restriction', async () => {
-  ok(await write('kiosk_accounts/gmail-desk', {
+test('outside-domain Google accounts cannot provision kiosks', async () => {
+  denied(await write('kiosk_accounts/gmail-desk', {
     ...record(), email: 'kiosk-' + 'c'.repeat(32) + '@kiosk.tomeva.invalid', createdBy: 'gmail-admin',
-  }, token('gmail-admin', { email: 'tester@example.net', firebase: { sign_in_provider: 'google.com' } }), { times: ['createdAt'] }));
+  }, token('gmail-admin', { email: 'tester@example.net', email_verified: true, firebase: { sign_in_provider: 'google.com' } }), { times: ['createdAt'] }));
 });
 test('password sessions cannot provision even with a staff email', async () => {
   denied(await write('kiosk_accounts/unverified', record(), token('outsider', { email: 'other@gmail.com', email_verified: false }), { times: ['createdAt'] }));
@@ -104,7 +106,10 @@ test('revocation blocks existing token approvals and restricted sync immediately
   ok(await write('kiosk_accounts/rest-desk', { active: false, revokedBy: 'rest-admin' }, admin, { merge: true, times: ['revokedAt'] }));
   denied(await write('libraries/main/restricted/circulation', { loans: 'changed' }, kiosk));
   denied(await write('libraries/main/book_requests/rest-request', { status: 'Issued' }, kiosk, { merge: true }));
-  ok(await write('libraries/main/public/catalog', { books: 'aggregate only' }, kiosk));
+  ok(await write('libraries/main/public/catalog', {
+    stats: { total_books: 0, available: 0, issued: 0, damaged: 0, under_repair: 0, lost: 0 },
+    availableList: [], issuedList: [], damagedList: [], last_synced_iso: new Date().toISOString(), sync_version: 6,
+  }, kiosk, { times: ['last_synced'] }));
   denied(await write('kiosk_accounts/rest-desk', { active: true }, admin, { merge: true }));
   denied(await request(`/v1/${database}/documents/kiosk_accounts/rest-desk`, admin, 'DELETE'));
 });

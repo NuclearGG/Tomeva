@@ -16,6 +16,7 @@ function reply(res, status, message) {
 
 // Firebase owns the Google provider credentials. The desktop receives only
 // the short-lived result of signInWithPopup, never a provider client secret.
+// No Google OAuth client ID/secret or legacy server.js is required by this flow.
 class OAuthFlow {
   constructor({ openExternal, notify, getLoginUrl = () => null, port = PORT, timeoutMs = 5 * 60 * 1000 }) {
     this.openExternal = openExternal;

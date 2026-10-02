@@ -6,10 +6,14 @@ const path = require('node:path');
 const { validateConfig, createConfigStore } = require('../config-store');
 const { checkDesktopReleases } = require('../desktop-releases');
 const config = {
+  institutionName: 'Example College',
   firebase: { apiKey: 'public-test-key', authDomain: 'demo-school.firebaseapp.com', projectId: 'demo-school', appId: '1:123:web:abc', messagingSenderId: '123', storageBucket: 'demo-school.firebasestorage.app' },
   staffDomain: 'school.edu', webUrl: 'https://demo-school.web.app/',
 };
 test('public config preserves optional Firebase fields and rejects private keys', () => {
+  assert.equal(validateConfig(config).institutionName, 'Example College');
+  assert.equal(validateConfig({ ...config, institutionName: '  Another School  ' }).institutionName, 'Another School');
+  assert.throws(() => validateConfig({ ...config, institutionName: 'x'.repeat(201) }), /institution name/);
   assert.equal(validateConfig(config).firebase.storageBucket, config.firebase.storageBucket);
   assert.throws(() => validateConfig({ ...config, firebase: { ...config.firebase, private_key: 'secret' } }), /private credentials/);
   assert.throws(() => validateConfig({ ...config, webUrl: 'http://school.edu/' }), /HTTPS/);
@@ -23,6 +27,7 @@ test('saving configuration preserves a recoverable previous copy', () => {
   const backup = fs.readdirSync(directory).find(name => name.includes('.backup.'));
   assert.equal(JSON.parse(fs.readFileSync(path.join(directory, backup), 'utf8')).webUrl, config.webUrl);
   assert.equal(store.read().webUrl, 'https://demo-school.web.app/search.html');
+  assert.equal(store.read().institutionName, config.institutionName);
 });
 test('release discovery contacts only the configured public repository', async () => {
   const requests = [];

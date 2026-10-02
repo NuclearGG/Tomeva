@@ -24,7 +24,7 @@ const artifactNames = {
 for (const [key, folder] of [['librarian', "Librarian's End"], ['admin', "Admin's End"]]) {
   const appRoot = path.resolve(root, '..', folder);
   const { version } = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
-  const buildDir = path.join(appRoot, process.env.TOMEVA_DESKTOP_BUILD_DIR || 'dist');
+  const buildDir = path.join(appRoot, process.env.TOMEVA_DESKTOP_BUILD_DIR || 'dist/release');
   const candidates = artifactNames[key](version).map(name => path.join(buildDir, name));
   const source = candidates.find(candidate => fs.existsSync(candidate));
   if (!source) {

@@ -1,0 +1,18 @@
+{
+  "name": "tomeva-project",
+  "private": true,
+  "version": "1.0.0",
+  "license": "MIT",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "install:all": "node scripts/project.cjs install",
+    "test": "node scripts/project.cjs test",
+    "test:desktop": "node scripts/project.cjs desktop",
+    "test:rules": "npm --prefix \"Librarian's End\" run test:rules:emulator",
+    "build:win": "node scripts/project.cjs win",
+    "build:linux": "node scripts/project.cjs linux",
+    "release:win": "node scripts/collect-release.cjs win && node scripts/package-student.cjs && node scripts/check-packages.cjs --write",
+    "release:linux": "node scripts/collect-release.cjs linux && node scripts/package-student.cjs && node scripts/check-packages.cjs --write",
+    "verify:packages": "node scripts/check-packages.cjs"
+  }
+}

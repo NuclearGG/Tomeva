@@ -66,7 +66,9 @@ function librarianHarness() {
     async signOut() { auth.currentUser = null; observers.forEach(cb => cb(null)); },
   };
   const snapshot = (cached = false) => ({ exists: true, data: () => ({ active, libraryId, email: user.email }), metadata: { fromCache: cached } });
+  const query = { orderBy() { return this; }, limit() { return this; }, onSnapshot() { return () => {}; } };
   const db = { collection: () => ({ doc: () => ({
+    collection: () => query,
     get: async options => { assert.equal(options.source, 'server'); if (failRead) throw Error('offline'); return snapshot(); },
     onSnapshot: (_, callback) => { statusCallback = callback; return () => { statusCallback = null; }; },
   }) }) };

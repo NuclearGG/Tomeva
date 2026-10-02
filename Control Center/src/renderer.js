@@ -26,7 +26,10 @@ document.querySelectorAll('[data-export]').forEach(button => button.addEventList
 
 function formValue() {
   const form = byId('config-form').elements;
+  const institutionName = form.namedItem('institutionName').value.trim();
+  if (!institutionName) throw new Error('Enter the institution name in Firebase setup.');
   return {
+    institutionName,
     firebase: Object.fromEntries(['projectId', 'apiKey', 'authDomain', 'appId', 'messagingSenderId', 'storageBucket', 'databaseURL', 'measurementId'].map(key => [key, form.namedItem(key).value.trim()])),
     staffDomain: form.namedItem('staffDomain').value.trim(), webUrl: form.namedItem('webUrl').value.trim(),
   };
@@ -34,13 +37,13 @@ function formValue() {
 function fillForm(value) {
   if (!value) return;
   const form = byId('config-form').elements;
-  for (const [key, valueText] of Object.entries({ ...value.firebase, staffDomain: value.staffDomain, webUrl: value.webUrl })) {
+  for (const [key, valueText] of Object.entries({ ...value.firebase, institutionName: value.institutionName, staffDomain: value.staffDomain, webUrl: value.webUrl })) {
     const field = form.namedItem(key); if (field) field.value = valueText || '';
   }
 }
 function showConfig() {
   const project = config?.firebase.projectId;
-  byId('sidebar-institution').textContent = project || 'No project entered';
+  byId('sidebar-institution').textContent = config?.institutionName || project || 'No project entered';
   byId('overview-setup').textContent = project ? 'Project settings saved' : 'Waiting for project details';
   byId('overview-setup-detail').textContent = project ? `Ready to generate setup packages for ${project}.` : 'A new Firebase project starts empty. Control Center supplies the rules and app configuration.';
   byId('deploy-project').textContent = project || 'YOUR_PROJECT';
@@ -52,18 +55,22 @@ byId('config-form').addEventListener('submit', async event => {
   catch (error) { notice(error.message, 'error'); }
 });
 async function exportPackages(component = 'all') {
-  try { const result = await bridge.exportSetup(formValue(), component); if (!result.cancelled) notice(`${result.installersIncluded ? 'Installers and configuration' : 'Configuration packages (installers are not bundled in this development build)'} exported to ${result.path}`, 'success'); }
+  try { const result = await bridge.exportSetup(formValue(), component, byId('package-platform').value); if (!result.cancelled) notice(`Verified release ${result.version} and institution configuration saved to ${result.path}`, 'success'); }
   catch (error) { navigate('setup'); notice(error.message, 'error'); }
 }
 byId('export-setup').addEventListener('click', () => exportPackages());
 byId('export-packages').addEventListener('click', () => exportPackages());
 byId('copy-rules').addEventListener('click', async () => {
-  try { await bridge.copyRules(formValue()); notice('Complete rules copied. Paste them into Firestore Database → Rules, test in Rules Playground, then Publish.', 'success'); }
+  try { const value = formValue(); await bridge.copyRules(value); notice(`Rules for ${value.firebase.projectId} (${value.staffDomain.toLowerCase()}) copied. Paste into that project's Firestore Database → Rules, test, then Publish.`, 'success'); }
   catch (error) { notice(error.message, 'error'); }
 });
 byId('preview-rules').addEventListener('click', async () => {
   try { byId('rules-preview').textContent = await bridge.getRules(formValue()); byId('rules-preview').classList.remove('hidden'); }
   catch (error) { notice(error.message, 'error'); }
+});
+byId('config-form').addEventListener('input', () => {
+  byId('rules-preview').textContent = '';
+  byId('rules-preview').classList.add('hidden');
 });
 byId('export-web').addEventListener('click', async () => {
   try { const result = await bridge.exportWeb(formValue()); if (!result.cancelled) notice(`Student web code exported to ${result.path}`, 'success'); }
@@ -101,7 +108,7 @@ bridge.updates.onStatus(showUpdateStatus);
 (async () => {
   try {
     config = await bridge.getConfig(); fillForm(config); showConfig();
-    byId('web-package-version').textContent = `Package v${await bridge.getVersion()}`;
+    byId('web-package-version').textContent = 'Latest GitHub release';
     showUpdateStatus(await bridge.updates.getStatus());
     showDesktopReleases().catch(error => notice(error.message, 'error'));
     await showRecovery();
@@ -140,3 +147,9 @@ document.querySelectorAll('[data-install]').forEach(button => button.addEventLis
   } catch (error) { notice(error.message, 'error'); }
   finally { button.disabled = false; }
 }));
+
+bridge.onDistributionProgress(status => {
+  byId('distribution-status').classList.toggle('hidden', status.state === 'idle');
+  byId('distribution-detail').textContent = `${status.name || ''} · ${status.state}${status.percent === undefined ? '' : ' ' + status.percent + '%'}`;
+});
+byId('cancel-distribution').addEventListener('click', () => bridge.cancelDistribution());

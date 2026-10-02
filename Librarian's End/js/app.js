@@ -10,6 +10,15 @@
 
 'use strict';
 
+// Local provisioning only; never delay offline circulation for branding.
+window.electronAPI?.getInstitution?.().then(config => {
+  document.querySelectorAll('[data-institution-name]').forEach(element => {
+    element.textContent = config?.institutionName || 'Library Management';
+  });
+  const field = document.getElementById('issue-teacher-email');
+  if (field && config?.staffDomain) field.placeholder = 'e.g. teacher@' + config.staffDomain;
+}).catch(error => console.warn('Institution display settings unavailable:', error.message));
+
 /* ══════════════════════════════════════════════
    TOAST
 ══════════════════════════════════════════════ */

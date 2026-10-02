@@ -7,11 +7,13 @@
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
+    "test:staff": "node --test test/staff-access.test.js",
     "start": "electron .",
     "test:oauth": "node --test test/oauth-flow.test.js",
     "build:win": "electron-builder --config electron-builder.config.cjs --win",
     "build:mac": "electron-builder --config electron-builder.config.cjs --mac",
-    "build:linux": "electron-builder --config electron-builder.config.cjs --linux"
+    "build:linux": "electron-builder --config electron-builder.config.cjs --linux",
+    "test:desktop": "electron test/desktop-smoke.cjs"
   },
   "devDependencies": {
     "electron": "^43.7.7",
@@ -65,6 +67,7 @@
     "linux": {
       "target": "AppImage",
       "icon": "assets/icon.png"
-    }
+    },
+    "artifactName": "tomeva-admin-${version}-${os}-${arch}.${ext}"
   }
 }

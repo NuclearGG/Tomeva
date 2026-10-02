@@ -38,7 +38,7 @@ const db   = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 const LIBRARY_ID = "main";
-const STAFF_DOMAIN = institution?.staffDomain || "meacademy.in";
+const STAFF_DOMAIN = institution?.staffDomain;
 
 let _data = null, _publicData = null, _restrictedData = null, _restrictedUnsub = null;
 let _lastUpdated = null, _unreadCount = 0, _adminSelectedType = "MESSAGE";

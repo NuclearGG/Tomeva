@@ -4,6 +4,9 @@ const path = require('node:path');
 
 function validateConfig(input) {
   const text = (value, max = 500) => typeof value === 'string' && value.trim().length <= max ? value.trim() : '';
+  const institutionName = text(input?.institutionName, 200);
+  // Older setup files and recovery kits did not contain a name.
+  if (input?.institutionName !== undefined && (typeof input.institutionName !== 'string' || input.institutionName.trim().length > 200)) throw new Error('Enter the institution name (up to 200 characters).');
   const firebase = {};
   for (const field of ['apiKey', 'authDomain', 'projectId', 'appId', 'messagingSenderId']) {
     firebase[field] = text(input?.firebase?.[field]);
@@ -19,12 +22,13 @@ function validateConfig(input) {
   if (!/^[a-z0-9.-]+$/i.test(firebase.authDomain)) throw new Error('Invalid Auth domain.');
   const staffDomain = text(input.staffDomain, 253).toLowerCase();
   if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(staffDomain)) throw new Error('Enter the institution staff email domain.');
+  if (staffDomain === 'staff.example') throw new Error('Replace staff.example with the institution staff email domain.');
   const webUrl = text(input.webUrl, 1000);
   if (webUrl) {
     const parsed = new URL(webUrl);
     if (parsed.protocol !== 'https:' || parsed.username || parsed.password) throw new Error('Web URL must use HTTPS.');
   }
-  return { firebase, staffDomain, webUrl, libraryId: 'main' };
+  return { ...(institutionName ? { institutionName } : {}), firebase, staffDomain, webUrl, libraryId: 'main' };
 }
 
 function createConfigStore(userData) {
