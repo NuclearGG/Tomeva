@@ -133,6 +133,7 @@
     /* ── BUTTONS ── */
     .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;border-radius:var(--btn-radius);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all var(--transition);white-space:nowrap;}
     .btn:active{transform:scale(0.97);}
+    .btn:disabled{cursor:not-allowed;opacity:.55;transform:none;}
     .btn-primary{background:var(--text);color:white;}
     .btn-primary:hover{background:#3D3225;}
     .btn-ghost{background:transparent;color:var(--text-muted);border:1.5px solid var(--cream-dark);}
@@ -146,6 +147,41 @@
     .form-group input,.form-group select,.form-group textarea{padding:11px 14px;border:1.5px solid var(--cream-dark);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:var(--cream);outline:none;transition:border var(--transition),box-shadow var(--transition);}
     .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--blue-dark);background:white;box-shadow:0 0 0 3px rgba(74,124,199,0.1);}
     .form-group textarea{resize:vertical;min-height:90px;}
+
+    /* ── UPDATE APPROVALS ── */
+    .updates-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;background:linear-gradient(135deg,#fff 0%,var(--purple) 145%);}
+    .updates-hero-copy{max-width:720px;}
+    .updates-eyebrow{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--purple-dark);margin-bottom:8px;}
+    .updates-hero h2{font-family:'Fraunces',serif;font-size:28px;margin-bottom:8px;}
+    .updates-hero p{font-size:14px;line-height:1.65;color:var(--text-muted);}
+    .updates-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.75fr);gap:20px;align-items:start;}
+    .updates-stack{display:flex;flex-direction:column;gap:20px;min-width:0;}
+    .updates-section-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;}
+    .updates-section-head h3{font-family:'Fraunces',serif;font-size:19px;}
+    .updates-section-head p{font-size:12px;color:var(--text-muted);margin-top:3px;}
+    .release-grid,.approval-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+    .release-card,.approval-card{border:1.5px solid var(--cream-dark);border-radius:16px;padding:17px;background:var(--cream);min-width:0;}
+    .release-card-head,.approval-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
+    .release-app{display:flex;align-items:center;gap:9px;font-weight:700;}
+    .release-app-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:white;border:1px solid var(--cream-dark);font-size:17px;}
+    .release-version{font-family:'Fraunces',serif;font-size:24px;font-weight:700;margin-bottom:6px;overflow-wrap:anywhere;}
+    .release-notes{font-size:12px;line-height:1.55;color:var(--text-muted);white-space:pre-wrap;max-height:76px;overflow:auto;margin-bottom:14px;}
+    .release-meta{font-size:11px;color:var(--text-light);margin-bottom:12px;}
+    .release-card .btn{width:100%;}
+    .approval-card.is-approved{border-color:var(--green-mid);background:rgba(200,238,216,.35);}
+    .approval-card.is-paused{border-color:var(--yellow-mid);background:rgba(255,240,192,.38);}
+    .approval-version{font-family:'Fraunces',serif;font-size:21px;font-weight:700;margin:8px 0 5px;}
+    .approval-time{font-size:12px;color:var(--text-muted);line-height:1.5;min-height:36px;}
+    .approval-card .btn{margin-top:13px;width:100%;}
+    .approval-empty{grid-column:1/-1;padding:28px;border:1.5px dashed var(--cream-dark);border-radius:14px;text-align:center;color:var(--text-muted);font-size:13px;}
+    .approval-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;}
+    .approval-form-grid .form-group:last-child{grid-column:1/-1;}
+    .approval-form-note{display:flex;gap:10px;background:var(--blue);border:1px solid var(--blue-mid);border-radius:12px;padding:12px 14px;font-size:12px;line-height:1.5;color:var(--blue-dark);margin-bottom:18px;}
+    .approval-form-actions{display:flex;align-items:center;gap:12px;}
+    .approval-form-actions .btn{flex:1;}
+    .approval-save-status{font-size:12px;color:var(--text-muted);margin-top:12px;min-height:18px;}
+    @media(max-width:1050px){.updates-layout{grid-template-columns:1fr}.release-grid,.approval-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+    @media(max-width:720px){.updates-hero{flex-direction:column}.updates-hero .btn{width:100%}.release-grid,.approval-grid,.approval-form-grid{grid-template-columns:1fr}.approval-form-grid .form-group:last-child{grid-column:auto;}}
 
     .modal-overlay{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(44,36,22,.48);backdrop-filter:blur(3px);}
     .modal-overlay.show{display:flex;}
@@ -858,7 +894,36 @@
         </div>
       </div>
 
-      <div id="page-updates" class="page-view"><h2>Institution update approvals</h2><p>Review a public release, then approve its exact version. Every installation verifies approval again before installing. Pausing rollout stops future installations; it cannot undo completed updates.</p><button id="review-releases" class="btn">Review public releases</button><pre id="release-review"></pre><form id="approval-form"><label>Application<select id="approval-component"><option value="librarian">Librarian</option><option value="admin">Admin</option></select></label><label>Version (for example 1.2.0)<input id="approval-version" required pattern="[0-9]+[.][0-9]+[.][0-9]+" maxlength="40"></label><label>Rollout policy<select id="approval-policy"><option value="approved">Approve</option><option value="paused">Pause</option></select></label><label>Start time (local; blank means now)<input id="approval-start" type="datetime-local"></label><button type="submit" class="btn">Save institution approval</button></form><pre id="approval-current">Sign in to see current approvals.</pre></div>
+      <div id="page-updates" class="page-view">
+        <section class="card updates-hero">
+          <div class="updates-hero-copy"><div class="updates-eyebrow">Controlled rollout</div><h2>Desktop update approvals</h2><p>Review the versions published on GitHub, then choose exactly what each institution workstation may install. Workstations verify this policy again before downloading an update.</p></div>
+          <button id="review-releases" class="btn btn-primary" type="button"><span>↻</span> Check GitHub releases</button>
+        </section>
+        <div class="updates-layout">
+          <div class="updates-stack">
+            <section class="card">
+              <div class="updates-section-head"><div><h3>Available releases</h3><p id="release-status">Select “Check GitHub releases” to load the publisher’s latest versions.</p></div></div>
+              <div id="release-review" class="release-grid"><div class="approval-empty">Release information has not been checked yet.</div></div>
+            </section>
+            <section class="card">
+              <div class="updates-section-head"><div><h3>Current institution policy</h3><p>These are the versions workstations are currently allowed to install.</p></div></div>
+              <div id="approval-current" class="approval-grid"><div class="approval-empty">Sign in to see current approvals.</div></div>
+            </section>
+          </div>
+          <form id="approval-form" class="card">
+            <div class="updates-section-head"><div><h3>Set approval</h3><p>Choose a release card to fill this form automatically.</p></div></div>
+            <div class="approval-form-note"><span>ⓘ</span><span>Pausing blocks future installations. It does not remove updates that are already installed.</span></div>
+            <div class="approval-form-grid">
+              <div class="form-group"><label for="approval-component">Application</label><select id="approval-component"><option value="librarian">Librarian</option><option value="admin">Admin</option></select></div>
+              <div class="form-group"><label for="approval-version">Exact version</label><input id="approval-version" required pattern="[0-9]+[.][0-9]+[.][0-9]+" maxlength="40" placeholder="1.0.1" inputmode="numeric"></div>
+              <div class="form-group"><label for="approval-policy">Rollout policy</label><select id="approval-policy"><option value="approved">Approved — allow update</option><option value="paused">Paused — block update</option></select></div>
+              <div class="form-group"><label for="approval-start">Available from</label><input id="approval-start" type="datetime-local"><span class="card-subtitle">Leave blank to start now.</span></div>
+            </div>
+            <div class="approval-form-actions"><button id="approval-save" type="submit" class="btn btn-primary">Save update policy</button></div>
+            <p id="approval-save-status" class="approval-save-status" role="status"></p>
+          </form>
+        </div>
+      </div>
       <div id="page-kiosk" class="page-view">
         <div class="card">
           <div class="card-title">Kiosk workstations</div>
@@ -1780,19 +1845,86 @@ function renderAccessPage() {
 
 const kioskManager = setupKioskManagement({ app, db, auth, libraryId: LIBRARY_ID, staffDomain: STAFF_DOMAIN, showToast, showConfirm });
 function renderKioskPage() { kioskManager.render(); }
+const updateLabels = { librarian: 'Librarian', admin: 'Admin' };
+const updateIcons = { librarian: '▣', admin: '⌘' };
+function updateBadge(text, className) {
+  const badge = document.createElement('span');
+  badge.className = 'badge ' + className;
+  badge.textContent = text;
+  return badge;
+}
+function selectApproval(component, version, policy = 'approved', notBefore = null) {
+  document.getElementById('approval-component').value = component;
+  document.getElementById('approval-version').value = version || '';
+  document.getElementById('approval-policy').value = policy;
+  if (notBefore) {
+    const date = new Date(notBefore.getTime() - notBefore.getTimezoneOffset() * 60000);
+    document.getElementById('approval-start').value = date.toISOString().slice(0, 16);
+  } else document.getElementById('approval-start').value = '';
+  document.getElementById('approval-version').focus();
+}
+function releaseCard(component, release) {
+  const card = document.createElement('article'); card.className = 'release-card';
+  const head = document.createElement('div'); head.className = 'release-card-head';
+  const appName = document.createElement('div'); appName.className = 'release-app';
+  const icon = document.createElement('span'); icon.className = 'release-app-icon'; icon.textContent = updateIcons[component];
+  const label = document.createElement('span'); label.textContent = updateLabels[component];
+  appName.append(icon, label);
+  const available = release?.state === 'current-release' && /^\d+\.\d+\.\d+$/.test(release.version || '');
+  head.append(appName, updateBadge(available ? 'Available' : release?.state === 'error' ? 'Error' : 'Unavailable', available ? 'badge-green' : release?.state === 'error' ? 'badge-coral' : 'badge-gray'));
+  const version = document.createElement('div'); version.className = 'release-version'; version.textContent = available ? `v${release.version}` : 'No release';
+  const meta = document.createElement('div'); meta.className = 'release-meta';
+  meta.textContent = available && release.publishedAt ? `Published ${new Date(release.publishedAt).toLocaleString()}` : 'The publisher channel did not return a usable stable release.';
+  const notes = document.createElement('div'); notes.className = 'release-notes'; notes.textContent = release?.notes || release?.message || 'No release notes available.';
+  const choose = document.createElement('button'); choose.type = 'button'; choose.className = 'btn btn-ghost'; choose.textContent = available ? 'Use this version' : 'Release unavailable'; choose.disabled = !available;
+  if (available) choose.addEventListener('click', () => selectApproval(component, release.version));
+  card.append(head, version, meta, notes, choose);
+  return card;
+}
+function renderReleaseReview(releases) {
+  const container = document.getElementById('release-review'); container.replaceChildren();
+  for (const component of ['librarian', 'admin']) container.appendChild(releaseCard(component, releases?.[component]));
+  document.getElementById('release-status').textContent = `Checked ${new Date().toLocaleString()}. Choose “Use this version” to prepare an approval.`;
+}
+function renderApprovalPolicy(documents) {
+  const policies = new Map(documents.map(item => [item.id, item.data()]));
+  const container = document.getElementById('approval-current'); container.replaceChildren();
+  for (const component of ['librarian', 'admin']) {
+    const value = policies.get(component);
+    const card = document.createElement('article'); card.className = 'approval-card' + (value ? ` is-${value.policy}` : '');
+    const head = document.createElement('div'); head.className = 'approval-card-head';
+    const appName = document.createElement('div'); appName.className = 'release-app';
+    const icon = document.createElement('span'); icon.className = 'release-app-icon'; icon.textContent = updateIcons[component];
+    const label = document.createElement('span'); label.textContent = updateLabels[component]; appName.append(icon, label);
+    head.append(appName, updateBadge(value ? value.policy : 'Not set', value?.policy === 'approved' ? 'badge-green' : value?.policy === 'paused' ? 'badge-yellow' : 'badge-gray'));
+    const version = document.createElement('div'); version.className = 'approval-version'; version.textContent = value?.version ? `v${value.version}` : 'No version approved';
+    const time = document.createElement('div'); time.className = 'approval-time';
+    const start = value?.notBefore?.toDate?.();
+    time.textContent = value ? `${value.policy === 'approved' ? 'Installation allowed' : 'Installation blocked'}${start ? ` from ${start.toLocaleString()}` : '.'}` : 'Choose an available release to create a policy.';
+    card.append(head, version, time);
+    if (value) {
+      const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'btn btn-ghost btn-sm'; edit.textContent = 'Edit policy';
+      edit.addEventListener('click', () => selectApproval(component, value.version, value.policy, start)); card.appendChild(edit);
+    }
+    container.appendChild(card);
+  }
+}
 function startApprovalListener() {
   return onSnapshot(collection(db, 'libraries', 'main', 'update_approvals'), snap => {
-    document.getElementById('approval-current').textContent = snap.docs.map(item => {
-      const value = item.data();
-      return `${item.id}: ${value.version} · ${value.policy} · from ${value.notBefore?.toDate().toLocaleString() || 'unknown'}`;
-    }).join('\n') || 'No desktop versions approved yet.';
+    renderApprovalPolicy(snap.docs);
   }, error => showToast(error.message, 'error'));
 }
 document.getElementById('review-releases').addEventListener('click', async () => {
+  const button = document.getElementById('review-releases');
+  button.disabled = true; button.textContent = 'Checking GitHub…';
+  document.getElementById('release-status').textContent = 'Reading the official release channel…';
   try {
     const releases = await window.tomevaAdmin.reviewReleases();
-    document.getElementById('release-review').textContent = Object.entries(releases).map(([name, release]) => `${name}: ${release.version || release.state}\n${release.notes || release.message || 'Release channel must be configured by the build publisher.'}`).join('\n\n');
-  } catch (error) { showToast(error.message, 'error'); }
+    renderReleaseReview(releases);
+  } catch (error) {
+    document.getElementById('release-status').textContent = 'Release check failed. Try again when GitHub is reachable.';
+    showToast(error.message, 'error');
+  } finally { button.disabled = false; button.textContent = '↻ Check GitHub releases'; }
 });
 document.getElementById('approval-form').addEventListener('submit', async event => {
   event.preventDefault();
@@ -1802,10 +1934,15 @@ document.getElementById('approval-form').addEventListener('submit', async event 
   const policy = document.getElementById('approval-policy').value;
   const start = document.getElementById('approval-start').value;
   if (!/^[0-9]+[.][0-9]+[.][0-9]+$/.test(version)) return showToast('Enter a stable release version.', 'error');
+  const button = document.getElementById('approval-save');
+  const status = document.getElementById('approval-save-status');
+  button.disabled = true; button.textContent = 'Saving policy…'; status.textContent = '';
   try {
     await setDoc(doc(db, 'libraries', 'main', 'update_approvals', component), { version, policy, notBefore: Timestamp.fromDate(start ? new Date(start) : new Date()), updatedAt: serverTimestamp() });
+    status.textContent = `${updateLabels[component]} v${version} is now ${policy}.`;
     showToast('Institution update policy saved.', 'success');
-  } catch (error) { showToast(error.message, 'error'); }
+  } catch (error) { status.textContent = 'Policy was not saved.'; showToast(error.message, 'error'); }
+  finally { button.disabled = false; button.textContent = 'Save update policy'; }
 });
 
 document.getElementById('student-message-form').addEventListener('submit', async event => {
