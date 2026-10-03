@@ -37,6 +37,8 @@ Installers include Electron and application dependencies. Internet access is nee
 6. **Sign in to Admin.** Use a verified Google account in the configured staff domain. Create a kiosk credential and enter it in Librarian Settings for protected sync and request decisions.
 7. **Back up.** Create and verify an encrypted CC Recovery Kit; store its password separately. Use Librarian's **Backup Database** command for circulation records.
 
+In Admin → Student Access, staff can pre-register admission numbers from CSV or JSON. Only `adm_no` is required; name, email, class, section, and group are optional. Rows with email addresses can be authorized during import. Admission-only rows remain in a private staff roster and are highlighted when a student's sign-in profile matches. For Microsoft Access, export the table or query as CSV before importing it.
+
 If Admin or Librarian was downloaded separately, open it and enter the institution's deployed Student Portal URL. The app reads `tomeva-institution.json` from that HTTPS site without a Tomeva login. This public file contains browser Firebase settings and the institution name/domain; it contains no password, token, service-account key, or library records.
 
 Cloud Functions are not required. Firebase service quotas apply. The Firebase CLI is needed only if you choose CLI deployment; generated rules can be published through Firebase Console.

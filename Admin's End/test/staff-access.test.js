@@ -16,7 +16,7 @@ function access(staffDomain, user) {
     institution: { staffDomain }, auth: {},
     _staffListeners: [], _adminCurrentUser: null, _isStaffVerified: false,
     _restrictedUnsub: null, _restrictedData: null,
-    _allRequests: [], _allAuthorizedStudents: [], _allPendingLogins: [],
+    _allRequests: [], _allAuthorizedStudents: [], _allPendingLogins: [], _admissionRoster: [],
     document: {
       querySelectorAll: () => labels,
       getElementById: id => {
@@ -28,7 +28,7 @@ function access(staffDomain, user) {
   };
   for (const name of ['refreshDashboardData', 'startRestrictedListener', 'startApprovalListener',
     'startLibrarianNotifListener', 'startRequestsListener', 'startAuthorizedStudentsListener',
-    'startPendingLoginsListener', 'renderAdminRequests', 'updateRequestsBadge', 'updateAdminBadge',
+    'startPendingLoginsListener', 'startAdmissionRosterListener', 'renderAdminRequests', 'updateRequestsBadge', 'updateAdminBadge',
     'renderAuthorizedStudents', 'renderPendingVerification']) context[name] = () => () => {};
   vm.runInNewContext(domainCode + accessCode, context);
   onAuth(user);

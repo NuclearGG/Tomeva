@@ -970,6 +970,32 @@ describe('Tomeva Firestore Rules', () => {
     });
   });
 
+  describe('/admission_roster privacy and validation', () => {
+    const validRosterEntry = {
+      adm_no: 'ADM-001', name: 'Roster Student', email: '', class: '10', section: 'A', group: 'Regular',
+      added_by: 'librarian@staff.example', added_at: Timestamp.now(), updated_at: Timestamp.now(),
+    };
+
+    test('ALLOW: verified staff can create and read roster entries', async () => {
+      const db = verifiedStaff().firestore();
+      const ref = db.collection('libraries').doc(LIBRARY_ID).collection('admission_roster').doc('adm-001');
+      await assertSucceeds(ref.set(validRosterEntry));
+      await assertSucceeds(ref.get());
+    });
+
+    test('DENY: students, kiosks, and unauthenticated users cannot read the roster', async () => {
+      for (const context of [nonStaff(), kiosk(), unauth()]) {
+        await assertFails(context.firestore().collection('libraries').doc(LIBRARY_ID).collection('admission_roster').doc('adm-001').get());
+      }
+    });
+
+    test('DENY: invalid or extra roster fields', async () => {
+      const ref = verifiedStaff().firestore().collection('libraries').doc(LIBRARY_ID).collection('admission_roster').doc('invalid');
+      await assertFails(ref.set({ ...validRosterEntry, adm_no: '' }));
+      await assertFails(ref.set({ ...validRosterEntry, private_note: 'must not be stored' }));
+    });
+  });
+
   /* ══════════════════════════════════════════════════════════════════
      7. Authorized Students — Staff management
   ═══════════════════════════════════════════════════════════════════ */

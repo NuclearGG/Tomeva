@@ -6,7 +6,7 @@ const apps = ['Control Center', "Admin's End", "Librarian's End"];
 const action = process.argv[2];
 const jobs = {
   install: apps.map(folder => [folder, ['ci']]),
-  test: [['Control Center', ['test']], ["Admin's End", ['run', 'test:oauth']], ["Admin's End", ['run', 'test:staff']], ["Librarian's End", ['run', 'test:sqlite']], ["Librarian's End", ['run', 'test:kiosk']], ["Librarian's End", ['run', 'test:sync']]],
+  test: [['Control Center', ['test']], ["Admin's End", ['run', 'test:oauth']], ["Admin's End", ['run', 'test:staff']], ["Admin's End", ['run', 'test:roster']], ["Librarian's End", ['run', 'test:sqlite']], ["Librarian's End", ['run', 'test:kiosk']], ["Librarian's End", ['run', 'test:sync']]],
   desktop: apps.map(folder => [folder, ['run', 'test:desktop']]),
   win: apps.map(folder => [folder, ['run', 'build:win', '--', '--publish', 'never']]),
   linux: apps.map(folder => [folder, ['run', 'build:linux', '--', '--publish', 'never']]),

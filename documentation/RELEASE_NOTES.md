@@ -1,10 +1,14 @@
-# Tomeva 1.0.2
+# Tomeva 1.0.3
 
 ## Users
 
-Download **tomeva-control-center-1.0.2-win-x64.exe**. Control Center downloads Admin, Librarian, and the Student Portal from this GitHub Release, verifies them, and adds your institution configuration locally. It has no local installer bundling path.
+Download **tomeva-control-center-1.0.3-win-x64.exe**. Control Center downloads Admin, Librarian, and the Student Portal from this GitHub Release, verifies them, and adds your institution configuration locally. It has no local installer bundling path.
 
 Admin now has a clearer desktop update approval workspace with release cards, current policy cards, automatic form filling, rollout timing, and explicit approval, pause, loading, and saving states.
+
+Student Access now accepts CSV and JSON admission rosters with a validated preview and downloadable template. Admission-number-only rows remain private to staff and help match pending students. Rows containing email addresses can be authorized during import. Microsoft Access tables can be imported after exporting them as CSV.
+
+Publish the v1.0.3 generated Firestore rules before importing a roster. The new `admission_roster` collection is staff-only; students, kiosks, and signed-out users cannot read it.
 
 The downloader falls back from the GitHub API to the public release page and `SHA256SUMS`, which fixes setup on networks where GitHub API access fails. A separately downloaded Admin or Librarian app can connect without a Tomeva login by entering the institution's deployed Student Portal URL.
 

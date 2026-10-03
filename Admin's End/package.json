@@ -1,6 +1,6 @@
 {
   "name": "tomeva-admin",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Tomeva Admin - Library Dashboard (Electron desktop app)",
   "main": "main.js",
   "author": "",
@@ -8,6 +8,7 @@
   "private": true,
   "scripts": {
     "test:staff": "node --test test/staff-access.test.js",
+    "test:roster": "node --test test/roster-import.test.mjs",
     "start": "electron .",
     "test:oauth": "node --test test/oauth-flow.test.js",
     "build:win": "electron-builder --config electron-builder.config.cjs --win",
@@ -39,6 +40,7 @@
       "preload.js",
       "index.html",
       "kiosk-management.js",
+      "roster-import.mjs",
       "assets/**",
       {
         "from": "../desktop-integration",

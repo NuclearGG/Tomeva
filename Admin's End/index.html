@@ -180,6 +180,12 @@
     .approval-form-actions{display:flex;align-items:center;gap:12px;}
     .approval-form-actions .btn{flex:1;}
     .approval-save-status{font-size:12px;color:var(--text-muted);margin-top:12px;min-height:18px;}
+    .roster-drop{border:1.5px dashed var(--blue-mid);background:rgba(200,222,255,.22);border-radius:14px;padding:18px;display:flex;align-items:center;justify-content:space-between;gap:16px;}
+    .roster-drop-copy strong{display:block;font-size:14px;margin-bottom:4px;}.roster-drop-copy span{display:block;font-size:12px;line-height:1.5;color:var(--text-muted);}
+    .roster-options{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:14px 0;}
+    .roster-check{display:flex;align-items:flex-start;gap:9px;font-size:13px;line-height:1.45;color:var(--text-muted);}.roster-check input{margin-top:3px;accent-color:var(--blue-dark);}
+    .roster-preview{border:1.5px solid var(--cream-dark);border-radius:14px;overflow:hidden;margin-top:14px;}.roster-preview[hidden]{display:none;}
+    .roster-summary{font-size:12px;color:var(--text-muted);padding:11px 14px;background:var(--cream);border-bottom:1px solid var(--cream-dark);}
     @media(max-width:1050px){.updates-layout{grid-template-columns:1fr}.release-grid,.approval-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
     @media(max-width:720px){.updates-hero{flex-direction:column}.updates-hero .btn{width:100%}.release-grid,.approval-grid,.approval-form-grid{grid-template-columns:1fr}.approval-form-grid .form-group:last-child{grid-column:auto;}}
 
@@ -801,6 +807,26 @@
             <button class="btn btn-primary" onclick="addAuthorizedStudent()">+ Authorize Student</button>
           </div>
 
+          <div class="card">
+            <div class="card-header">
+              <div><div class="card-title">📋 Pre-register admission numbers <span id="roster-count" class="badge badge-blue" style="margin-left:6px">0</span></div><div class="card-subtitle">Load an institution roster before students sign in</div></div>
+            </div>
+            <div class="roster-drop">
+              <div class="roster-drop-copy"><strong>CSV or JSON roster</strong><span>Required: <code>adm_no</code>. Optional: name, email, class, section, and group. Up to 1,000 rows and 2 MB.</span><span>Microsoft Access: export the table or query as CSV, then choose that file here.</span></div>
+              <label class="btn btn-ghost" for="roster-file">Choose roster file</label>
+              <input id="roster-file" type="file" accept=".csv,.json,.mdb,.accdb,text/csv,application/json" hidden>
+            </div>
+            <div class="roster-options">
+              <label class="roster-check"><input id="roster-authorize-email" type="checkbox" checked><span>Also authorize rows that include an email address. Rows without email remain in the private pre-registration roster for staff matching.</span></label>
+              <div style="display:flex;gap:10px"><button id="roster-template" class="btn btn-ghost btn-sm" type="button">Download CSV template</button><button id="roster-import" class="btn btn-primary btn-sm" type="button" disabled>Import roster</button></div>
+            </div>
+            <div id="roster-status" class="card-subtitle" role="status">No roster selected.</div>
+            <div id="roster-preview" class="roster-preview" hidden>
+              <div id="roster-summary" class="roster-summary"></div>
+              <div class="table-wrap"><table><thead><tr><th>ADM No</th><th>Name</th><th>Email</th><th>Class</th><th>Group</th></tr></thead><tbody id="roster-preview-body"></tbody></table></div>
+            </div>
+          </div>
+
           <div class="list-card">
             <div class="list-card-header">
               <div>
@@ -826,16 +852,16 @@
             <div class="list-card-header">
               <div>
                 <div class="card-title">Authorized Students</div>
-                <div class="card-subtitle">Scroll to browse — search by name or email to verify quickly</div>
+                <div class="card-subtitle">Scroll to browse — search by name, email, or admission number</div>
               </div>
               <div class="search-bar" style="padding:8px 14px">
                 <span>🔍</span>
-                <input type="text" id="access-search" placeholder="Search by name or email…" oninput="renderAuthorizedStudents()">
+                <input type="text" id="access-search" placeholder="Search name, email, or ADM No…" oninput="renderAuthorizedStudents()">
               </div>
             </div>
             <div class="table-wrap access-scroll-wrap">
               <table>
-                <thead><tr><th>Name</th><th>Email</th><th>Group</th><th>Added By</th><th></th></tr></thead>
+                <thead><tr><th>Name</th><th>ADM No</th><th>Email</th><th>Group</th><th>Added By</th><th></th></tr></thead>
                 <tbody id="access-tbody"></tbody>
               </table>
             </div>
@@ -980,11 +1006,12 @@ if (!institution?.firebase) {
   });
 } else {
 const { setupKioskManagement } = await import('./kiosk-management.js');
+const { parseRosterFile } = await import('./roster-import.mjs');
 const { initializeApp } = await import("https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js");
 const {
   getFirestore, doc, collection,
   onSnapshot, Timestamp, addDoc, setDoc, updateDoc, deleteDoc, serverTimestamp,
-  query, orderBy, limit
+  query, orderBy, limit, writeBatch
 } = await import("https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js");
 const {
   getAuth, GoogleAuthProvider, signOut, onAuthStateChanged, signInWithCredential, signInWithPopup
@@ -1012,6 +1039,8 @@ let _adminCurrentUser = null;
 let _isStaffVerified  = false;
 let _allAuthorizedStudents = [];
 let _allPendingLogins = [];
+let _admissionRoster = [];
+let _pendingRosterRows = [];
 let _staffListeners = [];
 
 /* ── TOAST ── */
@@ -1807,9 +1836,9 @@ onAuthStateChanged(auth, (user) => {
   refreshDashboardData();
   if (_isStaffVerified) {
     startRestrictedListener();
-    _staffListeners = [startApprovalListener(), startLibrarianNotifListener(), startRequestsListener(), startAuthorizedStudentsListener(), startPendingLoginsListener()];
+    _staffListeners = [startApprovalListener(), startLibrarianNotifListener(), startRequestsListener(), startAuthorizedStudentsListener(), startPendingLoginsListener(), startAdmissionRosterListener()];
   } else {
-    _allRequests = []; _allAuthorizedStudents = []; _allPendingLogins = [];
+    _allRequests = []; _allAuthorizedStudents = []; _allPendingLogins = []; _admissionRoster = [];
     renderAdminRequests(); updateRequestsBadge(0); updateAdminBadge(0);
     document.getElementById('admin-incoming-list').textContent = 'Sign in as verified staff to read library messages.';
   }
@@ -1979,6 +2008,75 @@ function startPendingLoginsListener() {
   }, err => console.warn("[PendingLogins]", err.message));
 }
 
+function startAdmissionRosterListener() {
+  return onSnapshot(collection(db, "libraries", LIBRARY_ID, "admission_roster"), snap => {
+    _admissionRoster = snap.docs.map(item => ({ id: item.id, ...item.data() }));
+    document.getElementById('roster-count').textContent = _admissionRoster.length;
+    const active = document.querySelector('.page-view.active');
+    if (active?.id === 'page-access') renderPendingVerification();
+  }, err => console.warn('[AdmissionRoster]', err.message));
+}
+
+function rosterMatch(admissionNumber) {
+  const wanted = String(admissionNumber || '').trim().toLowerCase();
+  return wanted ? _admissionRoster.find(row => String(row.adm_no || '').trim().toLowerCase() === wanted) : null;
+}
+
+function renderRosterPreview(rows) {
+  const preview = document.getElementById('roster-preview');
+  const body = document.getElementById('roster-preview-body');
+  const withEmail = rows.filter(row => row.email).length;
+  document.getElementById('roster-summary').textContent = `${rows.length} valid admission number${rows.length === 1 ? '' : 's'} · ${withEmail} row${withEmail === 1 ? '' : 's'} include an email address · showing the first ${Math.min(rows.length, 20)}`;
+  body.innerHTML = rows.slice(0, 20).map(row => `<tr><td class="td-id">${_esc(row.adm_no)}</td><td>${_esc(row.name || '—')}</td><td class="text-sm text-muted">${_esc(row.email || '—')}</td><td>${_esc([row.class, row.section].filter(Boolean).join(' ') || '—')}</td><td>${_esc(row.group)}</td></tr>`).join('');
+  preview.hidden = false;
+}
+
+document.getElementById('roster-file').addEventListener('change', async event => {
+  const file = event.target.files?.[0];
+  _pendingRosterRows = []; document.getElementById('roster-import').disabled = true; document.getElementById('roster-preview').hidden = true;
+  if (!file) return;
+  const status = document.getElementById('roster-status'); status.textContent = `Checking ${file.name}…`;
+  try {
+    _pendingRosterRows = await parseRosterFile(file);
+    renderRosterPreview(_pendingRosterRows);
+    status.textContent = `${file.name} is ready to import. Review the preview before continuing.`;
+    document.getElementById('roster-import').disabled = false;
+  } catch (error) { status.textContent = error.message; showToast(error.message, 'error'); }
+});
+
+document.getElementById('roster-template').addEventListener('click', () => {
+  const csv = 'adm_no,name,email,class,section,group\n2026-001,Example Student,student@example.com,10,A,Regular\n';
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  const link = document.createElement('a'); link.href = url; link.download = 'tomeva-admission-roster-template.csv'; link.click(); URL.revokeObjectURL(url);
+});
+
+document.getElementById('roster-import').addEventListener('click', async () => {
+  if (!_isStaffVerified || !_pendingRosterRows.length) return showToast('Choose a valid roster first.', 'error');
+  const button = document.getElementById('roster-import'); const status = document.getElementById('roster-status');
+  const authorize = document.getElementById('roster-authorize-email').checked;
+  button.disabled = true; button.textContent = 'Importing…';
+  try {
+    let authorized = 0;
+    for (let offset = 0; offset < _pendingRosterRows.length; offset += 200) {
+      const batch = writeBatch(db);
+      for (const row of _pendingRosterRows.slice(offset, offset + 200)) {
+        const audit = { added_by: _adminCurrentUser.email, added_at: serverTimestamp(), updated_at: serverTimestamp() };
+        batch.set(doc(db, 'libraries', LIBRARY_ID, 'admission_roster', encodeURIComponent(row.adm_no.toLowerCase())), { ...row, ...audit });
+        if (authorize && row.email) {
+          batch.set(doc(db, 'libraries', LIBRARY_ID, 'authorized_students', row.email), { ...row, name: row.name || row.adm_no, ...audit });
+          authorized++;
+        }
+      }
+      await batch.commit();
+      status.textContent = `Imported ${Math.min(offset + 200, _pendingRosterRows.length)} of ${_pendingRosterRows.length}…`;
+    }
+    status.textContent = `Imported ${_pendingRosterRows.length} admission numbers${authorize ? ` and authorized ${authorized} students with email addresses` : ''}.`;
+    showToast('Admission roster imported.', 'success');
+    _pendingRosterRows = []; document.getElementById('roster-file').value = ''; document.getElementById('roster-preview').hidden = true;
+  } catch (error) { status.textContent = 'Import stopped: ' + error.message; showToast(error.message, 'error'); }
+  finally { button.disabled = !_pendingRosterRows.length; button.textContent = 'Import roster'; }
+});
+
 function renderPendingVerification() {
   const tbody = document.getElementById("pending-tbody");
   const badge = document.getElementById("pending-count-badge");
@@ -2007,20 +2105,23 @@ function renderPendingVerification() {
     return;
   }
 
-  tbody.innerHTML = list.map(p => `<tr>
-    <td><strong>${_esc(p.name || "—")}</strong><br><span class="text-sm text-muted">${_esc(p.email || p.id)}</span></td>
-    <td>${_esc(p.class || "—")}</td>
-    <td>${_esc(p.section || "—")}</td>
-    <td class="td-id">${_esc(p.adm_no || "—")}</td>
+  tbody.innerHTML = list.map(p => {
+    const roster = rosterMatch(p.adm_no); const group = roster?.group || 'Regular';
+    return `<tr>
+    <td><strong>${_esc(roster?.name || p.name || "—")}</strong><br><span class="text-sm text-muted">${_esc(p.email || p.id)}</span></td>
+    <td>${_esc(roster?.class || p.class || "—")}</td>
+    <td>${_esc(roster?.section || p.section || "—")}</td>
+    <td class="td-id">${_esc(p.adm_no || "—")}${roster ? '<br><span class="badge badge-green">Roster match</span>' : ''}</td>
     <td>
       <select id="pending-group-${cssSafe(p.id)}" style="padding:6px 10px; border-radius:8px; border:1.5px solid var(--cream-dark); font-size:13px">
-        <option value="Regular">Regular Student</option>
-        <option value="Literary Club">⭐ Literary Club</option>
-        <option value="Editorial Board">⭐ Editorial Board</option>
+        <option value="Regular" ${group === 'Regular' ? 'selected' : ''}>Regular Student</option>
+        <option value="Literary Club" ${group === 'Literary Club' ? 'selected' : ''}>⭐ Literary Club</option>
+        <option value="Editorial Board" ${group === 'Editorial Board' ? 'selected' : ''}>⭐ Editorial Board</option>
       </select>
     </td>
     <td><button class="btn btn-green btn-sm" data-email="${_esc(p.id)}" data-name="${_esc(p.name||"")}">✓ Approve</button></td>
-  </tr>`).join("");
+  </tr>`;
+  }).join("");
 
   // Event delegation for approve buttons
   tbody.querySelectorAll('[data-email]').forEach(btn => {
@@ -2041,13 +2142,14 @@ window.approvePendingStudent = async function(email, name) {
   const group = groupSelect ? groupSelect.value : "Regular";
   const pending = _allPendingLogins.find(student => student.id === email) || {};
   if (!String(pending.adm_no || '').trim()) { showToast('This student has no admission number in their portal profile.', 'error'); return; }
+  const roster = rosterMatch(pending.adm_no);
 
   try {
     await setDoc(doc(db, "libraries", LIBRARY_ID, "authorized_students", email), {
-      email, name: name || email, group,
+      email, name: roster?.name || name || email, group,
       adm_no: (pending.adm_no || "").trim(),
-      class: (pending.class || "").trim(),
-      section: (pending.section || "").trim(),
+      class: (roster?.class || pending.class || "").trim(),
+      section: (roster?.section || pending.section || "").trim(),
       added_by: _adminCurrentUser.email,
       added_at: serverTimestamp(),
       updated_at: serverTimestamp(),
@@ -2068,11 +2170,12 @@ function renderAuthorizedStudents() {
   let list = _allAuthorizedStudents.slice().sort((a,b) => (a.name||a.email||"").localeCompare(b.name||b.email||""));
   if (q) list = list.filter(s =>
     (s.email||"").toLowerCase().includes(q) ||
-    (s.name||"").toLowerCase().includes(q)
+    (s.name||"").toLowerCase().includes(q) ||
+    (s.adm_no||"").toLowerCase().includes(q)
   );
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><span class="empty-icon">🔐</span><h4>No authorized students yet</h4><p>Add a student above to get started.</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><span class="empty-icon">🔐</span><h4>No authorized students yet</h4><p>Add a student above to get started.</p></div></td></tr>`;
     return;
   }
 
@@ -2084,6 +2187,7 @@ function renderAuthorizedStudents() {
 
   tbody.innerHTML = list.map(s => `<tr>
     <td><strong>${_esc(s.name || "—")}</strong></td>
+    <td class="td-id">${_esc(s.adm_no || "—")}</td>
     <td class="text-sm text-muted">${_esc(s.email)}</td>
     <td>${groupBadge[s.group] || _esc(s.group)}</td>
     <td class="text-sm text-muted">${_esc(s.added_by || "—")}</td>
