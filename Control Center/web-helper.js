@@ -5,7 +5,7 @@ const path = require('node:path');
 const { app, dialog } = require('electron');
 const { validateConfig: validateInstitution } = require('./config-store');
 
-const VERSION = '1.0.0';
+const VERSION = require('./package.json').version;
 
 function validateConfig(input) {
   const config = validateInstitution(input);

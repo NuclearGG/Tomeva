@@ -108,6 +108,10 @@ ipcMain.handle('institution:read', event => {
   if (event.sender !== mainWindow?.webContents) throw new Error('Untrusted window.');
   return institution.read();
 });
+ipcMain.handle('institution:connect', (event, url) => {
+  if (event.sender !== mainWindow?.webContents) throw new Error('Untrusted window.');
+  return institution.connectFromPublicUrl(url);
+});
 ipcMain.on('desktop:notify', (event, type) => {
   if (event.sender !== mainWindow?.webContents || !['NEW_REQUEST', 'LIBRARIAN_MESSAGE'].includes(type) || !Notification.isSupported()) return;
   const notice = new Notification({ title: 'Tomeva Admin', body: type === 'NEW_REQUEST' ? 'A new library request is available.' : 'A new librarian message is available.' });

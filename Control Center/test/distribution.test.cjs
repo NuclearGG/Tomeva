@@ -8,6 +8,12 @@ const { latestRelease, selectAsset, downloadAsset } = require('../github-distrib
 const bytes = Buffer.from('official test software');
 const asset = { name: 'tomeva-admin-1.2.0-win-x64.exe', browser_download_url: 'https://github.com/NuclearGG/Tomeva/releases/download/v1.2.0/tomeva-admin-1.2.0-win-x64.exe', size: bytes.length, digest: 'sha256:' + crypto.createHash('sha256').update(bytes).digest('hex') };
 const temp = () => fs.mkdtemp(path.join(os.tmpdir(), 'tomeva-download-'));
+test('Control Center package contains no Admin or Librarian installer', () => {
+  const pkg = require('../package.json');
+  const packaged = JSON.stringify({ files: pkg.build.files, extraResources: pkg.build.extraResources || [] });
+  assert.doesNotMatch(packaged, /desktop-installers|admin.*\.exe|librarian.*\.exe/i);
+  assert.equal(pkg.build.extraResources, undefined);
+});
 test('official latest release lookup contains no institution data and selects exact platform', async () => {
   const release = await latestRelease(async (url, options) => {
     assert.equal(url, 'https://api.github.com/repos/NuclearGG/Tomeva/releases/latest');
@@ -17,7 +23,20 @@ test('official latest release lookup contains no institution data and selects ex
   assert.equal(selectAsset(release, 'admin').name, asset.name);
   assert.throws(() => selectAsset(release, 'admin', 'linux'), /does not contain/);
   assert.throws(() => selectAsset({ ...release, assets: [{ ...asset, digest: null }] }, 'admin'), /metadata/);
-  await assert.rejects(latestRelease(async () => new Response('', { status: 404 })), /No official release/);
+  await assert.rejects(latestRelease(async () => new Response('', { status: 404 })), /Could not read the official GitHub release/);
+});
+test('release lookup falls back to GitHub release pages and published checksums when the API fails', async () => {
+  const checksum = asset.digest.slice(7) + '  ' + asset.name + '\n';
+  const release = await latestRelease(async url => {
+    if (url === 'https://api.github.com/repos/NuclearGG/Tomeva/releases/latest') return new Response('', { status: 403 });
+    if (url === 'https://github.com/NuclearGG/Tomeva/releases/latest') return new Response(null, { status: 302, headers: { location: 'https://github.com/NuclearGG/Tomeva/releases/tag/v1.2.0' } });
+    if (url.endsWith('/SHA256SUMS')) return new Response(checksum);
+    throw new Error('Unexpected URL: ' + url);
+  });
+  assert.equal(release.source, 'github-release-page');
+  assert.equal(release.version, '1.2.0');
+  assert.equal(selectAsset(release, 'admin').digest, asset.digest);
+  assert.equal(selectAsset(release, 'admin').size, null);
 });
 test('verified download follows only GitHub asset hosts and commits only matching bytes', async () => {
   const dir = await temp(); let calls = 0;

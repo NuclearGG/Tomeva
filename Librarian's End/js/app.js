@@ -10,13 +10,41 @@
 
 'use strict';
 
-// Local provisioning only; never delay offline circulation for branding.
+function showInstitutionConnection() {
+  if (document.getElementById('institution-connect-overlay')) return;
+  var overlay = document.createElement('div');
+  overlay.id = 'institution-connect-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(20,26,31,.72);z-index:100000;display:grid;place-items:center;padding:24px';
+  var panel = document.createElement('section');
+  panel.style.cssText = 'width:min(620px,100%);background:#fffdf8;border-radius:18px;padding:28px;box-shadow:0 24px 80px rgba(0,0,0,.25)';
+  var heading = document.createElement('h2'); heading.textContent = 'Connect this Librarian app';
+  var detail = document.createElement('p'); detail.textContent = 'Enter your institution’s public Student Portal address. No Tomeva login is required. You may continue offline or import institution.json later from the File menu.';
+  var form = document.createElement('form'); form.style.cssText = 'display:grid;gap:12px;margin-top:18px';
+  var input = document.createElement('input'); input.type = 'url'; input.required = true; input.autocomplete = 'url'; input.placeholder = 'https://your-school.web.app/'; input.setAttribute('aria-label', 'Institution Student Portal URL');
+  var actions = document.createElement('div'); actions.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap';
+  var connect = document.createElement('button'); connect.type = 'submit'; connect.className = 'btn btn-primary'; connect.textContent = 'Connect institution';
+  var offline = document.createElement('button'); offline.type = 'button'; offline.className = 'btn btn-ghost'; offline.textContent = 'Continue offline';
+  var status = document.createElement('p'); status.setAttribute('role', 'status');
+  actions.append(connect, offline); form.append(input, actions, status); panel.append(heading, detail, form); overlay.appendChild(panel); document.body.appendChild(overlay);
+  offline.addEventListener('click', function() { overlay.remove(); });
+  form.addEventListener('submit', async function(event) {
+    event.preventDefault(); connect.disabled = true; status.textContent = 'Checking public institution setup…';
+    try {
+      var connected = await window.electronAPI.connectInstitution(input.value);
+      status.textContent = 'Connected to ' + (connected.institutionName || connected.firebase.projectId) + '. Reloading…';
+      location.reload();
+    } catch (error) { status.textContent = error.message; connect.disabled = false; }
+  });
+}
+
+// Public setup is optional for local circulation and never delays the database.
 window.electronAPI?.getInstitution?.().then(config => {
   document.querySelectorAll('[data-institution-name]').forEach(element => {
     element.textContent = config?.institutionName || 'Library Management';
   });
   const field = document.getElementById('issue-teacher-email');
   if (field && config?.staffDomain) field.placeholder = 'e.g. teacher@' + config.staffDomain;
+  if (!config?.firebase) showInstitutionConnection();
 }).catch(error => console.warn('Institution display settings unavailable:', error.message));
 
 /* ══════════════════════════════════════════════

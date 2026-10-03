@@ -1,8 +1,10 @@
-# Tomeva 1.0.0
+# Tomeva 1.0.1
 
 ## Users
 
-Download **tomeva-control-center-1.0.0-win-x64.exe**. Control Center downloads Admin, Librarian, and the Student Portal and adds your institution configuration locally.
+Download **tomeva-control-center-1.0.1-win-x64.exe**. Control Center downloads Admin, Librarian, and the Student Portal from this GitHub Release, verifies them, and adds your institution configuration locally. It no longer has any local installer bundling path.
+
+The downloader now falls back from the GitHub API to the public release page and `SHA256SUMS`, which fixes setup on networks where GitHub API access fails. A separately downloaded Admin or Librarian app can connect without a Tomeva login by entering the institution's deployed Student Portal URL.
 
 This release includes Windows x64 installers for all three desktop apps and the Student Portal ZIP. Linux and macOS binaries are not included in this release.
 

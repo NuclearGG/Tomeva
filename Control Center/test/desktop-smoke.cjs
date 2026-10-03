@@ -89,6 +89,12 @@ app.on('browser-window-created', (_, window) => {
       assert.ok(fs.readFileSync(path.join(webRoot, 'public', 'admin-sign-in', 'login.js'), 'utf8').includes('51734'));
       const web = await window.webContents.executeJavaScript(`window.controlCenter.exportWeb(${JSON.stringify(config)})`);
       assert.ok(fs.existsSync(path.join(web.path, 'public', 'index.html')));
+      const publicSetup = JSON.parse(fs.readFileSync(path.join(web.path, 'public', 'tomeva-institution.json'), 'utf8'));
+      assert.equal(publicSetup.schemaVersion, 1);
+      assert.equal(publicSetup.institutionName, config.institutionName);
+      assert.deepEqual(publicSetup.firebase, config.firebase);
+      assert.equal(publicSetup.staffDomain, config.staffDomain);
+      assert.equal(publicSetup.webUrl, 'https://demo-school.web.app/');
       const otherConfig = { ...config, firebase: { ...config.firebase, projectId: 'demo-second-school' }, staffDomain: 'second.edu' };
       const otherRules = await window.webContents.executeJavaScript(`window.controlCenter.getRules(${JSON.stringify(otherConfig)})`);
       assert.ok(otherRules.includes('second\\\\.edu'));

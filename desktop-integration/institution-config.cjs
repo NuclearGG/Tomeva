@@ -2,9 +2,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { app, dialog } = require('electron');
+const { downloadPublicSetup } = require('./public-setup.cjs');
 const filename = () => path.join(app.getPath('userData'), 'institution.json');
 function validate(data) {
-  if (!data?.firebase || data.libraryId !== 'main' || !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(data.staffDomain || '')) throw new Error('Invalid institution provisioning file.');
+  const staffDomain = typeof data?.staffDomain === 'string' ? data.staffDomain.trim().toLowerCase() : '';
+  if (!data?.firebase || data.libraryId !== 'main' || !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(staffDomain) || staffDomain === 'staff.example') throw new Error('Invalid institution provisioning file.');
   for (const key of ['apiKey', 'projectId', 'authDomain', 'appId', 'messagingSenderId']) {
     if (typeof data.firebase[key] !== 'string' || !data.firebase[key] || data.firebase[key].length > 500) throw new Error(`Invalid Firebase ${key}.`);
   }
@@ -14,7 +16,7 @@ function validate(data) {
   if (webUrl) { const url = new URL(webUrl); if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Invalid institution web URL.'); }
   const institutionName = typeof data.institutionName === 'string' ? data.institutionName.trim() : '';
   if (institutionName.length > 200) throw new Error('Invalid institution name.');
-  return { institutionName, firebase, libraryId: 'main', staffDomain: data.staffDomain, webUrl };
+  return { institutionName, firebase, libraryId: 'main', staffDomain, webUrl };
 }
 function read() {
   if (!fs.existsSync(filename())) {
@@ -28,6 +30,18 @@ function read() {
   }
   return validate(JSON.parse(fs.readFileSync(filename(), 'utf8')));
 }
+function save(config) {
+  fs.mkdirSync(app.getPath('userData'), { recursive: true });
+  if (fs.existsSync(filename())) fs.copyFileSync(filename(), filename() + `.${Date.now()}.backup`);
+  const temporary = filename() + '.tmp';
+  fs.writeFileSync(temporary, JSON.stringify(config, null, 2), { mode: 0o600 });
+  fs.renameSync(temporary, filename());
+}
+async function connectFromPublicUrl(rawUrl, options = {}) {
+  const result = await downloadPublicSetup(rawUrl, { ...options, validate });
+  save(result.config);
+  return { ...result.config, setupUrl: result.url };
+}
 async function importConfiguration(window) {
   const selected = await dialog.showOpenDialog(window, { title: 'Import institution.json from Control Center', filters: [{ name: 'Institution configuration', extensions: ['json'] }], properties: ['openFile'] });
   if (selected.canceled) return;
@@ -36,11 +50,8 @@ async function importConfiguration(window) {
     const config = validate(JSON.parse(fs.readFileSync(selected.filePaths[0], 'utf8')));
     const answer = await dialog.showMessageBox(window, { type: 'question', message: `Use Firebase project ${config.firebase.projectId}?`, detail: 'The application will reload. Finish any current desk operation first. Local records and kiosk credentials are preserved.', buttons: ['Cancel', 'Import and reload'], defaultId: 0, cancelId: 0 });
     if (answer.response !== 1) return;
-    fs.mkdirSync(app.getPath('userData'), { recursive: true });
-    if (fs.existsSync(filename())) fs.copyFileSync(filename(), filename() + `.${Date.now()}.backup`);
-    fs.writeFileSync(filename() + '.tmp', JSON.stringify(config, null, 2));
-    fs.renameSync(filename() + '.tmp', filename());
+    save(config);
     window.reload();
   } catch (error) { await dialog.showMessageBox(window, { type: 'error', message: 'Configuration could not be imported.', detail: error.message }); }
 }
-module.exports = { read, importConfiguration, validate };
+module.exports = { read, importConfiguration, connectFromPublicUrl, validate };

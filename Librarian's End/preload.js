@@ -53,6 +53,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onNavigate:     (cb) => ipcRenderer.on('navigate', (_, page) => cb(page)),
   notify:         (type) => ipcRenderer.send('desktop-alert', type),
   getInstitution: () => ipcRenderer.invoke('institution:read'),
+  connectInstitution: url => ipcRenderer.invoke('institution:connect', url),
   onPerformBackup:(cb) => ipcRenderer.on('perform-backup', (_, data) => cb(data)),
   onPerformRestore:(cb) => ipcRenderer.on('perform-restore', (_, data) => cb(data)),
 });

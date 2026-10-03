@@ -182,6 +182,10 @@ ipcMain.handle('institution:read', event => {
   if (!trustedWorkstationFrame(event)) throw new Error('Untrusted window.');
   return institution.read();
 });
+ipcMain.handle('institution:connect', (event, url) => {
+  if (!trustedWorkstationFrame(event)) throw new Error('Untrusted window.');
+  return institution.connectFromPublicUrl(url);
+});
 ipcMain.handle('workstation:set-pin', (event, pin, idleMinutes, currentPin) => {
   if (!trustedWorkstationFrame(event)) throw new Error('Workstation access denied.');
   return workstationLock.setPin(pin, idleMinutes, currentPin);

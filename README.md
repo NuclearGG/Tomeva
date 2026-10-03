@@ -19,7 +19,9 @@ Tomeva combines an offline desktop circulation app, an online administration das
 
 ### Download only Control Center
 
-Open the [latest release](https://github.com/NuclearGG/Tomeva/releases/latest) and download **`tomeva-control-center-1.0.0-win-x64.exe`** for Windows x64. You do not need source code, Node.js, npm, Git, or separate manual downloads of Admin and Librarian.
+Open the [latest release](https://github.com/NuclearGG/Tomeva/releases/latest) and download the Windows x64 file named **`tomeva-control-center-X.Y.Z-win-x64.exe`**. You do not need source code, Node.js, npm, Git, or separate manual downloads of Admin and Librarian.
+
+Control Center contains only Control Center. When you request Admin, Librarian, or the Student Portal, it downloads that package from the official GitHub Release, verifies its SHA-256 checksum and size, and then adds the institution configuration to the exported folder. It first uses the GitHub API and automatically falls back to the public release page and `SHA256SUMS` if API access is unavailable. Application updates also come from GitHub Releases.
 
 Windows x64 is the locally verified distribution. Linux packages, when provided, use `.AppImage`; select Linux in CC only when the release includes those assets. macOS build scripts are available to developers, but CC does not currently distribute macOS packages.
 
@@ -28,18 +30,20 @@ Installers include Electron and application dependencies. Internet access is nee
 ### Set up your institution
 
 1. **Create a Firebase project.** Register a web app, create Firestore, and enable Google, Anonymous, and Email/Password authentication.
-2. **Configure CC.** Enter the Firebase web configuration and institution staff email domain. For custom web hosting, enter the final HTTPS site URL.
+2. **Configure CC.** Enter the Firebase web configuration and institution staff email domain. The Firebase Web API key is the public browser value under **Firebase Console → Project settings → Your apps → SDK setup**. For custom web hosting, enter the final HTTPS site URL.
 3. **Publish generated rules.** Review and publish CC's `PASTE_IN_FIRESTORE_RULES.txt` in Firestore and create the included indexes. The repository's `staff.example` rules are a template.
 4. **Generate the Student Portal package.** Host its `public` folder over HTTPS. Keep the `admin-sign-in` directory and add the hostname to Firebase Authentication's authorized domains.
 5. **Generate Admin and Librarian packages in CC.** CC checks official downloads against their SHA-256 and size, then adds institution configuration locally. Copy each whole generated folder to its destination and keep `institution.json` beside the installer.
 6. **Sign in to Admin.** Use a verified Google account in the configured staff domain. Create a kiosk credential and enter it in Librarian Settings for protected sync and request decisions.
 7. **Back up.** Create and verify an encrypted CC Recovery Kit; store its password separately. Use Librarian's **Backup Database** command for circulation records.
 
+If Admin or Librarian was downloaded separately, open it and enter the institution's deployed Student Portal URL. The app reads `tomeva-institution.json` from that HTTPS site without a Tomeva login. This public file contains browser Firebase settings and the institution name/domain; it contains no password, token, service-account key, or library records.
+
 Cloud Functions are not required. Firebase service quotas apply. The Firebase CLI is needed only if you choose CLI deployment; generated rules can be published through Firebase Console.
 
 ### Updates and recovery
 
-- CC checks GitHub for its own updates. Admin and Librarian follow the exact version, rollout time, and approved/paused policy set by staff in Admin.
+- CC checks GitHub Releases for its own updates. Admin and Librarian download their approved versions from the same repository and follow the exact version, rollout time, and approved/paused policy set by staff in Admin.
 - Installation preserves existing configuration. Use **Import institution setup** to intentionally change it.
 - CC Recovery Kits contain bootstrap configuration, **not circulation records**. Keep Librarian backups separately.
 - Export Student Portal updates through CC and redeploy them to your hosting.
@@ -130,7 +134,7 @@ Use a matching `vX.Y.Z` GitHub Release and upload every collected package:
 | `latest.yml`, `admin.yml`, `librarian.yml` | Separate Windows update feeds |
 | `*.blockmap`, `SHA256SUMS` | Update data and integrity checks |
 
-Linux filenames use `linux-x64.AppImage`; feed names end in `-linux.yml`. CC requires GitHub asset size and SHA-256 metadata and reports missing platform assets. See [distribution architecture](documentation/SOFTWARE_DISTRIBUTION.md) and [verification notes](documentation/RELEASE_VERIFICATION.md).
+Linux filenames use `linux-x64.AppImage`; feed names end in `-linux.yml`. CC downloads components at runtime and never embeds the Admin or Librarian installers. It uses GitHub asset metadata when the API is available and the release's `SHA256SUMS` manifest as its public fallback. See [distribution architecture](documentation/SOFTWARE_DISTRIBUTION.md) and [verification notes](documentation/RELEASE_VERIFICATION.md).
 
 ### Data and contributions
 

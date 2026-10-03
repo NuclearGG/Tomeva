@@ -17,14 +17,21 @@ app.whenReady().then(() => {
 });
 app.on('browser-window-created', (_, window) => {
   console.log('Admin smoke: window created');
+  window.webContents.on('console-message', (_, level, message) => console.error('Renderer console:', level, message));
   window.webContents.on('did-fail-load', (_, code, message) => console.error('Load failure:', code, message));
   window.webContents.on('preload-error', (_, file, error) => { console.error(file, error); app.exit(1); });
   window.webContents.once('did-finish-load', async () => {
     try {
-      const state = await window.webContents.executeJavaScript(`(async () => ({ node: typeof require, api: typeof window.tomevaAdmin.signInWithGoogle, config: await window.tomevaAdmin.getInstitution(), title: document.title }))()`);
+      const state = await window.webContents.executeJavaScript(`(async () => {
+        const config = await window.tomevaAdmin.getInstitution();
+        for (let attempt = 0; attempt < 50 && !document.querySelector('input[type="url"]'); attempt++) await new Promise(resolve => setTimeout(resolve, 20));
+        return { node: typeof require, api: typeof window.tomevaAdmin.signInWithGoogle, connect: typeof window.tomevaAdmin.connectInstitution, config, setupInput: !!document.querySelector('input[type="url"]'), title: document.title };
+      })()`);
       assert.equal(state.node, 'undefined');
       assert.equal(state.api, 'function');
+      assert.equal(state.connect, 'function');
       assert.equal(state.config, null);
+      assert.equal(state.setupInput, true);
       assert.match(state.title, /Tomeva/i);
       console.log('PASS: Admin window, sandboxed preload, and unconfigured institution IPC');
       clearTimeout(timer); app.exit(0);

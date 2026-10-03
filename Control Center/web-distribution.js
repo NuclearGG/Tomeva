@@ -49,6 +49,15 @@ async function prepareWeb(directory, config, options = {}) {
   if (manifest.schemaVersion !== 1 || manifest.version !== result.version) throw new Error('Student package needs a compatible Control Center version.');
   for (const name of ['public/index.html', 'public/admin-sign-in/index.html', 'firestore.rules', 'firestore.indexes.json']) await fs.access(path.join(directory, name));
   await fs.writeFile(path.join(directory, 'public', 'tomeva-config.js'), 'globalThis.TOMEVA_WEB_CONFIG = ' + JSON.stringify({ ...config, version: result.version }).replace(/</g, '\\u003c') + ';\n');
+  const publicConfig = {
+    schemaVersion: 1,
+    institutionName: config.institutionName || '',
+    firebase: config.firebase,
+    staffDomain: config.staffDomain,
+    webUrl: config.webUrl || `https://${config.firebase.projectId}.web.app/`,
+    libraryId: 'main',
+  };
+  await fs.writeFile(path.join(directory, 'public', 'tomeva-institution.json'), JSON.stringify(publicConfig, null, 2) + '\n');
   await fs.writeFile(path.join(directory, 'public', 'tomeva-version.json'), JSON.stringify({ version: result.version, projectId: config.firebase.projectId }));
   await fs.writeFile(path.join(directory, 'firebase.json'), JSON.stringify({ hosting: { public: 'public', ignore: ['**/.*', '**/node_modules/**'] }, firestore: { rules: 'firestore.rules', indexes: 'firestore.indexes.json' } }, null, 2));
   return result.version;

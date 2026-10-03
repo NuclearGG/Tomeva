@@ -44,6 +44,8 @@ app.on('browser-window-created', (_, window) => {
       assert.equal(result.nodeAvailable, false);
       assert.equal(result.firebase, 'object');
       assert.equal(result.legacy, null);
+      assert.equal(await window.webContents.executeJavaScript(`typeof window.electronAPI.connectInstitution`), 'function');
+      assert.equal(await window.webContents.executeJavaScript(`!!document.getElementById('institution-connect-overlay')`), true);
       const lock = await window.webContents.executeJavaScript(`(async () => {
         const waitFor = async condition => {
           for (let i = 0; i < 100; i++) {

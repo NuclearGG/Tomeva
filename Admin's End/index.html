@@ -882,17 +882,6 @@
 <div id="toast-container"></div>
 
 <script type="module">
-import { setupKioskManagement } from './kiosk-management.js';
-import { initializeApp }   from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-import {
-  getFirestore, doc, collection,
-  onSnapshot, Timestamp, addDoc, setDoc, updateDoc, deleteDoc, serverTimestamp,
-  query, orderBy, limit
-} from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
-import {
-  getAuth, GoogleAuthProvider, signOut, onAuthStateChanged, signInWithCredential, signInWithPopup
-} from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
-
 // XSS-safe HTML escaping
 function _esc(str) {
   return String(str || '')
@@ -908,9 +897,33 @@ const institution = await window.tomevaAdmin?.getInstitution?.();
 if (!institution?.firebase) {
   const panel = document.createElement('main'); panel.className = 'card';
   const heading = document.createElement('h1'); heading.textContent = 'Set up Tomeva Admin';
-  const detail = document.createElement('p'); detail.textContent = 'Choose Setup → Import institution setup and select institution.json from the Admin-Setup folder exported by Control Center.';
-  panel.append(heading, detail); document.body.replaceChildren(panel);
+  const detail = document.createElement('p'); detail.textContent = 'Enter the public Student Portal address supplied by your institution. No Tomeva account is required.';
+  const form = document.createElement('form'); form.style.cssText = 'display:grid;gap:12px;max-width:640px;margin-top:20px';
+  const label = document.createElement('label'); label.textContent = 'Institution Student Portal URL';
+  const input = document.createElement('input'); input.type = 'url'; input.required = true; input.autocomplete = 'url'; input.placeholder = 'https://your-school.web.app/'; input.style.cssText = 'display:block;width:100%;margin-top:8px';
+  const button = document.createElement('button'); button.type = 'submit'; button.className = 'btn btn-primary'; button.textContent = 'Connect institution';
+  const status = document.createElement('p'); status.setAttribute('role', 'status');
+  const fileHelp = document.createElement('p'); fileHelp.textContent = 'You can also choose Setup → Import institution setup to use institution.json from Control Center.';
+  label.appendChild(input); form.append(label, button, status); panel.append(heading, detail, form, fileHelp); document.body.replaceChildren(panel);
+  form.addEventListener('submit', async event => {
+    event.preventDefault(); button.disabled = true; status.textContent = 'Checking public institution setup…';
+    try {
+      const connected = await window.tomevaAdmin.connectInstitution(input.value);
+      status.textContent = `Connected to ${connected.institutionName || connected.firebase.projectId}. Reloading…`;
+      location.reload();
+    } catch (error) { status.textContent = error.message; button.disabled = false; }
+  });
 } else {
+const { setupKioskManagement } = await import('./kiosk-management.js');
+const { initializeApp } = await import("https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js");
+const {
+  getFirestore, doc, collection,
+  onSnapshot, Timestamp, addDoc, setDoc, updateDoc, deleteDoc, serverTimestamp,
+  query, orderBy, limit
+} = await import("https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js");
+const {
+  getAuth, GoogleAuthProvider, signOut, onAuthStateChanged, signInWithCredential, signInWithPopup
+} = await import("https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js");
 document.querySelectorAll('[data-institution-name]').forEach(element => {
   element.textContent = institution.institutionName || 'Library Dashboard';
 });

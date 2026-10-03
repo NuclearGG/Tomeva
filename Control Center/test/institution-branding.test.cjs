@@ -10,7 +10,7 @@ test('all app UI sources are free of preset institution branding', () => {
   function inspect(directory) {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       const filename = path.join(directory, entry.name);
-      if (entry.isDirectory() && !excluded.has(entry.name) && !entry.name.startsWith('node_modules') && !entry.name.startsWith('.') && entry.name !== 'desktop-installers') inspect(filename);
+      if (entry.isDirectory() && !excluded.has(entry.name) && !entry.name.startsWith('node_modules') && !entry.name.startsWith('.')) inspect(filename);
       else if (entry.isFile() && /\.(?:html|css|js|mjs|webmanifest|svg)$/i.test(entry.name)) {
         assert.doesNotMatch(fs.readFileSync(filename, 'utf8'), /me[\s_-]*academy/i, path.relative(root, filename));
       }
@@ -22,7 +22,7 @@ test('all app UI sources are free of preset institution branding', () => {
 test('desktop provisioning preserves the institution name', () => {
   const module = { exports: {} };
   const source = fs.readFileSync(path.join(__dirname, '../../desktop-integration/institution-config.cjs'), 'utf8');
-  vm.runInNewContext(source, { module, process, require: name => name === 'electron' ? { app: {} } : require(name) });
+  vm.runInNewContext(source, { module, process, require: name => name === 'electron' ? { app: {} } : name === './public-setup.cjs' ? { downloadPublicSetup: async () => {} } : require(name) });
   const config = { institutionName: 'Example College', staffDomain: 'college.edu', libraryId: 'main', firebase: { apiKey: 'public', projectId: 'demo-college', authDomain: 'demo-college.firebaseapp.com', appId: '1:1:web:abc', messagingSenderId: '1' } };
   assert.equal(module.exports.validate(config).institutionName, config.institutionName);
   delete config.institutionName;
