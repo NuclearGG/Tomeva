@@ -74,4 +74,13 @@ export async function parseRosterFile(file) {
   return parseRosterText(await file.text(), extension);
 }
 
+export function rosterImportErrorMessage(error) {
+  const code = String(error?.code || '').toLowerCase();
+  const message = String(error?.message || 'The roster could not be imported.');
+  if (code.includes('permission-denied') || /missing or insufficient permissions/i.test(message)) {
+    return 'Roster access is not enabled in this Firebase project. In Control Center, copy the current Firestore rules, then paste and publish them in Firebase Console → Firestore Database → Rules. Sign out and back in to Admin before retrying.';
+  }
+  return message;
+}
+
 export { MAX_ROSTER_ROWS };

@@ -1006,7 +1006,7 @@ if (!institution?.firebase) {
   });
 } else {
 const { setupKioskManagement } = await import('./kiosk-management.js');
-const { parseRosterFile } = await import('./roster-import.mjs');
+const { parseRosterFile, rosterImportErrorMessage } = await import('./roster-import.mjs');
 const { initializeApp } = await import("https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js");
 const {
   getFirestore, doc, collection,
@@ -2012,9 +2012,14 @@ function startAdmissionRosterListener() {
   return onSnapshot(collection(db, "libraries", LIBRARY_ID, "admission_roster"), snap => {
     _admissionRoster = snap.docs.map(item => ({ id: item.id, ...item.data() }));
     document.getElementById('roster-count').textContent = _admissionRoster.length;
+    if (!_pendingRosterRows.length) document.getElementById('roster-status').textContent = 'Choose a CSV or JSON roster to pre-register admission numbers.';
     const active = document.querySelector('.page-view.active');
     if (active?.id === 'page-access') renderPendingVerification();
-  }, err => console.warn('[AdmissionRoster]', err.message));
+  }, error => {
+    const message = rosterImportErrorMessage(error);
+    document.getElementById('roster-status').textContent = message;
+    console.warn('[AdmissionRoster]', message);
+  });
 }
 
 function rosterMatch(admissionNumber) {
@@ -2073,7 +2078,11 @@ document.getElementById('roster-import').addEventListener('click', async () => {
     status.textContent = `Imported ${_pendingRosterRows.length} admission numbers${authorize ? ` and authorized ${authorized} students with email addresses` : ''}.`;
     showToast('Admission roster imported.', 'success');
     _pendingRosterRows = []; document.getElementById('roster-file').value = ''; document.getElementById('roster-preview').hidden = true;
-  } catch (error) { status.textContent = 'Import stopped: ' + error.message; showToast(error.message, 'error'); }
+  } catch (error) {
+    const message = rosterImportErrorMessage(error);
+    status.textContent = 'Import stopped: ' + message;
+    showToast(message, 'error', 9000);
+  }
   finally { button.disabled = !_pendingRosterRows.length; button.textContent = 'Import roster'; }
 });
 

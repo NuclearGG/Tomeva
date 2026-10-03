@@ -1,8 +1,8 @@
-version: 1.0.3
+version: 1.0.4
 files:
-  - url: tomeva-control-center-1.0.3-win-x64.exe
-    sha512: 95BEtszhBaNU9tzq1dg27XYIE9O27huNF5doUrpq179+V9g+yWIFMKHH6csv/HLJDM2m5SJqdktCkJikUUEMOg==
-    size: 104921599
-path: tomeva-control-center-1.0.3-win-x64.exe
-sha512: 95BEtszhBaNU9tzq1dg27XYIE9O27huNF5doUrpq179+V9g+yWIFMKHH6csv/HLJDM2m5SJqdktCkJikUUEMOg==
-releaseDate: '2026-10-03T15:57:22.345Z'
+  - url: tomeva-control-center-1.0.4-win-x64.exe
+    sha512: GpofzEI/e/IeOI6zVdR7dKxORIU9NuyagJhL63aDAx8ZOxvPXPx5R0nDXHOTSDRHDLEUVAycueI64+XSGGb8Pw==
+    size: 104921546
+path: tomeva-control-center-1.0.4-win-x64.exe
+sha512: GpofzEI/e/IeOI6zVdR7dKxORIU9NuyagJhL63aDAx8ZOxvPXPx5R0nDXHOTSDRHDLEUVAycueI64+XSGGb8Pw==
+releaseDate: '2026-10-03T20:01:35.657Z'

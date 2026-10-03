@@ -24,16 +24,19 @@ app.on('browser-window-created', (_, window) => {
     try {
       const state = await window.webContents.executeJavaScript(`(async () => {
         const config = await window.tomevaAdmin.getInstitution();
+        const releases = await window.tomevaAdmin.reviewReleases();
         for (let attempt = 0; attempt < 50 && !document.querySelector('input[type="url"]'); attempt++) await new Promise(resolve => setTimeout(resolve, 20));
-        return { node: typeof require, api: typeof window.tomevaAdmin.signInWithGoogle, connect: typeof window.tomevaAdmin.connectInstitution, config, setupInput: !!document.querySelector('input[type="url"]'), title: document.title };
+        return { node: typeof require, api: typeof window.tomevaAdmin.signInWithGoogle, connect: typeof window.tomevaAdmin.connectInstitution, config, releases, setupInput: !!document.querySelector('input[type="url"]'), title: document.title };
       })()`);
       assert.equal(state.node, 'undefined');
       assert.equal(state.api, 'function');
       assert.equal(state.connect, 'function');
       assert.equal(state.config, null);
+      assert.ok(['current-release', 'error'].includes(state.releases.admin.state));
+      assert.ok(['current-release', 'error'].includes(state.releases.librarian.state));
       assert.equal(state.setupInput, true);
       assert.match(state.title, /Tomeva/i);
-      console.log('PASS: Admin window, sandboxed preload, and unconfigured institution IPC');
+      console.log('PASS: Admin window, sandboxed preload, institution IPC, and packaged release discovery');
       clearTimeout(timer); app.exit(0);
     } catch (error) { console.error(error); clearTimeout(timer); app.exit(1); }
   });

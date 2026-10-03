@@ -1,6 +1,6 @@
 {
   "name": "tomeva-admin",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Tomeva Admin - Library Dashboard (Electron desktop app)",
   "main": "main.js",
   "author": "",
@@ -9,6 +9,7 @@
   "scripts": {
     "test:staff": "node --test test/staff-access.test.js",
     "test:roster": "node --test test/roster-import.test.mjs",
+    "test:releases": "node --test test/release-discovery.test.cjs",
     "start": "electron .",
     "test:oauth": "node --test test/oauth-flow.test.js",
     "build:win": "electron-builder --config electron-builder.config.cjs --win",
@@ -41,6 +42,7 @@
       "index.html",
       "kiosk-management.js",
       "roster-import.mjs",
+      "release-discovery.js",
       "assets/**",
       {
         "from": "../desktop-integration",
@@ -48,10 +50,6 @@
         "filter": [
           "*.cjs"
         ]
-      },
-      {
-        "from": "../Control Center/desktop-releases.js",
-        "to": "release-discovery.js"
       },
       "public-releases.json"
     ],

@@ -102,7 +102,7 @@ ipcMain.on('sign-in-google', async (event) => {
 const gotTheLock = app.requestSingleInstanceLock();
 ipcMain.handle('updates:releases', event => {
   if (event.sender !== mainWindow?.webContents) throw new Error('Untrusted window.');
-  return require(app.isPackaged ? './release-discovery.js' : '../Control Center/desktop-releases.js').checkDesktopReleases(app.isPackaged ? require('./public-releases.json') : undefined);
+  return require('./release-discovery.js').checkDesktopReleases(app.isPackaged ? require('./public-releases.json') : undefined);
 });
 ipcMain.handle('institution:read', event => {
   if (event.sender !== mainWindow?.webContents) throw new Error('Untrusted window.');

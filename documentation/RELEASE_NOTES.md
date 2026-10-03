@@ -1,23 +1,23 @@
-# Tomeva 1.0.3
+# Tomeva 1.0.4
 
 ## Users
 
-Download **tomeva-control-center-1.0.3-win-x64.exe**. Control Center downloads Admin, Librarian, and the Student Portal from this GitHub Release, verifies them, and adds your institution configuration locally. It has no local installer bundling path.
+Download **tomeva-control-center-1.0.4-win-x64.exe**. Control Center downloads the matching Admin, Librarian, and Student Portal packages from this GitHub Release, verifies them, and adds the institution configuration locally.
 
-Admin now has a clearer desktop update approval workspace with release cards, current policy cards, automatic form filling, rollout timing, and explicit approval, pause, loading, and saving states.
+This release fixes the Admin **Check releases** action. The Admin installer now includes its release-discovery module inside `app.asar`, so the update approval screen can read the latest GitHub release without the `Cannot find module './release-discovery.js'` error.
 
-Student Access now accepts CSV and JSON admission rosters with a validated preview and downloadable template. Admission-number-only rows remain private to staff and help match pending students. Rows containing email addresses can be authorized during import. Microsoft Access tables can be imported after exporting them as CSV.
+The packaged Admin app was opened in an isolated profile and its release IPC was exercised after the build. The package contents were also inspected to confirm that `release-discovery.js` and `public-releases.json` are present.
 
-Publish the v1.0.3 generated Firestore rules before importing a roster. The new `admission_roster` collection is staff-only; students, kiosks, and signed-out users cannot read it.
+Tomeva desktop apps support Windows 10 and 11 x64. Electron 22 was the final Electron release that ran on Windows 7, 8, and 8.1, and it reached end of support in October 2023. Tomeva stays on a maintained Electron line because the apps process staff authorization, student details, and circulation data.
 
-The downloader falls back from the GitHub API to the public release page and `SHA256SUMS`, which fixes setup on networks where GitHub API access fails. A separately downloaded Admin or Librarian app can connect without a Tomeva login by entering the institution's deployed Student Portal URL.
-
-This release includes Windows x64 installers for all three desktop apps and the Student Portal ZIP. Linux and macOS binaries are not included in this release.
+This release includes Windows x64 installers for all three desktop apps and the Student Portal ZIP. Linux and macOS binaries are not included.
 
 ## Developers
 
-Clone the repository and run `git lfs pull` to download the installation packages alongside the complete source. See the root README for installation, tests, builds, and publishing commands. `packages/SHA256SUMS` records all release asset checksums.
+The Admin now owns `release-discovery.js` within its application directory instead of asking electron-builder to copy a file from the Control Center directory. A focused unit test covers successful and failed GitHub release checks, and the Admin desktop smoke test invokes the same IPC used by the update approval UI.
 
-## Verification limits
+Clone the repository and run `git lfs pull` to download the installation packages alongside the complete source. See the root README for installation, tests, builds, and publishing commands. `packages/SHA256SUMS` records all committed package checksums.
 
-Automated checks cover database operations, offline circulation, configuration, package downloads, recovery, authorization, and rules in a local emulator. Live institution Google sign-in, production Firebase deployment, and interactive installation on a clean Windows computer still need institution acceptance testing. The installers are unsigned.
+## Verification
+
+The full unit suite, all three Electron smoke suites, 112 Firestore rules tests, and 12 kiosk REST authorization tests passed. All Windows installers and update metadata were rebuilt at 1.0.4 and their hashes were verified. Live institution Google sign-in and interactive installation on a clean Windows computer remain institution acceptance checks. The installers are unsigned.

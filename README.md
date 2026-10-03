@@ -23,7 +23,9 @@ Open the [latest release](https://github.com/NuclearGG/Tomeva/releases/latest) a
 
 Control Center contains only Control Center. When you request Admin, Librarian, or the Student Portal, it downloads that package from the official GitHub Release, verifies its SHA-256 checksum and size, and then adds the institution configuration to the exported folder. It first uses the GitHub API and automatically falls back to the public release page and `SHA256SUMS` if API access is unavailable. Application updates also come from GitHub Releases.
 
-Windows x64 is the locally verified distribution. Linux packages, when provided, use `.AppImage`; select Linux in CC only when the release includes those assets. macOS build scripts are available to developers, but CC does not currently distribute macOS packages.
+Windows 10 or 11 x64 is the locally verified distribution. Linux packages, when provided, use `.AppImage`; select Linux in CC only when the release includes those assets. macOS build scripts are available to developers, but CC does not currently distribute macOS packages.
+
+Windows 7, 8, and 8.1 cannot run the current desktop applications. Electron 22 was the final Electron release for those systems, and it reached end of support on October 10, 2023. Tomeva uses a maintained Electron release because Admin handles staff authorization and Librarian handles student and circulation data. See Electron's [Windows 7/8/8.1 support notice](https://www.electronjs.org/blog/electron-22-0) and [end-of-support notice](https://www.electronjs.org/blog/electron-27-0).
 
 Installers include Electron and application dependencies. Internet access is needed for initial downloads, Firebase setup, Admin sign-in, and synchronization. Librarian's local circulation remains available offline. Builds without a publisher signing certificate are unsigned.
 

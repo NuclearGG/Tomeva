@@ -1,8 +1,8 @@
-version: 1.0.3
+version: 1.0.4
 files:
-  - url: tomeva-librarian-1.0.3-win-x64.exe
-    sha512: SoxHMqTxd3EgHDWMyyS5030fDpLdPGGz9xufOLDNQemzDU1JItNO6xYbMyodTErKRASYOYsAhL6G2bt3ISUkHA==
-    size: 129457249
-path: tomeva-librarian-1.0.3-win-x64.exe
-sha512: SoxHMqTxd3EgHDWMyyS5030fDpLdPGGz9xufOLDNQemzDU1JItNO6xYbMyodTErKRASYOYsAhL6G2bt3ISUkHA==
-releaseDate: '2026-10-03T15:58:46.929Z'
+  - url: tomeva-librarian-1.0.4-win-x64.exe
+    sha512: FJ8bSkh9AoNBggaR34uzZlwLXvfQtkKQyLlCI62rGu3w1NgBtTR/O/ullQTkLE4VpyFwPKXToob+hf7yeiNI8w==
+    size: 129457535
+path: tomeva-librarian-1.0.4-win-x64.exe
+sha512: FJ8bSkh9AoNBggaR34uzZlwLXvfQtkKQyLlCI62rGu3w1NgBtTR/O/ullQTkLE4VpyFwPKXToob+hf7yeiNI8w==
+releaseDate: '2026-10-03T20:04:24.039Z'
