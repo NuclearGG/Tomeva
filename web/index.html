@@ -17,9 +17,13 @@
 <meta property="og:title" content="Tomeva: free, open-source library management for schools">
 <meta property="og:description" content="Offline circulation for library staff, an admin dashboard and a student catalog. You own the accounts, data and hosting.">
 <meta property="og:url" content="https://nucleargg.github.io/Tomeva/">
+<meta property="og:image" content="https://nucleargg.github.io/Tomeva/logo.png">
+<meta property="og:image:width" content="2000">
+<meta property="og:image:height" content="2000">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Tomeva: free, open-source library management for schools">
 <meta name="twitter:description" content="Offline-first library software. Download Control Center and set up on your own Firebase project.">
+<meta name="twitter:image" content="https://nucleargg.github.io/Tomeva/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
@@ -44,9 +48,8 @@ a{color:inherit}
 :focus-visible{outline:3px solid var(--indigo);outline-offset:3px;border-radius:6px}
 .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
 nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
-.logo{font:800 26px Fraunces,serif;text-decoration:none;display:flex;gap:10px;align-items:center}
-.logo i{width:14px;height:26px;border-radius:3px;background:var(--berry);box-shadow:10px 4px 0 var(--teal),20px 0 0 var(--gold)}
-.logo span{margin-left:22px}
+.logo{display:block;width:132px;height:94px;overflow:hidden;border-radius:14px}
+.logo img{display:block;width:132px;height:132px;transform:translateY(-2px)}
 nav ul{list-style:none;display:flex;gap:26px;padding:0;font-weight:500}
 nav ul a{text-decoration:none}nav ul a:hover{color:var(--berry)}
 .btn{display:inline-block;padding:15px 26px;border-radius:999px;font-weight:700;text-decoration:none;background:var(--ink);color:var(--paper);transition:transform .2s,box-shadow .2s;box-shadow:0 6px 0 var(--indigo)}
@@ -93,7 +96,7 @@ footer{padding:50px 0 calc(50px + env(safe-area-inset-bottom,0px));font-size:.95
 footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px}
 footer a{margin-right:18px}
 @media(max-width:900px){.stage{display:none}.hero,.dl{grid-template-columns:1fr}.apps{grid-template-columns:1fr 1fr}.why{grid-template-columns:1fr}nav ul{display:none}.dl{padding:34px}}
-@media(max-width:520px){.apps{grid-template-columns:1fr}}
+@media(max-width:520px){.apps{grid-template-columns:1fr}.logo{width:110px;height:78px}.logo img{width:110px;height:110px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
@@ -101,7 +104,7 @@ footer a{margin-right:18px}
 <canvas id="bg" aria-hidden="true"></canvas>
 <div class="wrap">
 <nav aria-label="Main">
-<a class="logo" href="#top"><i aria-hidden="true"></i><span>Tomeva</span></a>
+<a class="logo" href="#top" aria-label="Tomeva home"><img src="logo.png" alt="Tomeva"></a>
 <ul><li><a href="#apps">Apps</a></li><li><a href="#setup">Setup</a></li><li><a href="#faq">FAQ</a></li><li><a href="https://github.com/NuclearGG/Tomeva">GitHub</a></li></ul>
 </nav>
 <header class="hero" id="top">
