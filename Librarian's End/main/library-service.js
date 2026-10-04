@@ -937,7 +937,7 @@ function createLibraryService(store, appendLog = () => {}) {
   for (const name of mutations) {
     const operation = api[name];
     api[name] = (...args) => {
-      const historyBefore = structuredClone(_actionHistory);
+      const historyBefore = JSON.parse(JSON.stringify(_actionHistory));
       _pendingLogs = [];
       try {
         const result = store.transaction(() => {

@@ -1,23 +1,26 @@
-# Tomeva 1.0.4
+# Tomeva 1.0.5
 
 ## Users
 
-Download **tomeva-control-center-1.0.4-win-x64.exe**. Control Center downloads the matching Admin, Librarian, and Student Portal packages from this GitHub Release, verifies them, and adds the institution configuration locally.
+Choose the Control Center installer for the destination operating system:
 
-This release fixes the Admin **Check releases** action. The Admin installer now includes its release-discovery module inside `app.asar`, so the update approval screen can read the latest GitHub release without the `Cannot find module './release-discovery.js'` error.
+- **tomeva-control-center-1.0.5-win-x64.exe** for Windows 10/11 x64.
+- **tomeva-control-center-1.0.5-win7-x64.exe** for Windows 7/8/8.1 x64 legacy computers.
 
-The packaged Admin app was opened in an isolated profile and its release IPC was exercised after the build. The package contents were also inspected to confirm that `release-discovery.js` and `public-releases.json` are present.
+Control Center now offers separate Windows 10/11 and Windows 7/8.1 package selections. Each line downloads matching Admin and Librarian installers and uses its own update metadata, preventing a legacy computer from receiving a modern-only runtime.
 
-Tomeva desktop apps support Windows 10 and 11 x64. Electron 22 was the final Electron release that ran on Windows 7, 8, and 8.1, and it reached end of support in October 2023. Tomeva stays on a maintained Electron line because the apps process staff authorization, student details, and circulation data.
+The legacy line uses Electron 22.3.27 and a compatible SQLite native build. Network operations include the compatibility layer required by its Node 16 runtime.
 
-This release includes Windows x64 installers for all three desktop apps and the Student Portal ZIP. Linux and macOS binaries are not included.
+Electron 22 stopped receiving security fixes in October 2023. Use the legacy packages only where an operating-system upgrade is not yet possible. The modern Windows 10/11 packages remain the default.
+
+This release includes both Windows x64 compatibility lines for all three desktop apps and the Student Portal ZIP. Linux and macOS binaries are not included.
 
 ## Developers
 
-The Admin now owns `release-discovery.js` within its application directory instead of asking electron-builder to copy a file from the Control Center directory. A focused unit test covers successful and failed GitHub release checks, and the Admin desktop smoke test invokes the same IPC used by the update approval UI.
+The legacy build runs from an isolated staging tree, pins Electron 22.3.27, and uses a Node 16-compatible SQLite dependency without changing the modern dependency lockfiles. `build-variant.json` keeps update feeds separated at runtime.
 
 Clone the repository and run `git lfs pull` to download the installation packages alongside the complete source. See the root README for installation, tests, builds, and publishing commands. `packages/SHA256SUMS` records all committed package checksums.
 
 ## Verification
 
-The full unit suite, all three Electron smoke suites, 112 Firestore rules tests, and 12 kiosk REST authorization tests passed. All Windows installers and update metadata were rebuilt at 1.0.4 and their hashes were verified. Live institution Google sign-in and interactive installation on a clean Windows computer remain institution acceptance checks. The installers are unsigned.
+The full unit suite, all three modern Electron smoke suites, 112 Firestore rules tests, and 12 kiosk REST authorization tests passed. Modern and legacy package contents, SQLite startup, update metadata, and checksums were verified. Interactive installation on physical Windows 7/8.1 hardware remains an acceptance check. The installers are unsigned.

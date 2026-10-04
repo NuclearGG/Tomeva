@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const assert = require('node:assert/strict');
+const { Response } = require('node-fetch');
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'tomeva-control-smoke-'));
 app.setPath('userData', path.join(directory, 'user-data'));
 fs.mkdirSync(app.getPath('userData'), { recursive: true });
@@ -19,7 +20,7 @@ global.fetch = async url => {
     [`tomeva-student-${version}.zip`, zip],
   ]);
   const assets = [...payloads].map(([name, data]) => ({ name, size: data.length, digest: 'sha256:' + crypto.createHash('sha256').update(data).digest('hex'), browser_download_url: `https://github.com/NuclearGG/Tomeva/releases/download/v${version}/${name}` }));
-  if (url === 'https://api.github.com/repos/NuclearGG/Tomeva/releases/latest') return Response.json({ tag_name: 'v' + version, assets });
+  if (url === 'https://api.github.com/repos/NuclearGG/Tomeva/releases/latest') return new Response(JSON.stringify({ tag_name: 'v' + version, assets }), { headers: { 'content-type': 'application/json' } });
   const asset = assets.find(item => item.browser_download_url === url);
   if (asset) return new Response(payloads.get(asset.name));
   throw new Error('Unexpected network request: ' + url);

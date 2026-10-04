@@ -1,5 +1,6 @@
 'use strict';
 const path = require('node:path');
+const legacyWindows = require('./build-variant.json').legacyWindows;
 const { app, BrowserWindow, ipcMain, shell, Menu, clipboard, dialog } = require('electron');
 const { createConfigStore } = require('./config-store');
 const { createUpdateManager } = require('./update-manager');
@@ -69,7 +70,8 @@ handle('setup:export', (value, component, platform) => distribute(options => exp
 handle('setup:install', async (value, component) => {
   if (!['librarian', 'admin'].includes(component)) throw new Error('Unknown installer.');
   if (!['win32', 'linux'].includes(process.platform)) throw new Error('Local installation supports Windows and Linux. Export a package for another computer.');
-  const result = await distribute(options => exportSetupBundle(window, value, component, process.platform === 'linux' ? 'linux' : 'win', options));
+  const localPlatform = process.platform === 'linux' ? 'linux' : legacyWindows ? 'win-legacy' : 'win';
+  const result = await distribute(options => exportSetupBundle(window, value, component, localPlatform, options));
   if (result.cancelled) return result;
   if (!result.installerPath) throw new Error('No verified installer was downloaded.');
   if (process.platform === 'linux') {

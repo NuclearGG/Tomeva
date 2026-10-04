@@ -7,6 +7,7 @@ const crypto = require('node:crypto');
 const { latestRelease, selectAsset, downloadAsset } = require('../github-distribution');
 const bytes = Buffer.from('official test software');
 const asset = { name: 'tomeva-admin-1.2.0-win-x64.exe', browser_download_url: 'https://github.com/NuclearGG/Tomeva/releases/download/v1.2.0/tomeva-admin-1.2.0-win-x64.exe', size: bytes.length, digest: 'sha256:' + crypto.createHash('sha256').update(bytes).digest('hex') };
+const legacyAsset = { ...asset, name: 'tomeva-admin-1.2.0-win7-x64.exe', browser_download_url: 'https://github.com/NuclearGG/Tomeva/releases/download/v1.2.0/tomeva-admin-1.2.0-win7-x64.exe' };
 const temp = () => fs.mkdtemp(path.join(os.tmpdir(), 'tomeva-download-'));
 test('Control Center package contains no Admin or Librarian installer', () => {
   const pkg = require('../package.json');
@@ -18,9 +19,10 @@ test('official latest release lookup contains no institution data and selects ex
   const release = await latestRelease(async (url, options) => {
     assert.equal(url, 'https://api.github.com/repos/NuclearGG/Tomeva/releases/latest');
     assert.equal(options.redirect, 'error');
-    return Response.json({ tag_name: 'v1.2.0', assets: [asset] });
+    return Response.json({ tag_name: 'v1.2.0', assets: [asset, legacyAsset] });
   });
   assert.equal(selectAsset(release, 'admin').name, asset.name);
+  assert.equal(selectAsset(release, 'admin', 'win-legacy').name, legacyAsset.name);
   assert.throws(() => selectAsset(release, 'admin', 'linux'), /does not contain/);
   assert.throws(() => selectAsset({ ...release, assets: [{ ...asset, digest: null }] }, 'admin'), /metadata/);
   await assert.rejects(latestRelease(async () => new Response('', { status: 404 })), /Could not read the official GitHub release/);

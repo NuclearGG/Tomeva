@@ -19,13 +19,16 @@ Tomeva combines an offline desktop circulation app, an online administration das
 
 ### Download only Control Center
 
-Open the [latest release](https://github.com/NuclearGG/Tomeva/releases/latest) and download the Windows x64 file named **`tomeva-control-center-X.Y.Z-win-x64.exe`**. You do not need source code, Node.js, npm, Git, or separate manual downloads of Admin and Librarian.
+Open the [latest release](https://github.com/NuclearGG/Tomeva/releases/latest). Download **`tomeva-control-center-X.Y.Z-win-x64.exe`** for Windows 10/11, or **`tomeva-control-center-X.Y.Z-win7-x64.exe`** for a Windows 7/8.1 legacy computer. You do not need source code, Node.js, npm, Git, or separate manual downloads of Admin and Librarian.
 
 Control Center contains only Control Center. When you request Admin, Librarian, or the Student Portal, it downloads that package from the official GitHub Release, verifies its SHA-256 checksum and size, and then adds the institution configuration to the exported folder. It first uses the GitHub API and automatically falls back to the public release page and `SHA256SUMS` if API access is unavailable. Application updates also come from GitHub Releases.
 
-Windows 10 or 11 x64 is the locally verified distribution. Linux packages, when provided, use `.AppImage`; select Linux in CC only when the release includes those assets. macOS build scripts are available to developers, but CC does not currently distribute macOS packages.
+Windows downloads are separated by operating-system generation:
 
-Windows 7, 8, and 8.1 cannot run the current desktop applications. Electron 22 was the final Electron release for those systems, and it reached end of support on October 10, 2023. Tomeva uses a maintained Electron release because Admin handles staff authorization and Librarian handles student and circulation data. See Electron's [Windows 7/8/8.1 support notice](https://www.electronjs.org/blog/electron-22-0) and [end-of-support notice](https://www.electronjs.org/blog/electron-27-0).
+- **Windows 10/11 x64** (`win-x64`) is the default build and uses the maintained Electron line.
+- **Windows 7/8/8.1 x64 legacy** (`win7-x64`) uses Electron 22, the final compatible runtime. Electron stopped security support for this line on October 10, 2023, so use it only where an operating-system upgrade is not yet possible. Legacy apps update only from the separate legacy feeds.
+
+Choose the matching Windows line in Control Center. These labels describe operating-system compatibility; both current Windows packages target 64-bit processors. Linux packages, when provided, use `.AppImage`. macOS build scripts are available to developers, but CC does not currently distribute macOS packages. See Electron's [Windows 7/8/8.1 support notice](https://www.electronjs.org/blog/electron-22-0) and [end-of-support notice](https://www.electronjs.org/blog/electron-27-0).
 
 Installers include Electron and application dependencies. Internet access is needed for initial downloads, Firebase setup, Admin sign-in, and synchronization. Librarian's local circulation remains available offline. Builds without a publisher signing certificate are unsigned.
 
@@ -117,7 +120,9 @@ npm test
 npm run test:desktop
 npm run test:rules
 npm run build:win
+npm run build:legacy-win
 npm run release:win
+npm run release:legacy-win
 npm run verify:packages
 ```
 
@@ -131,11 +136,15 @@ Use a matching `vX.Y.Z` GitHub Release and upload every collected package:
 
 | Asset | Purpose |
 | --- | --- |
-| `tomeva-control-center-X.Y.Z-win-x64.exe` | User's initial download |
-| `tomeva-admin-X.Y.Z-win-x64.exe` | Admin package downloaded by CC |
-| `tomeva-librarian-X.Y.Z-win-x64.exe` | Librarian package downloaded by CC |
+| `tomeva-control-center-X.Y.Z-win-x64.exe` | Windows 10/11 user's initial download |
+| `tomeva-admin-X.Y.Z-win-x64.exe` | Windows 10/11 Admin package downloaded by CC |
+| `tomeva-librarian-X.Y.Z-win-x64.exe` | Windows 10/11 Librarian package downloaded by CC |
+| `tomeva-control-center-X.Y.Z-win7-x64.exe` | Windows 7/8.1 legacy Control Center |
+| `tomeva-admin-X.Y.Z-win7-x64.exe` | Windows 7/8.1 legacy Admin package |
+| `tomeva-librarian-X.Y.Z-win7-x64.exe` | Windows 7/8.1 legacy Librarian package |
 | `tomeva-student-X.Y.Z.zip` | Student site downloaded and configured by CC |
-| `latest.yml`, `admin.yml`, `librarian.yml` | Separate Windows update feeds |
+| `latest.yml`, `admin.yml`, `librarian.yml` | Windows 10/11 update feeds |
+| `latest-legacy.yml`, `admin-legacy.yml`, `librarian-legacy.yml` | Windows 7/8.1 update feeds |
 | `*.blockmap`, `SHA256SUMS` | Update data and integrity checks |
 
 Linux filenames use `linux-x64.AppImage`; feed names end in `-linux.yml`. CC downloads components at runtime and never embeds the Admin or Librarian installers. It uses GitHub asset metadata when the API is available and the release's `SHA256SUMS` manifest as its public fallback. See [distribution architecture](documentation/SOFTWARE_DISTRIBUTION.md) and [verification notes](documentation/RELEASE_VERIFICATION.md).

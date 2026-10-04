@@ -1,7 +1,7 @@
 {
   "name": "tomeva",
   "productName": "Tomeva",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Offline-first library management system for school libraries",
   "main": "main.js",
   "scripts": {
@@ -72,6 +72,7 @@
       "js/**",
       "css/**",
       "assets/**",
+      "build-variant.json",
       "package.json",
       {
         "from": "../desktop-integration",
@@ -147,9 +148,10 @@
     "artifactName": "tomeva-librarian-${version}-${os}-${arch}.${ext}"
   },
   "dependencies": {
-    "electron-updater": "^6.8.9",
     "better-sqlite3": "^13.0.3",
-    "firebase": "^12.19.0"
+    "electron-updater": "^6.8.9",
+    "firebase": "^12.19.0",
+    "node-fetch": "2.7.0"
   },
   "overrides": {
     "@grpc/grpc-js": "1.14.5"

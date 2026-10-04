@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const compatibleFetch = globalThis.fetch || require('node-fetch');
 
 const COMPONENTS = ['librarian', 'admin'];
 const validName = value => typeof value === 'string' && /^[A-Za-z0-9_.-]+$/.test(value);
@@ -16,7 +17,7 @@ function readChannels() {
   }
 }
 
-async function checkDesktopReleases(channels = readChannels(), request = fetch) {
+async function checkDesktopReleases(channels = readChannels(), request = compatibleFetch) {
   const result = {};
   for (const component of COMPONENTS) {
     const owner = channels.owner;

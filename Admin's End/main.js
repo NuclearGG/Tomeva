@@ -135,7 +135,7 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     buildMenu();
     createWindow();
-    appUpdater = createNativeUpdater({ getUpdater: () => require('electron-updater').autoUpdater, getWindow: () => mainWindow, protocol: 'tomeva-admin' });
+    appUpdater = createNativeUpdater({ getUpdater: () => require('electron-updater').autoUpdater, getWindow: () => mainWindow, protocol: 'tomeva-admin', legacyWindows: require('./build-variant.json').legacyWindows });
     appUpdater.start();
     if (appUpdater.accepts(process.argv)) appUpdater.check();
     app.on('activate', () => {

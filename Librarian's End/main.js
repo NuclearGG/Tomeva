@@ -146,6 +146,7 @@ if (hasInstanceLock) app.whenReady().then(() => {
   appUpdater = createNativeUpdater({
     getUpdater: () => require('electron-updater').autoUpdater,
     getWindow: () => mainWindow, protocol: 'tomeva-librarian',
+    legacyWindows: require('./build-variant.json').legacyWindows,
     beforeInstall: async () => {
       const directory = path.join(app.getPath('userData'), 'update-backups');
       fs.mkdirSync(directory, { recursive: true });

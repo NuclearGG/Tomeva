@@ -1,6 +1,6 @@
 {
   "name": "tomeva-control-center",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Institution-owned setup, deployment and update center for Tomeva",
   "private": true,
   "license": "MIT",
@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "electron-updater": "^6.8.9",
+    "node-fetch": "2.7.0",
     "yauzl": "^3.2.0"
   },
   "devDependencies": {
@@ -47,7 +48,8 @@
       "firebase-template/firestore.indexes.json",
       "package.json",
       "github-distribution.js",
-      "web-distribution.js"
+      "web-distribution.js",
+      "build-variant.json"
     ],
     "win": {
       "target": "nsis",

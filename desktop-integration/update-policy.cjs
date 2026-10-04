@@ -1,6 +1,7 @@
 'use strict';
+const compatibleFetch = globalThis.fetch || require('node-fetch');
 // Public, non-sensitive rollout metadata. Firestore permits only staff to write.
-async function approvedVersion(config, component, fetchImpl = fetch) {
+async function approvedVersion(config, component, fetchImpl = compatibleFetch) {
   if (!config) throw new Error('Import institution settings before updating.');
   const url = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(config.firebase.projectId)}/databases/(default)/documents/libraries/main/update_approvals/${component}`;
   const response = await fetchImpl(url, { signal: AbortSignal.timeout(10000), redirect: 'error' });
@@ -12,7 +13,7 @@ async function approvedVersion(config, component, fetchImpl = fetch) {
   if (!Number.isFinite(starts) || starts > Date.now()) throw new Error('The institution rollout has not started yet.');
   return version;
 }
-async function checkApproval(config, component, version, fetchImpl = fetch) {
+async function checkApproval(config, component, version, fetchImpl = compatibleFetch) {
   if (await approvedVersion(config, component, fetchImpl) !== version) throw new Error('This version is not approved for rollout by the institution.');
   return true;
 }

@@ -7,7 +7,7 @@ const institution = require('./institution-config.cjs');
 
 // Every desktop app installs its own signed binary. Control Center opens this
 // flow through a fixed application protocol; no institution data is transmitted.
-function createNativeUpdater({ getUpdater, getWindow, beforeInstall = async () => {}, protocol }) {
+function createNativeUpdater({ getUpdater, getWindow, beforeInstall = async () => {}, protocol, legacyWindows = false }) {
   let updater;
   let interval;
   let startup;
@@ -34,8 +34,9 @@ function createNativeUpdater({ getUpdater, getWindow, beforeInstall = async () =
       if (ready && releaseVersion === version) return await install();
       ready = false;
       // Pin to the approved tag, even when GitHub's latest release is newer.
-      updater.setFeedURL({ provider: 'generic', url: `https://github.com/NuclearGG/Tomeva/releases/download/v${version}/`, channel: component });
-      updater.channel = component;
+      const channel = component + (legacyWindows ? '-legacy' : '');
+      updater.setFeedURL({ provider: 'generic', url: `https://github.com/NuclearGG/Tomeva/releases/download/v${version}/`, channel });
+      updater.channel = channel;
       updater.allowDowngrade = false;
       await updater.checkForUpdates();
     }

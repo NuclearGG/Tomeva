@@ -1,6 +1,21 @@
 'use strict';
 
 const MAX_PUBLIC_SETUP_BYTES = 32768;
+const compatibleFetch = globalThis.fetch || require('node-fetch');
+
+function combinedSignal(signal, timeout) {
+  if (!signal) return timeout;
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any([signal, timeout]);
+  const controller = new AbortController();
+  const abort = source => controller.abort(source.reason);
+  if (signal.aborted) abort(signal);
+  else if (timeout.aborted) abort(timeout);
+  else {
+    signal.addEventListener('abort', () => abort(signal), { once: true });
+    timeout.addEventListener('abort', () => abort(timeout), { once: true });
+  }
+  return controller.signal;
+}
 
 function resolvePublicSetupUrl(rawUrl) {
   const value = String(rawUrl || '').trim();
@@ -17,14 +32,14 @@ function resolvePublicSetupUrl(rawUrl) {
   return new URL('tomeva-institution.json', input).href;
 }
 
-async function downloadPublicSetup(rawUrl, { request = fetch, validate, signal } = {}) {
+async function downloadPublicSetup(rawUrl, { request = compatibleFetch, validate, signal } = {}) {
   if (typeof validate !== 'function') throw new Error('Institution validation is unavailable.');
   const url = resolvePublicSetupUrl(rawUrl);
   const timeout = AbortSignal.timeout(10000);
   const response = await request(url, {
     headers: { Accept: 'application/json' },
     redirect: 'error',
-    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+    signal: combinedSignal(signal, timeout),
   });
   if (!response.ok) throw new Error(`Public institution setup returned HTTP ${response.status}.`);
   const bytes = Buffer.from(await response.arrayBuffer());

@@ -3,6 +3,7 @@
 const { app, Notification } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
+const legacyWindows = require('./build-variant.json').legacyWindows;
 
 function createUpdateManager({ send, open, beforeInstall }) {
   let updater;
@@ -32,6 +33,10 @@ function createUpdateManager({ send, open, beforeInstall }) {
       updater.autoInstallOnAppQuit = false;
       updater.allowDowngrade = false;
       updater.allowPrerelease = false;
+      if (legacyWindows) {
+        updater.setFeedURL({ provider: 'generic', url: 'https://github.com/NuclearGG/Tomeva/releases/latest/download/', channel: 'latest-legacy' });
+        updater.channel = 'latest-legacy';
+      }
       updater.on('checking-for-update', () => emit('checking'));
       updater.on('update-not-available', () => emit('current'));
       updater.on('update-available', info => {

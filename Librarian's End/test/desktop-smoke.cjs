@@ -6,6 +6,11 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'tomeva-desktop-'));
 app.setPath('userData', directory);
+const packagedRoot = process.env.TOMEVA_PACKAGED_ROOT;
+if (packagedRoot) {
+  Object.defineProperty(app, 'isPackaged', { get: () => true });
+  Object.defineProperty(process, 'resourcesPath', { value: path.join(packagedRoot, 'resources') });
+}
 const deadline = setTimeout(() => { console.error('Desktop smoke timed out'); app.exit(1); }, 60000);
 app.whenReady().then(() => {
   console.log('Smoke: Electron ready');
@@ -77,5 +82,5 @@ app.on('browser-window-created', (_, window) => {
     } catch (error) { console.error(error); clearTimeout(deadline); app.exit(1); }
   });
 });
-require('../main.js');
+require(packagedRoot ? path.join(packagedRoot, 'resources', 'app.asar', 'main.js') : '../main.js');
 app.on('will-quit', () => { if (!completed) process.exitCode = 1; });

@@ -4,6 +4,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { app, dialog } = require('electron');
 const { validateConfig: validateInstitution } = require('./config-store');
+const compatibleFetch = globalThis.fetch || require('node-fetch');
 
 const VERSION = require('./package.json').version;
 
@@ -20,7 +21,7 @@ async function checkWebDeployment(rawUrl) {
   const url = new URL(String(rawUrl || ''));
   if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Enter an HTTPS Tomeva Web URL.');
   const manifest = new URL('tomeva-version.json', url.href.endsWith('/') ? url : new URL('.', url));
-  const response = await fetch(manifest, { signal: AbortSignal.timeout(10000), redirect: 'error' });
+  const response = await compatibleFetch(manifest, { signal: AbortSignal.timeout(10000), redirect: 'error' });
   if (!response.ok) throw new Error(`Deployment returned HTTP ${response.status}.`);
   const data = await response.json();
   const available = (await require('./github-distribution').latestRelease()).version;

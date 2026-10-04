@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.legacy-build/
 node_modules-*/
 
 # Build output and packaged apps
