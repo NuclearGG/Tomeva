@@ -3,278 +3,196 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Tomeva: free, open-source library management for schools</title>
+<title>Tomeva: library software your school owns</title>
 <meta name="google-site-verification" content="oNor2TQJzNgdtiwZp2OkT5zDxKbUszVTBPhOzvYBjlk">
-<meta name="description" content="Tomeva is free, open-source, offline-first library management software for schools, institutions and small libraries. Download Control Center for Windows 7, 8.1, 10 or 11 and run it on your own Firebase project.">
-<meta name="keywords" content="library management software, open source library system, school library software, offline library app, Firebase library, Tomeva, Control Center">
+<meta name="description" content="Tomeva is free, open-source, offline-first library management software for schools. Download Control Center for Windows 7, 8.1, 10 or 11.">
+<meta name="keywords" content="library management software, open source library system, school library software, offline library app, Firebase library, Tomeva">
 <meta name="author" content="NuclearGG">
 <meta name="robots" content="index, follow, max-image-preview:large">
-<meta name="theme-color" content="#F5EEDC">
+<meta name="theme-color" content="#f3ebd6">
 <link rel="canonical" href="https://nucleargg.github.io/Tomeva/">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Tomeva">
-<meta property="og:title" content="Tomeva: free, open-source library management for schools">
-<meta property="og:description" content="Offline circulation for library staff, an admin dashboard and a student catalog. You own the accounts, data and hosting.">
+<meta property="og:title" content="Tomeva: library software your school owns">
+<meta property="og:description" content="Offline circulation, administration, and a student catalog on infrastructure your institution controls.">
 <meta property="og:url" content="https://nucleargg.github.io/Tomeva/">
 <meta property="og:image" content="https://nucleargg.github.io/Tomeva/logo.png">
 <meta property="og:image:width" content="2000">
 <meta property="og:image:height" content="2000">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Tomeva: free, open-source library management for schools">
-<meta name="twitter:description" content="Offline-first library software. Download Control Center and set up on your own Firebase project.">
+<meta name="twitter:title" content="Tomeva: library software your school owns">
+<meta name="twitter:description" content="Offline-first library software for schools and small institutions.">
 <meta name="twitter:image" content="https://nucleargg.github.io/Tomeva/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+<script defer src="site.js"></script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
 {"@type":"SoftwareApplication","name":"Tomeva Control Center","applicationCategory":"EducationalApplication","operatingSystem":"Windows 7, Windows 8.1, Windows 10, Windows 11","description":"Setup and distribution app for Tomeva, an open-source offline-first library management system.","url":"https://nucleargg.github.io/Tomeva/","downloadUrl":"https://github.com/NuclearGG/Tomeva/releases/latest","license":"https://opensource.org/licenses/MIT","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"NuclearGG","url":"https://github.com/NuclearGG"}},
-{"@type":"WebSite","name":"Tomeva","url":"https://nucleargg.github.io/Tomeva/"},
-{"@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"Is Tomeva free?","acceptedAnswer":{"@type":"Answer","text":"Yes. Tomeva is open source under the MIT license. Firebase service quotas apply to your own Firebase project."}},
-{"@type":"Question","name":"Does Tomeva work offline?","acceptedAnswer":{"@type":"Answer","text":"Daily circulation in Librarian works offline. Internet is needed for first downloads, Firebase setup, Admin sign-in and synchronization."}},
-{"@type":"Question","name":"Which operating systems are supported?","acceptedAnswer":{"@type":"Answer","text":"Windows 10/11 x64 has its own installer, and there is a separate legacy installer for Windows 7, 8 and 8.1 x64. Linux and macOS packages are not included in the current release."}},
-{"@type":"Question","name":"Who owns the library data?","acceptedAnswer":{"@type":"Answer","text":"Your institution does. Each school deploys Tomeva on its own Firebase project and controls its own authentication, database, configuration and users."}},
-{"@type":"Question","name":"Do I need Node.js or Git to install it?","acceptedAnswer":{"@type":"Answer","text":"No. Download the Control Center installer from the latest release. Node.js and Git are only for developers working from source."}}]}]}
+{"@type":"WebSite","name":"Tomeva","url":"https://nucleargg.github.io/Tomeva/"}
+]}
 </script>
-<style>
-:root{--cream:#F5EEDC;--paper:#FBF6E9;--ink:#231F3A;--muted:#5C5873;--teal:#0E8F8A;--gold:#F2A93B;--berry:#D13F6B;--indigo:#4B4FC9;--leaf:#4C9A4F;--line:#E3D8BC;--r:18px}
-*{box-sizing:border-box;margin:0}
-html{scroll-behavior:smooth;padding-top:env(safe-area-inset-top,0px)}
-body{background:var(--cream);color:var(--ink);font:400 17px/1.65 "DM Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
-h1,h2,h3{font-family:Fraunces,Georgia,serif;line-height:1.08;letter-spacing:-.02em}
-a{color:inherit}
-:focus-visible{outline:3px solid var(--indigo);outline-offset:3px;border-radius:6px}
-.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
-nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
-.logo{display:block;width:132px;height:94px;overflow:hidden;border-radius:14px}
-.logo img{display:block;width:132px;height:132px;transform:translateY(-2px)}
-nav ul{list-style:none;display:flex;gap:26px;padding:0;font-weight:500}
-nav ul a{text-decoration:none}nav ul a:hover{color:var(--berry)}
-.btn{display:inline-block;padding:15px 26px;border-radius:999px;font-weight:700;text-decoration:none;background:var(--ink);color:var(--paper);transition:transform .2s,box-shadow .2s;box-shadow:0 6px 0 var(--indigo)}
-.btn:hover{transform:translateY(-2px);box-shadow:0 8px 0 var(--indigo)}
-.btn:active{transform:translateY(4px);box-shadow:0 2px 0 var(--indigo)}
-.btn.alt{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 2px var(--ink)}
-.btn.alt:hover{box-shadow:inset 0 0 0 2px var(--berry)}
-.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;padding:40px 0 90px}
-.hero h1{font-size:clamp(2.6rem,6vw,4.6rem);font-weight:800}
-.hero p.lead{font-size:1.2rem;color:var(--muted);max-width:34em;margin:22px 0 32px}
-.cta{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
-.note{margin-top:18px;font-size:.92rem;color:var(--muted)}
-section{padding:80px 0}
-#bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
-.stage{min-height:420px}
-main,.wrap,footer{position:relative;z-index:1}
-.tint{background:rgba(251,246,233,.55);border-block:1px solid var(--line)}
-h2{font-size:clamp(2rem,4vw,3rem);font-weight:800;max-width:16em}
-.sub{color:var(--muted);max-width:38em;margin:14px 0 44px}
-.apps{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
-.app{background:rgba(251,246,233,.72);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-radius:var(--r);padding:26px;border-top:10px solid var(--c);border:1px solid var(--line);border-top:10px solid var(--c)}
-.app h3{font-size:1.4rem;margin-bottom:6px}.app b{display:block;font-size:.9rem;color:var(--c);margin-bottom:12px}
-.app p{font-size:.97rem}
-.steps{list-style:none;padding:0;position:relative;max-width:760px;margin-left:34px}
-.rail{position:absolute;left:-23px;top:10px;bottom:10px;width:4px;background:var(--line);border-radius:4px}
-.rail i{display:block;width:100%;height:100%;background:linear-gradient(var(--berry),var(--gold),var(--teal),var(--indigo));border-radius:4px;transform-origin:top;transform:scaleY(0)}
-.steps li{position:relative;padding:0 0 34px 8px}
-.steps li:before{content:"";position:absolute;left:-33px;top:9px;width:14px;height:14px;border-radius:50%;background:var(--cream);border:4px solid var(--ink)}
-.steps h3{font-size:1.3rem}.steps p{color:var(--muted)}
-.why{display:grid;grid-template-columns:repeat(3,1fr);gap:36px}
-.why h3{font-size:1.35rem;margin-bottom:8px}.why p{color:var(--muted)}
-.dl{background:var(--ink);color:var(--paper);border-radius:28px;padding:56px;display:grid;grid-template-columns:1fr 1.25fr;gap:30px;align-items:center}
-.dl h2{color:var(--paper)}.dl p{color:#CFCBE6;margin-top:12px}
-.dl .btn{background:var(--gold);color:var(--ink);box-shadow:0 6px 0 var(--berry)}
-.pick{display:grid;gap:16px}.opt{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:18px;padding:22px}.opt h3{font-size:1.3rem;color:var(--paper)}.tag{display:inline-block;font-size:.78rem;font-weight:700;padding:3px 10px;border-radius:99px;background:var(--teal);color:#fff;margin:6px 0 14px}.tag.old{background:var(--gold);color:var(--ink)}.opt .btn{display:block;text-align:center}.dl .btn.alt2{background:transparent;color:var(--paper);box-shadow:inset 0 0 0 2px var(--paper)}.dl .btn.alt2:hover{box-shadow:inset 0 0 0 2px var(--gold)}.warn{font-size:.88rem;color:#F6D9A0;margin-top:10px}
-.dl .meta{margin-top:18px;font-size:.92rem;color:#CFCBE6}
-details{border-bottom:1px solid var(--line);padding:20px 0;max-width:780px}
-summary{font:600 1.2rem Fraunces,serif;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:20px}
-summary::-webkit-details-marker{display:none}
-summary:after{content:"+";color:var(--berry);font-size:1.5rem;line-height:1}
-details[open] summary:after{content:"\2212"}
-details p{margin-top:10px;color:var(--muted)}
-footer{padding:50px 0 calc(50px + env(safe-area-inset-bottom,0px));font-size:.95rem;color:var(--muted)}
-footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px}
-footer a{margin-right:18px}
-@media(max-width:900px){.stage{display:none}.hero,.dl{grid-template-columns:1fr}.apps{grid-template-columns:1fr 1fr}.why{grid-template-columns:1fr}nav ul{display:none}.dl{padding:34px}}
-@media(max-width:520px){.apps{grid-template-columns:1fr}.logo{width:110px;height:78px}.logo img{width:110px;height:110px}}
-@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
-</style>
 </head>
 <body>
-<canvas id="bg" aria-hidden="true"></canvas>
-<div class="wrap">
-<nav aria-label="Main">
-<a class="logo" href="#top" aria-label="Tomeva home"><img src="logo.png" alt="Tomeva"></a>
-<ul><li><a href="#apps">Apps</a></li><li><a href="#setup">Setup</a></li><li><a href="#faq">FAQ</a></li><li><a href="https://github.com/NuclearGG/Tomeva">GitHub</a></li></ul>
-</nav>
-<header class="hero" id="top">
-<div>
-<h1>Library software your school fully owns.</h1>
-<p class="lead">Tomeva is free, open-source library management for schools, institutions and small libraries. Staff check books in and out even without internet, and your data stays in your own Firebase project.</p>
-<div class="cta">
-<a class="btn js-dl-new" href="https://github.com/NuclearGG/Tomeva/releases/latest">Download for Windows 10/11</a>
-<a class="btn alt" href="#download">Windows 7 / 8.1</a>
-</div>
-<p class="note">Windows x64. Version <span class="js-ver">latest</span>, MIT licensed. <a href="https://github.com/NuclearGG/Tomeva">View the source</a>.</p>
-</div>
-<div class="stage" aria-hidden="true"></div>
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="site-header">
+  <nav class="nav-shell" aria-label="Main navigation">
+    <a class="brand" href="#top" aria-label="Tomeva home">
+      <span class="brand-crop"><img src="logo.png" alt=""></span>
+      <span class="brand-word">Tomeva</span>
+    </a>
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Open navigation">
+      <span></span><span></span>
+    </button>
+    <div class="nav-links" id="nav-links">
+      <a href="#apps">The four apps</a>
+      <a href="#setup">Setup</a>
+      <a href="#download">Download</a>
+      <a href="#questions">Questions</a>
+      <a class="nav-source" href="https://github.com/NuclearGG/Tomeva">Source <span aria-hidden="true">↗</span></a>
+      <button class="theme-toggle" type="button" aria-label="Switch color theme"><span>Night</span></button>
+    </div>
+  </nav>
 </header>
-</div>
 
-<main>
-<section class="tint" id="apps"><div class="wrap">
-<h2>Four apps, one library</h2>
-<p class="sub">You install Control Center first. It sets up the rest for your institution.</p>
-<div class="apps">
-<article class="app" style="--c:var(--indigo)"><h3>Control Center</h3><b>For whoever sets things up</b><p>Configures Firebase, generates rules and install packages, exports the student site and manages recovery kits.</p></article>
-<article class="app" style="--c:var(--teal)"><h3>Librarian</h3><b>For the library desk</b><p>Books, students, loans, returns and fines. Backups and a workstation PIN included. Circulation works offline.</p></article>
-<article class="app" style="--c:var(--berry)"><h3>Admin</h3><b>For authorised staff</b><p>Manage student access, provision or revoke kiosks, review synced data and approve updates.</p></article>
-<article class="app" style="--c:var(--gold)"><h3>Student Portal</h3><b>For students and teachers</b><p>A website where students browse availability and send requests, hosted wherever you choose.</p></article>
-</div></div></section>
+<main id="main">
+  <section class="hero" id="top">
+    <div class="hero-copy reveal">
+      <p class="eyebrow"><span>Open source</span> Library infrastructure for schools</p>
+      <h1>A whole library,<br><em>under your roof.</em></h1>
+      <p class="hero-lead">Tomeva keeps daily circulation moving offline and puts every account, rule, and record inside infrastructure your institution controls.</p>
+      <div class="hero-actions">
+        <a class="button button-primary js-dl-new" href="https://github.com/NuclearGG/Tomeva/releases/latest">
+          <span>Download Control Center</span><span class="button-mark" aria-hidden="true">↓</span>
+        </a>
+        <a class="text-link" href="#apps">Meet the four apps <span aria-hidden="true">↘</span></a>
+      </div>
+      <dl class="hero-facts" aria-label="Project facts">
+        <div><dt>Cost</dt><dd>Free &amp; MIT</dd></div>
+        <div><dt>Daily desk</dt><dd>Works offline</dd></div>
+        <div><dt>Data home</dt><dd>Your Firebase</dd></div>
+      </dl>
+    </div>
 
-<section id="setup"><div class="wrap">
-<h2>From download to first loan</h2>
-<p class="sub">Control Center walks you through it. You do not need Node.js, Git or manual downloads.</p>
-<ol class="steps"><div class="rail" aria-hidden="true"><i></i></div>
-<li><h3>Create a Firebase project</h3><p>Register a web app, create Firestore and enable Google, Anonymous and Email/Password sign-in.</p></li>
-<li><h3>Configure Control Center</h3><p>Enter your Firebase web config and your staff email domain.</p></li>
-<li><h3>Publish the generated rules</h3><p>Paste the rules file Control Center creates into Firestore and add the included indexes.</p></li>
-<li><h3>Host the Student Portal</h3><p>Control Center exports the site. Upload it over HTTPS and authorise the domain in Firebase.</p></li>
-<li><h3>Install Admin and Librarian</h3><p>Control Center checks each download against its SHA-256 checksum, then adds your settings locally.</p></li>
-<li><h3>Back up</h3><p>Create an encrypted Recovery Kit, and use Librarian's backup command for circulation records.</p></li>
-</ol></div></section>
+    <div class="hero-art reveal" aria-label="The four Tomeva applications shown as books">
+      <div class="hero-orbit" aria-hidden="true"></div>
+      <div class="hero-book hero-book-control"><span>Control<br>Center</span><small>01</small></div>
+      <div class="hero-book hero-book-admin"><span>Admin</span><small>02</small></div>
+      <div class="hero-book hero-book-librarian"><span>Librarian</span><small>03</small></div>
+      <div class="hero-book hero-book-student"><span>Student<br>Portal</span><small>04</small></div>
+      <p class="hero-caption">Four volumes. One connected system.</p>
+    </div>
+  </section>
 
-<section class="tint"><div class="wrap">
-<h2>Built so you stay in control</h2>
-<p class="sub">No vendor account sits between your library and your records.</p>
-<div class="why">
-<div><h3>Offline first</h3><p>The circulation desk keeps working through outages. Everything syncs when the connection returns.</p></div>
-<div><h3>Your Firebase, your rules</h3><p>Authentication, database, users and hosting belong to your institution. No Cloud Functions required.</p></div>
-<div><h3>Open and verifiable</h3><p>MIT licensed source, tests for sync and permissions, and checksums for every installer.</p></div>
-</div></div></section>
+  <section class="statement reveal" aria-label="Project statement">
+    <p>Built for the moment the Wi-Fi drops, the bell rings, and twenty students arrive at the desk.</p>
+    <span>Local speed<br>Cloud continuity</span>
+  </section>
 
-<section id="download"><div class="wrap">
-<div class="dl">
-<div><h2>Get Control Center</h2><p>Pick the installer that matches your computer. Each line downloads its own Admin and Librarian apps and keeps a separate update feed. Files come straight from the latest GitHub release. Builds are unsigned, so Windows may ask you to confirm before running.</p></div>
-<div class="pick">
-<div class="opt"><h3>Windows 10 / 11</h3><span class="tag">Recommended</span>
-<a class="btn js-dl-new" href="https://github.com/NuclearGG/Tomeva/releases/latest">Download for Windows 10/11</a>
-<p class="meta"><span class="js-file-new">control-center win-x64 .exe</span><br>Version <span class="js-ver">latest</span> <span class="js-size-new"></span></p></div>
-<div class="opt"><h3>Windows 7 / 8 / 8.1</h3><span class="tag old">Legacy</span>
-<a class="btn alt2 js-dl-old" href="https://github.com/NuclearGG/Tomeva/releases/latest">Download for Windows 7 / 8.1</a>
-<p class="meta"><span class="js-file-old">control-center win7-x64 .exe</span><br>Version <span class="js-ver">latest</span> <span class="js-size-old"></span></p>
-<p class="warn">This line uses Electron 22, which no longer receives security fixes. Use it only where upgrading Windows is not possible. Testing on physical Windows 7/8.1 machines is still in progress.</p></div>
-</div>
-</div></div></section>
+  <section class="library-section" id="apps">
+    <div class="section-heading reveal">
+      <p class="eyebrow"><span>01–04</span> Explore the system</p>
+      <h2>Pull a volume<br>from the shelf.</h2>
+      <p>Select, hover, or use the arrow keys. Each book opens the role and functions of one Tomeva application.</p>
+    </div>
 
-<section id="faq"><div class="wrap">
-<h2>Questions</h2><p class="sub"></p>
-<details><summary>Is Tomeva free?</summary><p>Yes. It is open source under the MIT license. Firebase quotas apply to your own Firebase project.</p></details>
-<details><summary>Does it work offline?</summary><p>Daily circulation in Librarian does. Internet is needed for first downloads, Firebase setup, Admin sign-in and sync.</p></details>
-<details><summary>Which operating systems are supported?</summary><p>Windows 10/11 x64 has its own installer, and there is a separate legacy installer for Windows 7, 8 and 8.1 x64. Linux and macOS packages are not included in the current release.</p></details>
-<details><summary>Who owns the data?</summary><p>Your institution. Each school deploys Tomeva on its own Firebase project and controls its own accounts, database and users.</p></details>
-<details><summary>Do I need Node.js or Git?</summary><p>No. Those are only for developers building from source. The installer includes everything it needs.</p></details>
-</div></section>
+    <div class="library-workbench">
+      <div class="bookcase reveal" role="tablist" aria-label="Tomeva applications">
+        <button class="book-choice is-active" type="button" role="tab" aria-selected="true" aria-controls="app-detail" data-app="control" style="--book:#4b4fc9;--book-deep:#292b7d">
+          <span class="book-object"><span class="book-back" aria-hidden="true"></span><span class="book-pages" aria-hidden="true"></span><span class="book-spine" aria-hidden="true"><b>01</b></span><span class="book-cover"><small>Set up &amp; distribute</small><strong>Control<br>Center</strong><i>Tomeva / 01</i></span></span>
+          <span class="book-label">Control Center</span>
+        </button>
+        <button class="book-choice" type="button" role="tab" aria-selected="false" aria-controls="app-detail" data-app="admin" style="--book:#b63e65;--book-deep:#6e203c">
+          <span class="book-object"><span class="book-back" aria-hidden="true"></span><span class="book-pages" aria-hidden="true"></span><span class="book-spine" aria-hidden="true"><b>02</b></span><span class="book-cover"><small>Govern &amp; approve</small><strong>Admin</strong><i>Tomeva / 02</i></span></span>
+          <span class="book-label">Admin</span>
+        </button>
+        <button class="book-choice" type="button" role="tab" aria-selected="false" aria-controls="app-detail" data-app="librarian" style="--book:#167f78;--book-deep:#0b4c48">
+          <span class="book-object"><span class="book-back" aria-hidden="true"></span><span class="book-pages" aria-hidden="true"></span><span class="book-spine" aria-hidden="true"><b>03</b></span><span class="book-cover"><small>Circulate &amp; record</small><strong>Librarian</strong><i>Tomeva / 03</i></span></span>
+          <span class="book-label">Librarian</span>
+        </button>
+        <button class="book-choice" type="button" role="tab" aria-selected="false" aria-controls="app-detail" data-app="student" style="--book:#d99224;--book-deep:#85530b">
+          <span class="book-object"><span class="book-back" aria-hidden="true"></span><span class="book-pages" aria-hidden="true"></span><span class="book-spine" aria-hidden="true"><b>04</b></span><span class="book-cover book-cover-dark"><small>Discover &amp; request</small><strong>Student<br>Portal</strong><i>Tomeva / 04</i></span></span>
+          <span class="book-label">Student Portal</span>
+        </button>
+        <div class="shelf" aria-hidden="true"></div>
+      </div>
+
+      <article class="app-detail reveal" id="app-detail" role="tabpanel" tabindex="0" aria-live="polite">
+        <div class="detail-index"><span id="detail-number">01</span><small id="detail-audience">For the setup lead</small></div>
+        <div class="detail-copy"><p class="detail-kicker" id="detail-kicker">The first book off the shelf</p><h3 id="detail-title">Control Center</h3><p id="detail-description">Turns an empty Firebase project into an institution-ready Tomeva system, then delivers each configured application.</p></div>
+        <ul class="function-list" id="detail-functions">
+          <li><span>01</span>Configure institution-owned Firebase</li><li><span>02</span>Generate security rules and indexes</li><li><span>03</span>Download checksum-verified applications</li><li><span>04</span>Create encrypted recovery kits</li>
+        </ul>
+        <p class="detail-note" id="detail-note">No Tomeva account required.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="setup-section" id="setup">
+    <div class="setup-intro reveal"><p class="eyebrow"><span>Six moves</span> From download to first loan</p><h2>Set it up once.<br>Run it your way.</h2><p>Control Center keeps the technical work in one guided path. Your institution remains the owner at every step.</p></div>
+    <ol class="setup-ledger">
+      <li class="reveal"><span class="step-number">01</span><div><h3>Create your Firebase project</h3><p>Register a web app, create Firestore, and enable the required sign-in providers.</p></div><small>Institution owned</small></li>
+      <li class="reveal"><span class="step-number">02</span><div><h3>Give Control Center the public config</h3><p>Enter the browser Firebase configuration and your staff email domain.</p></div><small>No secret keys</small></li>
+      <li class="reveal"><span class="step-number">03</span><div><h3>Publish generated rules</h3><p>Review the institution-specific rules and indexes, then publish them in Firebase.</p></div><small>Access enforced</small></li>
+      <li class="reveal"><span class="step-number">04</span><div><h3>Host the Student Portal</h3><p>Export the static site, publish it over HTTPS, and authorize its domain.</p></div><small>Your web host</small></li>
+      <li class="reveal"><span class="step-number">05</span><div><h3>Install Admin and Librarian</h3><p>Control Center fetches each official release, verifies it, and adds your configuration.</p></div><small>GitHub verified</small></li>
+      <li class="reveal"><span class="step-number">06</span><div><h3>Back up both layers</h3><p>Keep a Recovery Kit for setup and Librarian backups for circulation records.</p></div><small>Ready to restore</small></li>
+    </ol>
+  </section>
+
+  <section class="ownership-section">
+    <div class="ownership-quote reveal"><p class="eyebrow"><span>The principle</span> Ownership before convenience</p><blockquote>“Your library should keep working even when somebody else’s server does not.”</blockquote></div>
+    <div class="ownership-notes">
+      <article class="reveal"><span>Local</span><h3>Circulation stays at the desk</h3><p>Librarian records loans, returns, fines, and damage in a local SQLite database, then synchronizes when a connection returns.</p></article>
+      <article class="reveal"><span>Private</span><h3>Records stay in your project</h3><p>Each institution controls authentication, Firestore, hosting, staff access, and retention. Tomeva does not receive library records.</p></article>
+      <article class="reveal"><span>Open</span><h3>Code and packages can be checked</h3><p>The source is MIT licensed. Release assets include checksums, update metadata, and separate compatibility lines.</p></article>
+    </div>
+  </section>
+
+  <section class="download-section" id="download">
+    <div class="download-heading reveal"><p class="eyebrow"><span>Current release</span> Start with Control Center</p><h2>Choose the edition<br>your Windows needs.</h2><p>Control Center downloads the other Tomeva applications from the same official GitHub Release when you need them.</p></div>
+    <div class="edition-stack">
+      <article class="edition edition-current reveal">
+        <div class="edition-topline"><span>Recommended edition</span><span class="js-ver">Latest</span></div>
+        <div class="edition-main"><div><h3>Windows 10 / 11</h3><p>The maintained x64 build for current Windows computers.</p></div><a class="button button-light js-dl-new" href="https://github.com/NuclearGG/Tomeva/releases/latest"><span>Download modern</span><span class="button-mark" aria-hidden="true">↓</span></a></div>
+        <div class="edition-file"><span class="js-file-new">tomeva-control-center win-x64.exe</span><span class="js-size-new"></span></div>
+      </article>
+      <article class="edition edition-legacy reveal">
+        <div class="edition-topline"><span>Legacy edition</span><span class="js-ver">Latest</span></div>
+        <div class="edition-main"><div><h3>Windows 7 / 8 / 8.1</h3><p>A separate x64 build and update channel based on Electron 22.</p></div><a class="button button-ink js-dl-old" href="https://github.com/NuclearGG/Tomeva/releases/latest"><span>Download legacy</span><span class="button-mark" aria-hidden="true">↓</span></a></div>
+        <div class="edition-file"><span class="js-file-old">tomeva-control-center win7-x64.exe</span><span class="js-size-old"></span></div>
+        <p class="legacy-warning">Electron 22 no longer receives security fixes. Use this edition only when the computer cannot be upgraded. Physical Windows 7/8.1 testing is still in progress.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="questions-section" id="questions">
+    <div class="questions-heading reveal"><p class="eyebrow"><span>Plain answers</span> Before you install</p><h2>What schools usually ask.</h2></div>
+    <dl class="question-list">
+      <div class="reveal"><dt>Is Tomeva free?</dt><dd>Yes. The source is available under the MIT license. Your own Firebase usage remains subject to Google’s service quotas.</dd></div>
+      <div class="reveal"><dt>Does the library desk work offline?</dt><dd>Yes. Daily circulation in Librarian continues locally. Internet is needed for setup, Admin access, downloads, and synchronization.</dd></div>
+      <div class="reveal"><dt>Who owns the data?</dt><dd>Your institution. Tomeva is deployed against your Firebase project, accounts, rules, database, and hosting.</dd></div>
+      <div class="reveal"><dt>Do users need Node.js or Git?</dt><dd>No. Users download Control Center. Developer tools are only required when building or changing the source.</dd></div>
+      <div class="reveal"><dt>Are the installers signed?</dt><dd>Current community builds are unsigned, so Windows may ask for confirmation before running them. Checksums are published with each release.</dd></div>
+    </dl>
+  </section>
+
+  <section class="closing-section reveal">
+    <img src="logo.png" alt="Tomeva open-book logo">
+    <div><p>Your shelves. Your records. Your system.</p><h2>Open the first volume.</h2></div>
+    <a class="button button-primary js-dl-new" href="https://github.com/NuclearGG/Tomeva/releases/latest"><span>Get Control Center</span><span class="button-mark" aria-hidden="true">↓</span></a>
+  </section>
 </main>
 
-<footer><div class="wrap">
-<div>Tomeva is released under the <a href="https://github.com/NuclearGG/Tomeva/blob/main/LICENSE">MIT license</a>.</div>
-<div><a href="https://github.com/NuclearGG/Tomeva">Source</a><a href="https://github.com/NuclearGG/Tomeva/releases">Releases</a><a href="https://github.com/NuclearGG/Tomeva/issues">Report an issue</a><a href="privacy.html">Privacy Policy</a><a href="terms.html">Terms</a></div>
-</div></footer>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-<script>
-(function(){
-  var $=function(s){return document.querySelectorAll(s)};
-  // Latest release: point every download button at the newest Control Center .exe
-  fetch("https://api.github.com/repos/NuclearGG/Tomeva/releases/latest",{headers:{Accept:"application/vnd.github+json"}})
-    .then(function(r){if(!r.ok)throw 0;return r.json()})
-    .then(function(rel){
-      var A=rel.assets||[];
-      function pick(re){return A.filter(function(x){return re.test(x.name)})[0]}
-      function set(a,k){
-        if(!a)return; // fallback: button keeps linking to /releases/latest
-        $(".js-dl-"+k).forEach(function(e){e.href=a.browser_download_url});
-        $(".js-file-"+k).forEach(function(e){e.textContent=a.name});
-        $(".js-size-"+k).forEach(function(e){e.textContent="("+(a.size/1048576).toFixed(0)+" MB)"});
-      }
-      var v=(rel.tag_name||"").replace(/^v/,"");
-      $(".js-ver").forEach(function(e){if(v)e.textContent=v});
-      set(pick(/control-center.*-win-x64\.exe$/i),"new");   // Windows 10/11
-      set(pick(/control-center.*-win7-x64\.exe$/i),"old");  // Windows 7/8/8.1
-    }).catch(function(){}); // fallback: the buttons already link to /releases/latest
-
-  var still=matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if(!window.gsap){return;}
-  gsap.registerPlugin(ScrollTrigger);
-  if(!still)gsap.from(".hero h1,.lead,.cta,.note",{y:24,opacity:0,duration:.7,stagger:.08,ease:"power3.out"});
-  gsap.to(".rail i",{scaleY:1,ease:"none",scrollTrigger:{trigger:".steps",start:"top 70%",end:"bottom 70%",scrub:!still}});
-
-  // ---- 3D books in the page backdrop (Three.js) ----
-  if(!window.THREE)return;
-  var cv=document.getElementById("bg"),R;
-  try{R=new THREE.WebGLRenderer({canvas:cv,alpha:true,antialias:true})}catch(e){cv.style.display="none";return}
-  R.setPixelRatio(Math.min(devicePixelRatio,2));
-  var scene=new THREE.Scene(),cam=new THREE.PerspectiveCamera(35,1,.1,60);cam.position.z=10;
-  scene.add(new THREE.AmbientLight(0xffffff,.85));
-  var sun=new THREE.DirectionalLight(0xffffff,.9);sun.position.set(3,5,6);scene.add(sun);
-  var defs=[["Control Center","#4B4FC9","#fff"],["Librarian","#0E8F8A","#fff"],["Admin","#D13F6B","#fff"],["Student Portal","#F2A93B","#231F3A"]];
-  var pos=[[-1.9,.25,0],[-.65,-.35,.7],[.65,.3,0],[1.9,-.2,.7]];
-  var group=new THREE.Group();scene.add(group);
-  var W=1,H=1.5,D=.36,books=[],P=0,fade=1;
-  function cover(name,bg,fg){
-    var c=document.createElement("canvas");c.width=256;c.height=384;var x=c.getContext("2d");
-    x.fillStyle=bg;x.fillRect(0,0,256,384);x.strokeStyle=fg;x.globalAlpha=.55;x.lineWidth=4;x.strokeRect(18,18,220,348);
-    x.globalAlpha=1;x.fillStyle=fg;x.textAlign="center";x.font="800 36px Fraunces,Georgia,serif";
-    var w=name.split(" ");w.forEach(function(t,k){x.fillText(t,128,170+k*44-(w.length-1)*22)});
-    var t=new THREE.CanvasTexture(c);t.anisotropy=4;return t}
-  defs.forEach(function(d,i){
-    var b=new THREE.Group(),mats=[];
-    function M(col,map){var m=new THREE.MeshStandardMaterial({color:col,roughness:.55,metalness:.04,transparent:true,map:map||null});mats.push(m);return m}
-    var m=M(d[1]);
-    var back=new THREE.Mesh(new THREE.BoxGeometry(W,H,.05),m);back.position.z=-D/2;
-    var front=new THREE.Mesh(new THREE.BoxGeometry(W,H,.05),m);front.position.z=D/2;
-    var spine=new THREE.Mesh(new THREE.BoxGeometry(.07,H,D),m);spine.position.x=-W/2;
-    var pages=new THREE.Mesh(new THREE.BoxGeometry(W-.08,H-.1,D-.06),M("#FFF8E6"));pages.position.x=.02;
-    var art=new THREE.Mesh(new THREE.PlaneGeometry(W,H),M("#ffffff",cover(d[0],d[1],d[2])));art.position.z=D/2+.026;
-    b.add(back,front,spine,pages,art);
-    b.userData={mats:mats,appear:0,i:i,r0:-.55+i*.22};
-    b.position.set.apply(b.position,pos[i]);group.add(b);books.push(b)});
-
-  function layout(){
-    var w=innerWidth,h=innerHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();
-    var vh=2*Math.tan(17.5*Math.PI/180)*10,vw=vh*cam.aspect;
-    if(w>900){group.scale.setScalar(.85);group.position.set(vw*.27,0,0);group.userData.cap=1}
-    else{group.scale.setScalar(.55);group.position.set(0,vh*.3,0);group.userData.cap=.45}
-  }
-  function draw(){
-    var t=performance.now()/1000;
-    books.forEach(function(b){
-      var u=b.userData,a=u.appear,e=1-a;
-      b.scale.setScalar(Math.max(a,.001));
-      b.position.z=pos[u.i][2]-e*9;
-      b.position.y=pos[u.i][1]+(still?0:Math.sin(t*.8+u.i*1.7)*.08);
-      b.rotation.x=.12+e*1.4;
-      b.rotation.y=u.r0+P*Math.PI*2*(1+u.i*.18);
-      var o=Math.min(1,a*1.6)*fade*group.userData.cap;
-      u.mats.forEach(function(m){m.opacity=o});
-    });
-    R.render(scene,cam)}
-  layout();addEventListener("resize",function(){layout();if(still)draw()});
-
-  if(still){books.forEach(function(b){b.userData.appear=1});draw();return}
-  gsap.ticker.add(draw);
-  // Book 1 (Control Center, the one you download first) arrives with the hero
-  gsap.to(books[0].userData,{appear:1,duration:1.4,delay:.3,ease:"back.out(1.4)"});
-  // The other three are pulled in from the back of the scene as you scroll to the apps
-  var tl=gsap.timeline({scrollTrigger:{trigger:"#apps",start:"top 90%",end:"top 20%",scrub:.7}});
-  books.slice(1).forEach(function(b,k){tl.to(b.userData,{appear:1,duration:1,ease:"power2.out"},k*.45)});
-  // Books turn slowly through the whole page, then dim so they never fight with text
-  ScrollTrigger.create({trigger:document.body,start:"top top",end:"bottom bottom",scrub:true,onUpdate:function(s){P=s.progress}});
-  ScrollTrigger.create({trigger:".why",start:"top 75%",end:"top 35%",scrub:true,onUpdate:function(s){fade=1-.72*s.progress}});
-})();
-</script>
+<footer class="site-footer">
+  <div class="footer-brand"><span>Tomeva</span><p>Open-source library infrastructure for schools, institutions, and small libraries.</p></div>
+  <div class="footer-links" aria-label="Project links"><a href="https://github.com/NuclearGG/Tomeva">Source</a><a href="https://github.com/NuclearGG/Tomeva/releases">Releases</a><a href="https://github.com/NuclearGG/Tomeva/issues">Issues</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div>
+  <div class="footer-meta"><span>MIT licensed</span><span>Built for ownership</span><span id="footer-year">2026</span></div>
+</footer>
 </body>
 </html>

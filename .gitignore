@@ -49,3 +49,7 @@ institution.json
 Thumbs.db
 .vscode/
 .idea/
+
+# Locally installed agent design skills
+.agents/
+skills-lock.json
