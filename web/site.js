@@ -107,6 +107,8 @@
     if (label) label.textContent = currentTheme() === "dark" ? "Day" : "Night";
   }
 
+  if (!root.dataset.theme) root.dataset.theme = systemIsDark() ? "dark" : "light";
+
   themeToggle?.addEventListener("click", function () {
     root.dataset.theme = currentTheme() === "dark" ? "light" : "dark";
     updateThemeLabel();
