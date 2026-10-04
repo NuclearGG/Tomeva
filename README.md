@@ -82,6 +82,7 @@ Control Center/       Setup, downloads, recovery, and distribution
 Admin's End/          Administration and browser sign-in helper
 Librarian's End/      SQLite circulation, Firebase sync, rules, and tests
 Student Search/       Student Portal source and assets
+web/                  Public Tomeva website deployed through GitHub Pages
 desktop-integration/  Shared institution import and update policy
 scripts/              Project checks and release packaging
 packages/             Installable software, update feeds, and checksums
@@ -148,6 +149,10 @@ Use a matching `vX.Y.Z` GitHub Release and upload every collected package:
 | `*.blockmap`, `SHA256SUMS` | Update data and integrity checks |
 
 Linux filenames use `linux-x64.AppImage`; feed names end in `-linux.yml`. CC downloads components at runtime and never embeds the Admin or Librarian installers. It uses GitHub asset metadata when the API is available and the release's `SHA256SUMS` manifest as its public fallback. See [distribution architecture](documentation/SOFTWARE_DISTRIBUTION.md) and [verification notes](documentation/RELEASE_VERIFICATION.md).
+
+### Publish the project website
+
+The public static website lives in `web/`. The `.github/workflows/pages.yml` workflow publishes that directory without exposing the rest of the repository as website content. In **GitHub → Settings → Pages**, set **Source** to **GitHub Actions** once. After that, a push that changes `web/` deploys the site automatically. You can also run **Deploy website to GitHub Pages** manually from the Actions tab.
 
 ### Data and contributions
 
