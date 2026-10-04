@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tomeva: free, open-source library management for schools</title>
-<meta name="description" content="Tomeva is free, open-source, offline-first library management software for schools, institutions and small libraries. Download Control Center for Windows and run it on your own Firebase project.">
+<meta name="description" content="Tomeva is free, open-source, offline-first library management software for schools, institutions and small libraries. Download Control Center for Windows 7, 8.1, 10 or 11 and run it on your own Firebase project.">
 <meta name="keywords" content="library management software, open source library system, school library software, offline library app, Firebase library, Tomeva, Control Center">
 <meta name="author" content="NuclearGG">
 <meta name="robots" content="index, follow, max-image-preview:large">
@@ -28,12 +28,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
-{"@type":"SoftwareApplication","name":"Tomeva Control Center","applicationCategory":"EducationalApplication","operatingSystem":"Windows","description":"Setup and distribution app for Tomeva, an open-source offline-first library management system.","url":"https://nucleargg.github.io/Tomeva/","downloadUrl":"https://github.com/NuclearGG/Tomeva/releases/latest","license":"https://opensource.org/licenses/MIT","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"NuclearGG","url":"https://github.com/NuclearGG"}},
+{"@type":"SoftwareApplication","name":"Tomeva Control Center","applicationCategory":"EducationalApplication","operatingSystem":"Windows 7, Windows 8.1, Windows 10, Windows 11","description":"Setup and distribution app for Tomeva, an open-source offline-first library management system.","url":"https://nucleargg.github.io/Tomeva/","downloadUrl":"https://github.com/NuclearGG/Tomeva/releases/latest","license":"https://opensource.org/licenses/MIT","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"NuclearGG","url":"https://github.com/NuclearGG"}},
 {"@type":"WebSite","name":"Tomeva","url":"https://nucleargg.github.io/Tomeva/"},
 {"@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"Is Tomeva free?","acceptedAnswer":{"@type":"Answer","text":"Yes. Tomeva is open source under the MIT license. Firebase service quotas apply to your own Firebase project."}},
 {"@type":"Question","name":"Does Tomeva work offline?","acceptedAnswer":{"@type":"Answer","text":"Daily circulation in Librarian works offline. Internet is needed for first downloads, Firebase setup, Admin sign-in and synchronization."}},
-{"@type":"Question","name":"Which operating systems are supported?","acceptedAnswer":{"@type":"Answer","text":"Windows x64 is the verified distribution. Linux AppImage packages are offered only when a release includes them. macOS is not distributed through Control Center yet."}},
+{"@type":"Question","name":"Which operating systems are supported?","acceptedAnswer":{"@type":"Answer","text":"Windows 10/11 x64 has its own installer, and there is a separate legacy installer for Windows 7, 8 and 8.1 x64. Linux and macOS packages are not included in the current release."}},
 {"@type":"Question","name":"Who owns the library data?","acceptedAnswer":{"@type":"Answer","text":"Your institution does. Each school deploys Tomeva on its own Firebase project and controls its own authentication, database, configuration and users."}},
 {"@type":"Question","name":"Do I need Node.js or Git to install it?","acceptedAnswer":{"@type":"Answer","text":"No. Download the Control Center installer from the latest release. Node.js and Git are only for developers working from source."}}]}]}
 </script>
@@ -81,9 +81,10 @@ h2{font-size:clamp(2rem,4vw,3rem);font-weight:800;max-width:16em}
 .steps h3{font-size:1.3rem}.steps p{color:var(--muted)}
 .why{display:grid;grid-template-columns:repeat(3,1fr);gap:36px}
 .why h3{font-size:1.35rem;margin-bottom:8px}.why p{color:var(--muted)}
-.dl{background:var(--ink);color:var(--paper);border-radius:28px;padding:56px;display:grid;grid-template-columns:1.2fr 1fr;gap:30px;align-items:center}
+.dl{background:var(--ink);color:var(--paper);border-radius:28px;padding:56px;display:grid;grid-template-columns:1fr 1.25fr;gap:30px;align-items:center}
 .dl h2{color:var(--paper)}.dl p{color:#CFCBE6;margin-top:12px}
 .dl .btn{background:var(--gold);color:var(--ink);box-shadow:0 6px 0 var(--berry)}
+.pick{display:grid;gap:16px}.opt{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:18px;padding:22px}.opt h3{font-size:1.3rem;color:var(--paper)}.tag{display:inline-block;font-size:.78rem;font-weight:700;padding:3px 10px;border-radius:99px;background:var(--teal);color:#fff;margin:6px 0 14px}.tag.old{background:var(--gold);color:var(--ink)}.opt .btn{display:block;text-align:center}.dl .btn.alt2{background:transparent;color:var(--paper);box-shadow:inset 0 0 0 2px var(--paper)}.dl .btn.alt2:hover{box-shadow:inset 0 0 0 2px var(--gold)}.warn{font-size:.88rem;color:#F6D9A0;margin-top:10px}
 .dl .meta{margin-top:18px;font-size:.92rem;color:#CFCBE6}
 details{border-bottom:1px solid var(--line);padding:20px 0;max-width:780px}
 summary{font:600 1.2rem Fraunces,serif;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:20px}
@@ -111,10 +112,10 @@ footer a{margin-right:18px}
 <h1>Library software your school fully owns.</h1>
 <p class="lead">Tomeva is free, open-source library management for schools, institutions and small libraries. Staff check books in and out even without internet, and your data stays in your own Firebase project.</p>
 <div class="cta">
-<a class="btn js-dl" href="https://github.com/NuclearGG/Tomeva/releases/latest">Download Control Center</a>
-<a class="btn alt" href="https://github.com/NuclearGG/Tomeva">View source on GitHub</a>
+<a class="btn js-dl-new" href="https://github.com/NuclearGG/Tomeva/releases/latest">Download for Windows 10/11</a>
+<a class="btn alt" href="#download">Windows 7 / 8.1</a>
 </div>
-<p class="note">For Windows x64. Version <span class="js-ver">latest</span>, MIT licensed, no account needed.</p>
+<p class="note">Windows x64. Version <span class="js-ver">latest</span>, MIT licensed. <a href="https://github.com/NuclearGG/Tomeva">View the source</a>.</p>
 </div>
 <div class="stage" aria-hidden="true"></div>
 </header>
@@ -154,16 +155,23 @@ footer a{margin-right:18px}
 
 <section id="download"><div class="wrap">
 <div class="dl">
-<div><h2>Get Control Center</h2><p>Always the newest release, straight from GitHub. Builds without a publisher signing certificate are unsigned, so Windows may ask you to confirm before running.</p></div>
-<div><a class="btn js-dl" href="https://github.com/NuclearGG/Tomeva/releases/latest">Download for Windows x64</a>
-<p class="meta"><span class="js-file">tomeva-control-center win-x64 .exe</span><br>Version <span class="js-ver">latest</span> <span class="js-size"></span></p></div>
+<div><h2>Get Control Center</h2><p>Pick the installer that matches your computer. Each line downloads its own Admin and Librarian apps and keeps a separate update feed. Files come straight from the latest GitHub release. Builds are unsigned, so Windows may ask you to confirm before running.</p></div>
+<div class="pick">
+<div class="opt"><h3>Windows 10 / 11</h3><span class="tag">Recommended</span>
+<a class="btn js-dl-new" href="https://github.com/NuclearGG/Tomeva/releases/latest">Download for Windows 10/11</a>
+<p class="meta"><span class="js-file-new">control-center win-x64 .exe</span><br>Version <span class="js-ver">latest</span> <span class="js-size-new"></span></p></div>
+<div class="opt"><h3>Windows 7 / 8 / 8.1</h3><span class="tag old">Legacy</span>
+<a class="btn alt2 js-dl-old" href="https://github.com/NuclearGG/Tomeva/releases/latest">Download for Windows 7 / 8.1</a>
+<p class="meta"><span class="js-file-old">control-center win7-x64 .exe</span><br>Version <span class="js-ver">latest</span> <span class="js-size-old"></span></p>
+<p class="warn">This line uses Electron 22, which no longer receives security fixes. Use it only where upgrading Windows is not possible. Testing on physical Windows 7/8.1 machines is still in progress.</p></div>
+</div>
 </div></div></section>
 
 <section id="faq"><div class="wrap">
 <h2>Questions</h2><p class="sub"></p>
 <details><summary>Is Tomeva free?</summary><p>Yes. It is open source under the MIT license. Firebase quotas apply to your own Firebase project.</p></details>
 <details><summary>Does it work offline?</summary><p>Daily circulation in Librarian does. Internet is needed for first downloads, Firebase setup, Admin sign-in and sync.</p></details>
-<details><summary>Which operating systems are supported?</summary><p>Windows x64 is the verified build. Linux AppImage packages appear only when a release includes them. macOS is not offered through Control Center yet.</p></details>
+<details><summary>Which operating systems are supported?</summary><p>Windows 10/11 x64 has its own installer, and there is a separate legacy installer for Windows 7, 8 and 8.1 x64. Linux and macOS packages are not included in the current release.</p></details>
 <details><summary>Who owns the data?</summary><p>Your institution. Each school deploys Tomeva on its own Firebase project and controls its own accounts, database and users.</p></details>
 <details><summary>Do I need Node.js or Git?</summary><p>No. Those are only for developers building from source. The installer includes everything it needs.</p></details>
 </div></section>
@@ -184,13 +192,18 @@ footer a{margin-right:18px}
   fetch("https://api.github.com/repos/NuclearGG/Tomeva/releases/latest",{headers:{Accept:"application/vnd.github+json"}})
     .then(function(r){if(!r.ok)throw 0;return r.json()})
     .then(function(rel){
-      var a=(rel.assets||[]).filter(function(x){return /control-center.*\.exe$/i.test(x.name)})[0];
+      var A=rel.assets||[];
+      function pick(re){return A.filter(function(x){return re.test(x.name)})[0]}
+      function set(a,k){
+        if(!a)return; // fallback: button keeps linking to /releases/latest
+        $(".js-dl-"+k).forEach(function(e){e.href=a.browser_download_url});
+        $(".js-file-"+k).forEach(function(e){e.textContent=a.name});
+        $(".js-size-"+k).forEach(function(e){e.textContent="("+(a.size/1048576).toFixed(0)+" MB)"});
+      }
       var v=(rel.tag_name||"").replace(/^v/,"");
       $(".js-ver").forEach(function(e){if(v)e.textContent=v});
-      if(!a)return;
-      $(".js-dl").forEach(function(e){e.href=a.browser_download_url});
-      $(".js-file").forEach(function(e){e.textContent=a.name});
-      $(".js-size").forEach(function(e){e.textContent="("+(a.size/1048576).toFixed(0)+" MB)"});
+      set(pick(/control-center.*-win-x64\.exe$/i),"new");   // Windows 10/11
+      set(pick(/control-center.*-win7-x64\.exe$/i),"old");  // Windows 7/8/8.1
     }).catch(function(){}); // fallback: the buttons already link to /releases/latest
 
   var still=matchMedia("(prefers-reduced-motion: reduce)").matches;
