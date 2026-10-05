@@ -1,26 +1,24 @@
-# Tomeva 1.0.5
+# Tomeva 1.0.6
 
 ## Users
 
-Choose the Control Center installer for the destination operating system:
+Download the Control Center installer for your computer:
 
-- **tomeva-control-center-1.0.5-win-x64.exe** for Windows 10/11 x64.
-- **tomeva-control-center-1.0.5-win7-x64.exe** for Windows 7/8/8.1 x64 legacy computers.
+- **tomeva-control-center-1.0.6-win-x64.exe** — Windows 10/11 x64.
+- **tomeva-control-center-1.0.6-win7-x64.exe** — Windows 7/8/8.1 x64.
 
-Control Center now offers separate Windows 10/11 and Windows 7/8.1 package selections. Each line downloads matching Admin and Librarian installers and uses its own update metadata, preventing a legacy computer from receiving a modern-only runtime.
+Control Center downloads the matching Admin and Librarian apps from this GitHub release. The Student Portal is also available as **tomeva-student-1.0.6.zip**. The installers and Student Portal archive are committed in the repository's `packages` directory as well.
 
-The legacy line uses Electron 22.3.27 and a compatible SQLite native build. Network operations include the compatibility layer required by its Node 16 runtime.
+This update gives the Student Portal a clearer library workspace and lets students delete their account. Librarians can review a matching admission number before adding a student, submit a correction when the match belongs to someone else, and delete local student accounts. Admins can remove roster entries and pending login records. Admission-number reservations and validation reduce duplicate accounts. Update notes now display as plain text instead of showing HTML tags.
 
-Electron 22 stopped receiving security fixes in October 2023. Use the legacy packages only where an operating-system upgrade is not yet possible. The modern Windows 10/11 packages remain the default.
-
-This release includes both Windows x64 compatibility lines for all three desktop apps and the Student Portal ZIP. Linux and macOS binaries are not included.
+The legacy installers use Electron 22, which no longer receives security fixes. Use them only on computers that cannot move to Windows 10/11. The installers are unsigned.
 
 ## Developers
 
-The legacy build runs from an isolated staging tree, pins Electron 22.3.27, and uses a Node 16-compatible SQLite dependency without changing the modern dependency lockfiles. `build-variant.json` keeps update feeds separated at runtime.
+Clone the repository and run `git lfs pull` to obtain the installers alongside the source. See the root README for setup, development, tests, and build commands. `packages/SHA256SUMS` covers the committed packages; each Electron update feed also records its installer SHA-512 hash.
 
-Clone the repository and run `git lfs pull` to download the installation packages alongside the complete source. See the root README for installation, tests, builds, and publishing commands. `packages/SHA256SUMS` records all committed package checksums.
+The account changes require deploying the updated Firestore rules to each institution's Firebase project. Existing locally installed applications receive their matching modern or legacy update from GitHub.
 
 ## Verification
 
-The full unit suite, all three modern Electron smoke suites, 112 Firestore rules tests, and 12 kiosk REST authorization tests passed. Modern and legacy package contents, SQLite startup, update metadata, and checksums were verified. Interactive installation on physical Windows 7/8.1 hardware remains an acceptance check. The installers are unsigned.
+Unit tests, desktop smoke tests, installer contents, update metadata, and package checksums were checked for this release. Firestore emulator tests require Java 21 or newer; they were not run on the release machine, which has Java 8. Interactive installation on Windows 7/8.1 hardware and live Firebase account flows remain acceptance checks.

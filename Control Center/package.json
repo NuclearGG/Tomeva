@@ -1,6 +1,6 @@
 {
   "name": "tomeva-control-center",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Institution-owned setup, deployment and update center for Tomeva",
   "private": true,
   "license": "MIT",
