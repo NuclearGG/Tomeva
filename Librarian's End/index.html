@@ -564,6 +564,7 @@
                   <th>Group</th>
                   <th>Books Issued</th>
                   <th>Overdue</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="students-tbody"></tbody>
@@ -935,6 +936,16 @@
   <div class="modal">
     <div class="modal-title">🎓 Add New Student</div>
     <div class="modal-sub">Students are identified by their Admission Number.</div>
+    <div id="student-match-panel" class="student-match-panel" hidden role="status" aria-live="polite">
+      <strong>Admission number already recorded</strong>
+      <p id="student-match-summary"></p>
+      <p>Is this the person you are trying to add?</p>
+      <div class="modal-actions"><button id="student-match-yes" type="button" class="btn btn-ghost">Yes, use this record</button><button id="student-match-no" type="button" class="btn btn-primary">No, correct the record</button></div>
+    </div>
+    <div id="student-correction-panel" class="student-match-panel" hidden>
+      <strong>Correct the existing student</strong>
+      <p>Review the details below and save them to this admission number. A second record will not be created.</p>
+    </div>
     <div class="grid-2" style="gap:12px">
       <div class="form-group">
         <label>ADM No</label>

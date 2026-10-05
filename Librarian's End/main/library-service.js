@@ -219,7 +219,7 @@ function createLibraryService(store, appendLog = () => {}) {
   }
 
   function getStudent(adm_no) {
-    return _stripMeta(_students.findOne({ adm_no }));
+    return _stripMeta(_students.where(student => String(student.adm_no || '').trim().toLowerCase() === String(adm_no || '').trim().toLowerCase())[0]);
   }
 
   function searchStudents(q) {
@@ -234,20 +234,57 @@ function createLibraryService(store, appendLog = () => {}) {
   }
 
   function addStudent(s) {
-    if (_students.findOne({ adm_no: s.adm_no }))
-      return { ok: false, msg: `Admission No "${s.adm_no}" already exists.` };
+    const adm_no = String(s.adm_no || '').trim();
+    const name = String(s.name || '').trim();
+    if (!adm_no || adm_no.length > 40 || !name || name.length > 100)
+      return { ok: false, msg: 'Enter an admission number and student name within the field limits.' };
+    if (_students.where(student => String(student.adm_no || '').trim().toLowerCase() === adm_no.toLowerCase()).length)
+      return { ok: false, msg: `Admission No "${adm_no}" already exists.` };
     if (!_isValidEmail(s.email)) return { ok: false, msg: 'Enter a valid student email address.' };
+    const email = String(s.email || '').trim().toLowerCase();
+    if (email && _students.where(student => String(student.email || '').trim().toLowerCase() === email).length)
+      return { ok: false, msg: 'This email is already linked to another student.' };
     const group = VALID_GROUPS.includes(s.group) ? s.group : 'Regular';
     _students.insert({
-      adm_no:  (s.adm_no  || '').trim(),
-      name:    (s.name    || '').trim(),
+      adm_no,
+      name,
       class:   (s.class   || '').trim(),
       section: (s.section || '').trim(),
       roll_no: (s.roll_no || '').trim(),
-      email:   (s.email || '').trim().toLowerCase(),
+      email,
       group,
     });
 
+    return { ok: true };
+  }
+
+  function updateStudent(adm_no, changes) {
+    const student = _students.where(s => String(s.adm_no || '').trim().toLowerCase() === String(adm_no || '').trim().toLowerCase())[0];
+    if (!student) return { ok: false, msg: 'Student not found.' };
+    const name = String(changes.name || '').trim();
+    const email = String(changes.email || '').trim().toLowerCase();
+    if (!name || name.length > 100 || email.length > 320 || !_isValidEmail(email))
+      return { ok: false, msg: 'Enter a valid name and email address.' };
+    if (email && _students.where(s => s.$loki !== student.$loki && String(s.email || '').trim().toLowerCase() === email).length)
+      return { ok: false, msg: 'This email is already linked to another student.' };
+    for (const [field, max] of [['class', 20], ['section', 10], ['roll_no', 20]]) {
+      const value = String(changes[field] || '').trim();
+      if (value.length > max) return { ok: false, msg: `${field} is too long.` };
+      student[field] = value;
+    }
+    student.name = name;
+    student.email = email;
+    student.group = VALID_GROUPS.includes(changes.group) ? changes.group : 'Regular';
+    _students.update(student);
+    return { ok: true };
+  }
+
+  function deleteStudent(adm_no) {
+    const student = _students.where(s => String(s.adm_no || '').trim().toLowerCase() === String(adm_no || '').trim().toLowerCase())[0];
+    if (!student) return { ok: false, msg: 'Student not found.' };
+    if (_txns.where(t => t.student_adm_no === student.adm_no && t.status === 'Active').length)
+      return { ok: false, msg: 'Return this student’s issued books before deleting the record.' };
+    _students.remove(student);
     return { ok: true };
   }
 
@@ -263,7 +300,7 @@ function createLibraryService(store, appendLog = () => {}) {
       return { ok: false, msg: 'Cloud student is missing a valid email or name.' };
     }
     const byEmail = _students.where(s => String(s.email || '').trim().toLowerCase() === email)[0] || null;
-    const byAdm = adm_no ? _students.findOne({ adm_no }) : null;
+    const byAdm = adm_no ? _students.where(s => String(s.adm_no || '').trim().toLowerCase() === adm_no.toLowerCase())[0] || null : null;
     if (byAdm?.email && String(byAdm.email).trim().toLowerCase() !== email) {
       return { ok: false, msg: `Admission number ${adm_no} is linked to another email.` };
     }
@@ -275,7 +312,7 @@ function createLibraryService(store, appendLog = () => {}) {
       return { ok: false, skipped: true, msg: `No admission number is available for ${email}.` };
     }
     if (student && adm_no && student.adm_no !== adm_no && student.adm_no.startsWith('WEB-')) {
-      const conflict = _students.findOne({ adm_no });
+      const conflict = _students.where(s => String(s.adm_no || '').trim().toLowerCase() === adm_no.toLowerCase())[0];
       if (conflict && conflict.$loki !== student.$loki) return { ok: false, msg: `Admission number ${adm_no} is already in use.` };
       const previous = student.adm_no;
       student.adm_no = adm_no;
@@ -330,10 +367,14 @@ function createLibraryService(store, appendLog = () => {}) {
 
       // Validate all entries first
       const errors = [];
+      const seenAdmissionNumbers = new Set();
       raw.forEach((s, idx) => {
         const adm_no = (s.adm_no || s.admission_no || s.admno || '').toString().trim();
         const name = (s.name || s.student_name || '').trim();
         if (!adm_no) errors.push(`Row ${idx + 1}: Missing adm_no`);
+        const key = adm_no.toLowerCase();
+        if (seenAdmissionNumbers.has(key)) errors.push(`Row ${idx + 1}: duplicate admission number ${adm_no}`);
+        seenAdmissionNumbers.add(key);
         if (!name) errors.push(`Row ${idx + 1}: Missing name`);
         if (adm_no.length > 40) errors.push(`Row ${idx + 1}: adm_no too long (max 40 chars)`);
         if (name.length > 100) errors.push(`Row ${idx + 1}: name too long (max 100 chars)`);
@@ -868,7 +909,9 @@ function createLibraryService(store, appendLog = () => {}) {
   /* ══════════════════════════════
      COMPATIBILITY SHIMS
   ══════════════════════════════ */
-  function getStudentByAdmNo(adm_no) { return getStudent(adm_no); }
+  function getStudentByAdmNo(adm_no) {
+    return _stripMeta(_students.where(student => String(student.adm_no || '').trim().toLowerCase() === String(adm_no || '').trim().toLowerCase())[0]);
+  }
 
   function studentDisplayName(s) {
     if (!s) return '—';
@@ -906,7 +949,7 @@ function createLibraryService(store, appendLog = () => {}) {
     getBooks, getBook, searchBooks, addBook, updateBookStatus,
     importBooks,
 
-    getStudents, getStudent, getStudentByAdmNo, searchStudents, addStudent,
+    getStudents, getStudent, getStudentByAdmNo, searchStudents, addStudent, updateStudent, deleteStudent,
     upsertStudentFromCloud,
     updateStudentGroup, importStudents, studentDisplayName, bookDisplayTitle,
     VALID_GROUPS,
@@ -929,7 +972,7 @@ function createLibraryService(store, appendLog = () => {}) {
     isEmpty:     () => _books.count() === 0 && _students.count() === 0,
   };
   const mutations = [
-    'saveSettings', 'setRosterSyncCursor', 'addBook', 'updateBookStatus', 'importBooks', 'addStudent',
+    'saveSettings', 'setRosterSyncCursor', 'addBook', 'updateBookStatus', 'importBooks', 'addStudent', 'updateStudent', 'deleteStudent',
     'updateStudentGroup', 'importStudents', 'upsertStudentFromCloud', 'issueBook', 'issueBookToTeacher',
     'returnBook', 'markFinePaid', 'reportDamage', 'restoreBook',
     'undoLastTransaction', 'undoAction', 'restoreData',

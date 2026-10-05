@@ -825,6 +825,8 @@
               <div id="roster-summary" class="roster-summary"></div>
               <div class="table-wrap"><table><thead><tr><th>ADM No</th><th>Name</th><th>Email</th><th>Class</th><th>Group</th></tr></thead><tbody id="roster-preview-body"></tbody></table></div>
             </div>
+            <div class="list-card-header" style="margin-top:20px"><div><div class="card-title">Registered admission numbers</div><div class="card-subtitle">Remove an incorrect entry before importing a corrected record.</div></div></div>
+            <div class="table-wrap access-scroll-wrap"><table><thead><tr><th>ADM No</th><th>Name</th><th>Email</th><th></th></tr></thead><tbody id="roster-tbody"></tbody></table></div>
           </div>
 
           <div class="list-card">
@@ -1011,7 +1013,7 @@ const { initializeApp } = await import("https://www.gstatic.com/firebasejs/12.13
 const {
   getFirestore, doc, collection,
   onSnapshot, Timestamp, addDoc, setDoc, updateDoc, deleteDoc, serverTimestamp,
-  query, orderBy, limit, writeBatch
+  query, orderBy, limit, writeBatch, runTransaction
 } = await import("https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js");
 const {
   getAuth, GoogleAuthProvider, signOut, onAuthStateChanged, signInWithCredential, signInWithPopup
@@ -1904,11 +1906,17 @@ function releaseCard(component, release) {
   const version = document.createElement('div'); version.className = 'release-version'; version.textContent = available ? `v${release.version}` : 'No release';
   const meta = document.createElement('div'); meta.className = 'release-meta';
   meta.textContent = available && release.publishedAt ? `Published ${new Date(release.publishedAt).toLocaleString()}` : 'The publisher channel did not return a usable stable release.';
-  const notes = document.createElement('div'); notes.className = 'release-notes'; notes.textContent = release?.notes || release?.message || 'No release notes available.';
+  const notes = document.createElement('div'); notes.className = 'release-notes'; notes.textContent = releaseText(release?.notes || release?.message || 'No release notes available.');
   const choose = document.createElement('button'); choose.type = 'button'; choose.className = 'btn btn-ghost'; choose.textContent = available ? 'Use this version' : 'Release unavailable'; choose.disabled = !available;
   if (available) choose.addEventListener('click', () => selectApproval(component, release.version));
   card.append(head, version, meta, notes, choose);
   return card;
+}
+function releaseText(value) {
+  const source = String(value || '').replace(/<\/(?:p|div|li|h[1-6]|ul|ol)>/gi, '$&\n').replace(/<br\s*\/?\s*>/gi, '\n');
+  const document = new DOMParser().parseFromString(source, 'text/html');
+  document.querySelectorAll('script,style,iframe,object').forEach(node => node.remove());
+  return (document.body.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
 }
 function renderReleaseReview(releases) {
   const container = document.getElementById('release-review'); container.replaceChildren();
@@ -2012,6 +2020,7 @@ function startAdmissionRosterListener() {
   return onSnapshot(collection(db, "libraries", LIBRARY_ID, "admission_roster"), snap => {
     _admissionRoster = snap.docs.map(item => ({ id: item.id, ...item.data() }));
     document.getElementById('roster-count').textContent = _admissionRoster.length;
+    renderAdmissionRoster();
     if (!_pendingRosterRows.length) document.getElementById('roster-status').textContent = 'Choose a CSV or JSON roster to pre-register admission numbers.';
     const active = document.querySelector('.page-view.active');
     if (active?.id === 'page-access') renderPendingVerification();
@@ -2025,6 +2034,48 @@ function startAdmissionRosterListener() {
 function rosterMatch(admissionNumber) {
   const wanted = String(admissionNumber || '').trim().toLowerCase();
   return wanted ? _admissionRoster.find(row => String(row.adm_no || '').trim().toLowerCase() === wanted) : null;
+}
+
+function admissionOwner(admissionNumber, email = '') {
+  const key = String(admissionNumber || '').trim().toLowerCase();
+  const targetEmail = String(email || '').trim().toLowerCase();
+  if (!key) return null;
+  return _allAuthorizedStudents.find(student => String(student.adm_no || '').trim().toLowerCase() === key && student.id !== targetEmail) ||
+    _admissionRoster.find(student => String(student.adm_no || '').trim().toLowerCase() === key && student.email && student.email !== targetEmail) || null;
+}
+
+async function saveAuthorizedStudent(email, data) {
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const admission = String(data.adm_no).trim();
+  const rosterRef = doc(db, 'libraries', LIBRARY_ID, 'admission_roster', encodeURIComponent(admission.toLowerCase()));
+  const accessRef = doc(db, 'libraries', LIBRARY_ID, 'authorized_students', normalizedEmail);
+  await runTransaction(db, async transaction => {
+    const [roster, access] = await Promise.all([transaction.get(rosterRef), transaction.get(accessRef)]);
+    const claimedEmail = String(roster.data()?.email || '').trim().toLowerCase();
+    if (claimedEmail && claimedEmail !== normalizedEmail) throw new Error(`Admission number ${admission} is already linked to ${claimedEmail}.`);
+    if (access.exists() && String(access.data().adm_no || '').trim().toLowerCase() !== admission.toLowerCase()) throw new Error(`${normalizedEmail} is already linked to another admission number.`);
+    const previous = roster.data() || {};
+    transaction.set(rosterRef, {
+      adm_no: admission, name: data.name || previous.name || '', email: normalizedEmail,
+      class: data.class || previous.class || '', section: data.section || previous.section || '',
+      group: data.group || previous.group || 'Regular',
+      added_by: previous.added_by || _adminCurrentUser.email,
+      added_at: previous.added_at || serverTimestamp(), updated_at: serverTimestamp(),
+    });
+    transaction.set(accessRef, data);
+  });
+}
+
+function renderAdmissionRoster() {
+  const tbody = document.getElementById('roster-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = _admissionRoster.length ? _admissionRoster.slice().sort((a, b) => String(a.adm_no).localeCompare(String(b.adm_no))).map(row => `<tr><td class="td-id">${_esc(row.adm_no)}</td><td>${_esc(row.name || '—')}</td><td>${_esc(row.email || '—')}</td><td><button class="btn btn-ghost btn-sm" data-roster-delete="${_esc(row.id)}">Delete</button></td></tr>`).join('') : '<tr><td colspan="4" class="text-sm text-muted">No admission numbers registered yet.</td></tr>';
+  tbody.querySelectorAll('[data-roster-delete]').forEach(button => button.addEventListener('click', async () => {
+    const row = _admissionRoster.find(entry => entry.id === button.dataset.rosterDelete);
+    if (!row || !(await showConfirm(`Delete admission number ${row.adm_no} from the pre-registration roster?`))) return;
+    try { await deleteDoc(doc(db, 'libraries', LIBRARY_ID, 'admission_roster', row.id)); showToast('Roster entry deleted.', 'success'); }
+    catch (error) { showToast('Could not delete roster entry: ' + error.message, 'error'); }
+  }));
 }
 
 function renderRosterPreview(rows) {
@@ -2061,19 +2112,35 @@ document.getElementById('roster-import').addEventListener('click', async () => {
   const authorize = document.getElementById('roster-authorize-email').checked;
   button.disabled = true; button.textContent = 'Importing…';
   try {
-    let authorized = 0;
-    for (let offset = 0; offset < _pendingRosterRows.length; offset += 200) {
-      const batch = writeBatch(db);
-      for (const row of _pendingRosterRows.slice(offset, offset + 200)) {
-        const audit = { added_by: _adminCurrentUser.email, added_at: serverTimestamp(), updated_at: serverTimestamp() };
-        batch.set(doc(db, 'libraries', LIBRARY_ID, 'admission_roster', encodeURIComponent(row.adm_no.toLowerCase())), { ...row, ...audit });
-        if (authorize && row.email) {
-          batch.set(doc(db, 'libraries', LIBRARY_ID, 'authorized_students', row.email), { ...row, name: row.name || row.adm_no, ...audit });
-          authorized++;
-        }
+    for (const row of _pendingRosterRows) {
+      const owner = admissionOwner(row.adm_no, row.email);
+      if (owner) throw new Error(`Admission number ${row.adm_no} is already assigned to ${owner.name || owner.email || owner.id}. Review that record before importing.`);
+      const current = rosterMatch(row.adm_no);
+      if (current && current.email && row.email && current.email !== row.email) throw new Error(`Admission number ${row.adm_no} belongs to ${current.email}.`);
+      if (authorize && row.email) {
+        const existingEmail = _allAuthorizedStudents.find(student => student.id === row.email);
+        if (existingEmail && String(existingEmail.adm_no || '').trim().toLowerCase() !== row.adm_no.toLowerCase()) throw new Error(`${row.email} is already linked to admission number ${existingEmail.adm_no}.`);
       }
-      await batch.commit();
-      status.textContent = `Imported ${Math.min(offset + 200, _pendingRosterRows.length)} of ${_pendingRosterRows.length}…`;
+    }
+    let authorized = 0;
+    for (let offset = 0; offset < _pendingRosterRows.length; offset += 100) {
+      const rows = _pendingRosterRows.slice(offset, offset + 100);
+      await runTransaction(db, async transaction => {
+        const refs = rows.map(row => ({ row, roster: doc(db, 'libraries', LIBRARY_ID, 'admission_roster', encodeURIComponent(row.adm_no.toLowerCase())), access: authorize && row.email ? doc(db, 'libraries', LIBRARY_ID, 'authorized_students', row.email) : null }));
+        const existing = await Promise.all(refs.map(async ref => ({ roster: await transaction.get(ref.roster), access: ref.access ? await transaction.get(ref.access) : null })));
+        for (let index = 0; index < refs.length; index++) {
+          const { row, roster, access } = refs[index];
+          const previous = existing[index];
+          const claimedEmail = String(previous.roster.data()?.email || '').trim().toLowerCase();
+          if (claimedEmail && claimedEmail !== row.email) throw new Error(`Admission number ${row.adm_no} is already linked to ${claimedEmail}.`);
+          if (previous.access?.exists() && String(previous.access.data().adm_no || '').trim().toLowerCase() !== row.adm_no.toLowerCase()) throw new Error(`${row.email} is already linked to another admission number.`);
+          const audit = { added_by: previous.roster.data()?.added_by || _adminCurrentUser.email, added_at: previous.roster.data()?.added_at || serverTimestamp(), updated_at: serverTimestamp() };
+          transaction.set(roster, { ...row, ...audit });
+          if (access) transaction.set(access, { ...row, name: row.name || row.adm_no, ...audit });
+        }
+      });
+      if (authorize) authorized += rows.filter(row => row.email).length;
+      status.textContent = `Imported ${Math.min(offset + 100, _pendingRosterRows.length)} of ${_pendingRosterRows.length}…`;
     }
     status.textContent = `Imported ${_pendingRosterRows.length} admission numbers${authorize ? ` and authorized ${authorized} students with email addresses` : ''}.`;
     showToast('Admission roster imported.', 'success');
@@ -2128,7 +2195,7 @@ function renderPendingVerification() {
         <option value="Editorial Board" ${group === 'Editorial Board' ? 'selected' : ''}>⭐ Editorial Board</option>
       </select>
     </td>
-    <td><button class="btn btn-green btn-sm" data-email="${_esc(p.id)}" data-name="${_esc(p.name||"")}">✓ Approve</button></td>
+    <td><button class="btn btn-green btn-sm" data-email="${_esc(p.id)}" data-name="${_esc(p.name||"")}">Approve</button> <button class="btn btn-ghost btn-sm" data-delete-pending="${_esc(p.id)}">Delete profile</button></td>
   </tr>`;
   }).join("");
 
@@ -2138,6 +2205,12 @@ function renderPendingVerification() {
       approvePendingStudent(btn.dataset.email, btn.dataset.name);
     });
   });
+  tbody.querySelectorAll('[data-delete-pending]').forEach(btn => btn.addEventListener('click', async () => {
+    const email = btn.dataset.deletePending;
+    if (!(await showConfirm(`Delete the Tomeva sign-in profile for ${email}?`))) return;
+    try { await deleteDoc(doc(db, 'libraries', LIBRARY_ID, 'student_logins', email)); showToast('Sign-in profile deleted.', 'success'); }
+    catch (error) { showToast('Could not delete profile: ' + error.message, 'error'); }
+  }));
 }
 
 function cssSafe(str) {
@@ -2152,9 +2225,11 @@ window.approvePendingStudent = async function(email, name) {
   const pending = _allPendingLogins.find(student => student.id === email) || {};
   if (!String(pending.adm_no || '').trim()) { showToast('This student has no admission number in their portal profile.', 'error'); return; }
   const roster = rosterMatch(pending.adm_no);
+  const owner = admissionOwner(pending.adm_no, email);
+  if (owner) { showToast(`Admission number ${pending.adm_no} is already assigned to ${owner.name || owner.email || owner.id}.`, 'error', 7000); return; }
 
   try {
-    await setDoc(doc(db, "libraries", LIBRARY_ID, "authorized_students", email), {
+    await saveAuthorizedStudent(email, {
       email, name: roster?.name || name || email, group,
       adm_no: (pending.adm_no || "").trim(),
       class: (roster?.class || pending.class || "").trim(),
@@ -2200,7 +2275,7 @@ function renderAuthorizedStudents() {
     <td class="text-sm text-muted">${_esc(s.email)}</td>
     <td>${groupBadge[s.group] || _esc(s.group)}</td>
     <td class="text-sm text-muted">${_esc(s.added_by || "—")}</td>
-    <td><button class="btn btn-coral btn-sm" data-email="${_esc(s.id)}">Remove</button></td>
+    <td><button class="btn btn-coral btn-sm" data-email="${_esc(s.id)}">Delete access & profile</button></td>
   </tr>`).join("");
 
   // Event delegation for remove buttons
@@ -2227,9 +2302,13 @@ window.addAuthorizedStudent = async function() {
   if (!name)  { showToast("Enter the student's name.", "error"); return; }
   if (!email || !email.includes("@")) { showToast("Enter a valid email address.", "error"); return; }
   if (!adm_no) { showToast("Enter the student's admission number.", "error"); return; }
+  const owner = admissionOwner(adm_no, email);
+  if (owner) { showToast(`Admission number ${adm_no} is already assigned to ${owner.name || owner.email || owner.id}.`, 'error', 7000); return; }
+  const currentEmail = _allAuthorizedStudents.find(student => student.id === email);
+  if (currentEmail && String(currentEmail.adm_no || '').trim().toLowerCase() !== adm_no.toLowerCase()) { showToast(`${email} is already linked to admission number ${currentEmail.adm_no}.`, 'error', 7000); return; }
 
   try {
-    await setDoc(doc(db, "libraries", LIBRARY_ID, "authorized_students", email), {
+    await saveAuthorizedStudent(email, {
       email, name, group,
       adm_no, class: studentClass, section,
       added_by: _adminCurrentUser.email,
@@ -2249,10 +2328,18 @@ window.addAuthorizedStudent = async function() {
 };
 
 window.removeAuthorizedStudent = async function(email) {
-  if (!(await showConfirm("Remove access for " + email + "? They will no longer be able to submit book requests."))) return;
+  if (!(await showConfirm("Delete Tomeva access and sign-in profile for " + email + "? Historical requests will remain."))) return;
   try {
-    await deleteDoc(doc(db, "libraries", LIBRARY_ID, "authorized_students", email));
-    showToast("Access removed.", "default");
+    const account = _allAuthorizedStudents.find(student => student.id === email);
+    const admission = String(account?.adm_no || '').trim();
+    const rosterRef = admission ? doc(db, 'libraries', LIBRARY_ID, 'admission_roster', encodeURIComponent(admission.toLowerCase())) : null;
+    await runTransaction(db, async transaction => {
+      const roster = rosterRef ? await transaction.get(rosterRef) : null;
+      transaction.delete(doc(db, "libraries", LIBRARY_ID, "authorized_students", email));
+      transaction.delete(doc(db, "libraries", LIBRARY_ID, "student_logins", email));
+      if (roster?.exists() && String(roster.data().email || '').trim().toLowerCase() === email) transaction.update(rosterRef, { email: '', updated_at: serverTimestamp() });
+    });
+    showToast("Tomeva access and profile deleted.", "success");
   } catch (err) {
     showToast("Failed: " + err.message, "error");
   }

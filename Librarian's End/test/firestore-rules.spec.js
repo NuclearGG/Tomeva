@@ -1067,6 +1067,15 @@ describe('Tomeva Firestore Rules', () => {
         db.collection('libraries').doc(LIBRARY_ID).collection('authorized_students').doc(studentEmail).delete()
       );
     });
+
+    test('ALLOW: student can delete own access but not another student access', async () => {
+      await testEnv.withSecurityRulesDisabled(async ctx => {
+        await ctx.firestore().collection('libraries').doc(LIBRARY_ID).collection('authorized_students').doc(studentEmail).set(validStudent);
+      });
+      const own = auth({ email: studentEmail, email_verified: true }).firestore();
+      await assertSucceeds(own.collection('libraries').doc(LIBRARY_ID).collection('authorized_students').doc(studentEmail).delete());
+      await assertFails(own.collection('libraries').doc(LIBRARY_ID).collection('authorized_students').doc('other@gmail.com').delete());
+    });
   });
 
   /* ══════════════════════════════════════════════════════════════════
@@ -1121,6 +1130,15 @@ describe('Tomeva Firestore Rules', () => {
       await assertSucceeds(
         db.collection('libraries').doc(LIBRARY_ID).collection('student_logins').doc(studentEmail).delete()
       );
+    });
+
+    test('ALLOW: student can delete own sign-in profile but not another profile', async () => {
+      await testEnv.withSecurityRulesDisabled(async ctx => {
+        await ctx.firestore().collection('libraries').doc(LIBRARY_ID).collection('student_logins').doc(studentEmail).set(validLogin);
+      });
+      const own = auth({ email: studentEmail, email_verified: true }).firestore();
+      await assertSucceeds(own.collection('libraries').doc(LIBRARY_ID).collection('student_logins').doc(studentEmail).delete());
+      await assertFails(own.collection('libraries').doc(LIBRARY_ID).collection('student_logins').doc('other@gmail.com').delete());
     });
   });
 

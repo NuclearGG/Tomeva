@@ -100,9 +100,15 @@ function showUpdateStatus(status) {
   byId('update-heading').textContent = labels[status.state] || status.state;
   byId('update-status').textContent = status.message || ({ available: 'Review the notes, then download when ready.', ready: 'Restart to install the downloaded version.', development: 'Update checks are available in installed builds.', unconfigured: 'The release owner and repository must be configured when building the installer.' }[status.state] || '');
   byId('update-version').textContent = `Installed version ${status.version || '—'}`;
-  byId('update-notes').textContent = Array.isArray(status.releaseNotes) ? status.releaseNotes.map(item => item.note || '').join('\n') : String(status.releaseNotes || '');
+  byId('update-notes').textContent = releaseText(Array.isArray(status.releaseNotes) ? status.releaseNotes.map(item => item.note || '').join('\n') : status.releaseNotes);
   byId('update-download').disabled = status.state !== 'available'; byId('update-install').disabled = status.state !== 'ready';
   byId('update-progress').classList.toggle('hidden', status.state !== 'downloading'); byId('update-progress').value = Number(status.percent) || 0;
+}
+function releaseText(value) {
+  const source = String(value || '').replace(/<\/(?:p|div|li|h[1-6]|ul|ol)>/gi, '$&\n').replace(/<br\s*\/?\s*>/gi, '\n');
+  const document = new DOMParser().parseFromString(source, 'text/html');
+  document.querySelectorAll('script,style,iframe,object').forEach(node => node.remove());
+  return (document.body.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
 }
 bridge.updates.onStatus(showUpdateStatus);
 (async () => {

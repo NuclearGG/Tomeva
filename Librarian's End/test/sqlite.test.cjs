@@ -223,6 +223,25 @@ test('cloud roster upsert requires real admission numbers and reconciles by emai
   assert.equal(api.getRosterSyncCursor(), 123);
 });
 
+test('student corrections keep one admission number and deletion waits for returns', t => {
+  const { store } = fixture(t);
+  store.initializeLegacy(null);
+  const api = createLibraryService(store);
+  assert.equal(api.addStudent({ adm_no: 'A-42', name: 'Old Name', email: 'old@example.com' }).ok, true);
+  assert.equal(api.addStudent({ adm_no: ' a-42 ', name: 'Duplicate' }).ok, false);
+  assert.equal(api.getStudentByAdmNo('a-42').name, 'Old Name');
+  assert.equal(api.updateStudent('a-42', { name: 'Correct Name', email: 'new@example.com', class: '10', section: 'A', roll_no: '7', group: 'Regular' }).ok, true);
+  assert.equal(api.getStudents().length, 1);
+  assert.equal(api.getStudentByAdmNo('A-42').name, 'Correct Name');
+  api.addBook({ access_no: 'B-42', document: 'Book' });
+  assert.equal(api.issueBook('A-42', 'B-42').ok, true);
+  assert.match(api.deleteStudent('A-42').msg, /return/i);
+  assert.equal(api.returnBook('B-42').ok, true);
+  assert.equal(api.deleteStudent('a-42').ok, true);
+  assert.equal(api.getStudents().length, 0);
+  assert.equal(api.getTransactions().length, 1);
+});
+
 test('workstation PIN is salted, local, persistent and gates database calls while locked', async t => {
   const { dir, store } = fixture(t);
   store.initializeLegacy(null);

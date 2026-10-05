@@ -708,7 +708,7 @@ function _renderStudents() {
   var students = q ? LibraryDB.searchStudents(q) : LibraryDB.getStudents();
   var tbody    = document.getElementById('students-tbody');
   if (!tbody) return;
-  if (!students.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><span class="empty-icon">🎓</span><h4>No students found</h4></div></td></tr>'; return; }
+  if (!students.length) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><span class="empty-icon">🎓</span><h4>No students found</h4></div></td></tr>'; return; }
   var groupCls = { 'Regular':'regular', 'Literary Club':'literary-club', 'Editorial Board':'editorial-board' };
   tbody.innerHTML = students.map(function(s) {
     var active  = LibraryDB.getActiveTransactions().filter(function(t){ return t.student_adm_no === s.adm_no; });
@@ -721,8 +721,40 @@ function _renderStudents() {
       + '<td>' + _esc(s.roll_no) + '</td>'
       + '<td><span class="group-badge ' + (groupCls[group]||'regular') + '">' + group + '</span></td>'
       + '<td>' + (active.length  ? '<span class="badge badge-blue">'  + active.length  + ' issued</span>'  : '<span class="badge badge-gray">None</span>') + '</td>'
-      + '<td>' + (overdue.length ? '<span class="badge badge-coral">' + overdue.length + ' overdue</span>' : '—') + '</td></tr>';
+      + '<td>' + (overdue.length ? '<span class="badge badge-coral">' + overdue.length + ' overdue</span>' : '—') + '</td>'
+      + '<td><button class="btn btn-ghost btn-sm" data-edit-student="' + _esc(s.adm_no) + '">Edit</button> <button class="btn btn-ghost btn-sm" data-delete-student="' + _esc(s.adm_no) + '">Delete</button></td></tr>';
   }).join('');
+  tbody.querySelectorAll('[data-edit-student]').forEach(function(button) {
+    button.addEventListener('click', function() { _openStudentCorrection(button.dataset.editStudent); });
+  });
+  tbody.querySelectorAll('[data-delete-student]').forEach(function(button) {
+    button.addEventListener('click', async function() {
+      var student = LibraryDB.getStudentByAdmNo(button.dataset.deleteStudent);
+      if (!student || !(await _confirmStudentDeletion(student))) return;
+      var result = LibraryDB.deleteStudent(student.adm_no);
+      showToast(result.ok ? 'Student record deleted.' : result.msg, result.ok ? 'success' : 'error');
+      if (result.ok) _renderStudents();
+    });
+  });
+}
+
+function _confirmStudentDeletion(student) {
+  return new Promise(function(resolve) {
+    var overlay = document.createElement('div'); overlay.className = 'modal-overlay show';
+    var modal = document.createElement('div'); modal.className = 'modal';
+    var title = document.createElement('h2'); title.className = 'modal-title'; title.textContent = 'Delete student record?';
+    var detail = document.createElement('p'); detail.className = 'modal-sub';
+    detail.textContent = student.name + ' (' + student.adm_no + ') will be removed from this librarian roster. Past loan history remains.' + (student.cloud_synced ? ' Remove their access in Admin first to prevent the record returning during cloud sync.' : '');
+    var actions = document.createElement('div'); actions.className = 'modal-actions';
+    var cancel = document.createElement('button'); cancel.className = 'btn btn-ghost'; cancel.textContent = 'Keep record';
+    var remove = document.createElement('button'); remove.className = 'btn btn-primary'; remove.textContent = 'Delete record';
+    function done(ok) { overlay.remove(); resolve(ok); }
+    cancel.addEventListener('click', function() { done(false); });
+    remove.addEventListener('click', function() { done(true); });
+    overlay.addEventListener('click', function(event) { if (event.target === overlay) done(false); });
+    actions.append(cancel, remove); modal.append(title, detail, actions); overlay.appendChild(modal); document.body.appendChild(overlay);
+    cancel.focus();
+  });
 }
 
 /* ══════════════════════════════════════════════
@@ -755,7 +787,47 @@ function _initAddBookModal() {
    ADD STUDENT MODAL
 ══════════════════════════════════════════════ */
 function _initAddStudentModal() {
-  document.getElementById('add-student-btn').addEventListener('click', function() { document.getElementById('add-student-modal').classList.add('show'); });
+  var admission = document.getElementById('new-student-adm');
+  var saveButton = document.getElementById('save-student-btn');
+  var matchPanel = document.getElementById('student-match-panel');
+  var correctionPanel = document.getElementById('student-correction-panel');
+  var editing = null;
+  function resetMatch() {
+    editing = null; matchPanel.hidden = true; correctionPanel.hidden = true;
+    admission.readOnly = false; saveButton.textContent = 'Add Student';
+  }
+  function showMatch() {
+    if (editing) return;
+    var existing = LibraryDB.getStudentByAdmNo(admission.value.trim());
+    matchPanel.hidden = !existing;
+    document.getElementById('student-match-summary').textContent = existing ? existing.name + ' · ' + existing.adm_no + (existing.email ? ' · ' + existing.email : '') : '';
+    saveButton.disabled = !!existing;
+  }
+  admission.addEventListener('input', showMatch);
+  document.getElementById('student-match-yes').addEventListener('click', function() {
+    resetMatch(); document.getElementById('add-student-modal').classList.remove('show');
+    document.getElementById('student-search').value = admission.value.trim(); _renderStudents();
+  });
+  document.getElementById('student-match-no').addEventListener('click', function() { _openStudentCorrection(admission.value.trim()); });
+  window._openStudentCorrection = function(admNo) {
+    var student = LibraryDB.getStudentByAdmNo(admNo);
+    if (!student) return;
+    editing = student.adm_no; matchPanel.hidden = true; correctionPanel.hidden = false;
+    admission.value = student.adm_no; admission.readOnly = true;
+    ['name','email','class','section','roll'].forEach(function(field) {
+      document.getElementById('new-student-' + field).value = student[field === 'roll' ? 'roll_no' : field] || '';
+    });
+    document.getElementById('new-student-group').value = student.group || 'Regular';
+    saveButton.disabled = false; saveButton.textContent = 'Save corrections';
+    document.getElementById('add-student-modal').classList.add('show');
+    document.getElementById('new-student-name').focus();
+  };
+  document.getElementById('add-student-btn').addEventListener('click', function() {
+    resetMatch(); saveButton.disabled = false;
+    document.querySelectorAll('#add-student-modal input').forEach(function(input) { input.value = ''; });
+    document.getElementById('new-student-group').value = 'Regular';
+    document.getElementById('add-student-modal').classList.add('show');
+  });
   document.getElementById('close-add-student').addEventListener('click', function() { document.getElementById('add-student-modal').classList.remove('show'); });
   document.getElementById('add-student-modal').addEventListener('click', function(e) { if (e.target===this) this.classList.remove('show'); });
   document.getElementById('save-student-btn').addEventListener('click', function() {
@@ -767,10 +839,13 @@ function _initAddStudentModal() {
     var roll_no = document.getElementById('new-student-roll').value.trim();
     var group   = document.getElementById('new-student-group').value;
     if (!adm_no || !name) { showToast('ADM No and Name are required.', 'error'); return; }
-    var res = LibraryDB.addStudent({ adm_no:adm_no, name:name, email:email, 'class':cls, section:section, roll_no:roll_no, group:group });
+    if (!editing && LibraryDB.getStudentByAdmNo(adm_no)) { showMatch(); return; }
+    var details = { adm_no:adm_no, name:name, email:email, 'class':cls, section:section, roll_no:roll_no, group:group };
+    var res = editing ? LibraryDB.updateStudent(editing, details) : LibraryDB.addStudent(details);
     if (res.ok) {
-      showToast('Student added!', 'success');
+      showToast(editing ? 'Student details corrected.' : 'Student added!', 'success');
       document.getElementById('add-student-modal').classList.remove('show');
+      resetMatch(); saveButton.disabled = false;
       document.querySelectorAll('#add-student-modal input').forEach(function(i){ i.value=''; });
       document.getElementById('new-student-group').value = 'Regular';
       _renderStudents();

@@ -1063,10 +1063,141 @@
     color: var(--text-light);
   }
 
+  /* Catalogue workspace: a restrained reading surface for daily use. */
+  :root {
+    --paper: #f6f5ef;
+    --surface: #fffefa;
+    --ink: #1c3029;
+    --muted: #56675f;
+    --line: #d8e0d7;
+    --forest: #174d3c;
+    --forest-dark: #103a2d;
+    --gold: #efc96d;
+    --glass-bg: var(--surface);
+    --glass-bg-hover: #f3f7f0;
+    --glass-border: var(--line);
+    --glass-border-highlight: var(--forest);
+    --glass-shadow: none;
+    --glass-blur: none;
+    --text: var(--ink);
+    --text-muted: var(--muted);
+    --text-light: #75867c;
+    --blue: #eaf0dc;
+    --blue-dark: var(--forest);
+    --green: #e3f2e8;
+    --green-dark: #196847;
+    --coral: #fff0e8;
+    --coral-dark: #a14f36;
+    --radius: 12px;
+  }
+  body { min-height: 100dvh; background: var(--paper); background-image: none; animation: none; }
+  header { min-height: 72px; height: auto; padding: 10px max(24px, calc((100vw - 1200px)/2)); background: var(--forest-dark); border: 0; box-shadow: none; }
+  .header-brand .logo { width: 36px; height: 36px; filter: none; }
+  .header-brand h1 { font-size: 19px; text-shadow: none; }
+  .header-brand p { color: #c8dbcc; }
+  .header-badge, .auth-chip { background: #235643; border-color: #47755e; color: #f6f5ef; backdrop-filter: none; }
+  .live-dot { box-shadow: none; }
+  .hero { max-width: 1200px; margin: 0 auto; padding: 48px 24px 34px; text-align: left; display: grid; grid-template-columns: minmax(230px, 330px) minmax(0, 1fr); column-gap: 52px; align-items: end; }
+  .hero::before { content: 'THE LIBRARY / CATALOGUE'; grid-column: 1 / -1; margin-bottom: 13px; color: #68796d; font-size: 11px; font-weight: 700; letter-spacing: .15em; }
+  .hero-title { grid-column: 1; font-size: clamp(31px, 3vw, 41px); line-height: 1.12; color: var(--ink); text-shadow: none; margin: 0 0 8px; }
+  .hero-title span { color: inherit; font-style: normal; }
+  .hero-subtitle { grid-column: 1; color: var(--muted); margin: 0; font-size: 14px; line-height: 1.55; }
+  .search-box { grid-column: 2; grid-row: 2 / 4; max-width: none; margin: 0; }
+  .search-input-wrap { background: var(--surface); border: 1px solid #b7c9b8; border-radius: 10px; box-shadow: 0 8px 24px #1c30290d; backdrop-filter: none; padding: 7px 7px 7px 18px; }
+  .search-input-wrap:focus-within { background: white; border-color: var(--forest); box-shadow: 0 0 0 3px #86bda058; }
+  .search-input-wrap input { color: var(--ink); }
+  .search-input-wrap input::placeholder { color: #75867c; }
+  .search-btn, .req-submit-btn, .btn-primary { background: var(--forest); color: white; border: 1px solid var(--forest); border-radius: 7px; box-shadow: none; backdrop-filter: none; }
+  .search-btn:hover, .req-submit-btn:hover, .btn-primary:hover { background: var(--forest-dark); border-color: var(--forest-dark); transform: none; box-shadow: none; }
+  .search-hints { display: none; }
+  .main { max-width: 1200px; padding: 0 24px 64px; }
+  .stats-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 0 0 18px; border-block: 1px solid var(--line); }
+  .stat-pill { border: 0; border-right: 1px solid var(--line); border-radius: 0; background: transparent; backdrop-filter: none; box-shadow: none; padding: 18px 24px; }
+  .stat-pill:last-child { border-right: 0; }
+  .stat-pill:hover { background: transparent; transform: none; }
+  .stat-pill-icon { font-size: 25px; filter: none; }
+  .stat-pill-val { font-size: 26px; text-shadow: none; }
+  .stat-pill-label { font-size: 12px; }
+  .last-updated { text-align: left; margin: 0 0 13px; font-size: 12px; }
+  .portal-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 23px; }
+  .my-requests-btn { background: #e9eee7; border: 1px solid #cbd8cb; border-radius: 7px; padding: 10px 15px; color: var(--ink); box-shadow: none; backdrop-filter: none; font-size: 13px; }
+  .my-requests-btn:hover { background: #dde8dc; border-color: var(--forest); transform: none; }
+  #account-delete-button { margin-left: auto; background: transparent; color: #95533e; border-color: #d8c7bd; font-size: 12px; }
+  .section-title { color: var(--ink); text-shadow: none; }
+  .results-count { border-radius: 6px; backdrop-filter: none; }
+  .filter-chip { border-radius: 6px; backdrop-filter: none; }
+  .filter-chip:hover { color: var(--ink); }
+  .filter-chip.active { text-shadow: none; }
+  .book-grid { gap: 12px; }
+  .book-card, .book-list-item, .state-card, .no-results { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; backdrop-filter: none; box-shadow: none; }
+  .book-card:hover, .book-list-item:hover { background: white; transform: none; border-color: #a9c2ac; }
+  .book-card.available, .book-list-item.available { border-color: #a9cdb4; }
+  .book-card.unavailable, .book-list-item.unavailable { opacity: 1; }
+  .book-icon, .bli-icon { background: #e9f1e6; border-color: #d4e2d3; box-shadow: none; }
+  .book-id, .req-modal-book-id { background: #edf1e9; color: #43584d; border-color: #d7e1d5; }
+  .book-title, .bli-title, .state-title { color: var(--ink); }
+  .book-card-footer { border-top-color: var(--line); }
+  .availability-badge { backdrop-filter: none; border-radius: 6px; }
+  .availability-badge .badge-dot { box-shadow: none; }
+  .state-card, .no-results { padding: 44px 24px; }
+  .request-btn { background: #edf3eb; border-color: #aecbb5; color: var(--forest); border-radius: 7px; backdrop-filter: none; }
+  .request-btn:hover { background: #dcebdd; border-color: var(--forest); transform: none; }
+  .suspend-banner-strip { background: #fff0e8; backdrop-filter: none; text-shadow: none; }
+  mark { color: var(--ink); text-shadow: none; }
+  footer { background: #edf0e9; border-color: var(--line); color: var(--muted); backdrop-filter: none; }
+  footer strong { color: var(--ink); }
+  .req-modal-overlay, .modal-overlay { background: #10241d9e; backdrop-filter: none; }
+  .req-modal, .modal { background: var(--surface); border: 1px solid #b7c9b8; border-radius: 12px; box-shadow: 0 24px 70px #0b241b40; backdrop-filter: none; animation: none; }
+  .req-modal-title, .modal-title, .req-modal-book, .mri-title { color: var(--ink); text-shadow: none; }
+  .req-modal-close, .btn-ghost { color: var(--ink); background: #edf1e9; border: 1px solid var(--line); border-radius: 7px; }
+  .req-modal-close:hover, .btn-ghost:hover { color: var(--ink); background: #dfeadf; transform: none; }
+  .req-form-group input, .req-form-group select, .req-form-group textarea { color: var(--ink); background: white; border: 1px solid #b8cbb9; border-radius: 7px; }
+  .req-form-group select option { background: white; color: var(--ink); }
+  .req-form-group input:focus, .req-form-group select:focus, .req-form-group textarea:focus { background: white; border-color: var(--forest); box-shadow: 0 0 0 3px #86bda058; }
+  .req-modal-error { background: #fff0e8; color: #8b3c29; border-color: #e1b3a4; backdrop-filter: none; }
+  .req-priority-hint { background: #edf1df; color: #485b2f; border-color: #d5dfa9; backdrop-filter: none; }
+  .verified-chip, .verified-chip.staff { background: #e3f2e8; color: var(--forest); border-color: #a9cdb4; backdrop-filter: none; }
+  .unverified-notice { background: #fff5de; color: #594b29; border-color: #e9d69c; backdrop-filter: none; }
+  .signin-gate .sg-title { color: var(--ink); }
+  .google-signin-btn { color: var(--ink); background: white; border-color: #b8cbb9; box-shadow: none; backdrop-filter: none; }
+  .google-signin-btn:hover { background: #f2f7f0; box-shadow: none; transform: none; }
+  .my-request-item { background: white; border-radius: 8px; }
+  .my-request-item:hover { background: #f4f8f2; }
+  .mri-status { color: var(--ink); background: #edf1e9; }
+  .full-page-gate { min-height: calc(100dvh - 72px); background: #e9eee7; }
+  .fpg-card { background: var(--surface); border: 1px solid #c6d5c7; border-radius: 12px; box-shadow: 0 16px 40px #1c302914; padding: 42px 36px; backdrop-filter: none; }
+  .fpg-title { color: var(--ink); text-shadow: none; }
+  img.fpg-icon { background: #f1f4ea; border-color: var(--line); }
+  .fpg-icon { filter: none; }
+  .account-delete-link { display: block; margin: 18px auto 0; padding: 8px 12px; background: transparent; border: 0; color: #9b4d39; font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
+  .account-delete-link:hover { color: #6b301f; }
+  :is(button, input, textarea, select):focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+  @media (max-width: 760px) {
+    header { padding: 12px 16px; gap: 8px; }
+    .header-badge { display: none; }
+    .header-brand { min-width: 0; }
+    .auth-chip { max-width: 122px; }
+    .hero { display: block; padding: 28px 16px 22px; }
+    .hero::before { display: block; }
+    .hero-title { font-size: 31px; }
+    .hero-subtitle { margin-bottom: 18px; }
+    .main { padding: 0 16px 48px; }
+    .stats-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .stats-bar .stat-pill:last-child { grid-column: auto; }
+    .stat-pill { padding: 12px 7px; display: block; text-align: center; }
+    .stat-pill-icon { font-size: 19px; }
+    .stat-pill-label { font-size: 11px; }
+    .search-input-wrap { flex-wrap: wrap; }
+    .search-btn { width: 100%; }
+    .portal-actions { gap: 6px; }
+    #account-delete-button { margin-left: 0; }
+    .fpg-card { padding: 32px 22px; }
+    .req-form-row { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
   </style>
 </head>
 <body>
-<!-- The HTML body content and scripts remain exactly the same as they do not require restructuring for CSS visual changes -->
 
 <!-- HEADER -->
 <header>
@@ -1129,6 +1260,7 @@
         <input id="fpg-profile-admno" type="text" maxlength="40" placeholder="e.g. ADM001">
       </div>
       <button class="req-submit-btn" id="fpg-profile-submit" onclick="submitLoginProfile()">Continue</button>
+      <button class="account-delete-link" type="button" onclick="deleteMyTomevaAccount()">Delete my Tomeva account</button>
     </div>
 
     <div id="fpg-state-unverified" style="display:none">
@@ -1139,6 +1271,7 @@
         Ask your librarian or the school admin office to add your email address in <strong>Student Access</strong> and assign your group. You'll be able to see book availability as soon as you're added.
       </div>
       <button class="google-signin-btn" style="margin-top:24px" onclick="doSignOut()">Sign out</button>
+      <button class="account-delete-link" type="button" onclick="deleteMyTomevaAccount()">Delete my Tomeva account</button>
     </div>
 
   </div>
@@ -1150,8 +1283,8 @@
 <div id="suspend-banner" class="suspend-banner-strip"></div>
 
 <div class="hero">
-  <div class="hero-title">Find a <span>Book</span></div>
-  <div class="hero-subtitle">Search by title, author, or book ID — see availability instantly</div>
+  <div class="hero-title">Library catalogue</div>
+  <div class="hero-subtitle">Search by title, author, or book ID. Check availability and request a copy.</div>
 
   <div class="search-box">
     <div class="search-input-wrap">
@@ -1159,7 +1292,7 @@
       <input
         id="search-input"
         type="text"
-        placeholder="e.g. Harry Potter, Tolkien, HP001…"
+        placeholder="Title, author, or book ID"
         autocomplete="off"
         autocorrect="off"
         spellcheck="false"
@@ -1204,10 +1337,11 @@
 
   <div class="last-updated" id="last-updated">Fetching library data…</div>
 
-  <div style="text-align:center; margin-bottom:32px">
-    <button class="my-requests-btn" onclick="openMyRequestsModal()">📋 My Requests</button>
-    <button class="my-requests-btn" onclick="openMyMessagesModal()">💬 My Messages</button>
-    <button class="my-requests-btn" id="push-button" type="button" style="display:none">🔔 Enable alerts while open</button>
+  <div class="portal-actions">
+    <button class="my-requests-btn" onclick="openMyRequestsModal()">My requests</button>
+    <button class="my-requests-btn" onclick="openMyMessagesModal()">Messages</button>
+    <button class="my-requests-btn" id="push-button" type="button" style="display:none">Enable alerts</button>
+    <button class="my-requests-btn" id="account-delete-button" type="button" style="display:none" onclick="deleteMyTomevaAccount()">Delete account</button>
     <div id="push-status" role="status" style="font-size:12px;margin-top:8px"></div>
   </div>
 
@@ -1334,10 +1468,10 @@
 <script src="tomeva-config.js" defer></script>
 <script type="module">
 import { initializeApp }  from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, updateDoc, serverTimestamp, getDoc, query, where, getDocs, limit }
+import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDoc, query, where, getDocs, limit }
   from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, deleteUser
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 
 function _esc(str) {
@@ -1499,6 +1633,26 @@ window.doSignOut = async function() {
   closeRequestModal();
 };
 
+window.deleteMyTomevaAccount = function() {
+  if (!_currentUser || _userRole === 'staff') return;
+  showConfirm('Delete your Tomeva account and library access? Your past book requests remain in the library records. Your Google account is unaffected.', async ok => {
+    if (!ok || !_currentUser?.email) return;
+    const user = _currentUser;
+    const email = user.email.toLowerCase();
+    try {
+      const batch = writeBatch(db);
+      batch.delete(doc(db, 'libraries', LIBRARY_ID, 'student_logins', email));
+      batch.delete(doc(db, 'libraries', LIBRARY_ID, 'authorized_students', email));
+      await batch.commit();
+      await deleteUser(user);
+      sessionStorage.removeItem('libra_request_form');
+      showAlert('Your Tomeva account and library access have been deleted.');
+    } catch (error) {
+      showAlert(error.code === 'auth/requires-recent-login' ? 'Your library access was removed. Sign out and sign in again, then choose Delete my Tomeva account to finish deleting your sign-in account.' : 'Could not delete the account: ' + error.message);
+    }
+  });
+};
+
 window.handleAuthChipClick = function() {
   if (_currentUser) {
     showConfirm("Sign out of " + _esc(_currentUser.email) + "?", (ok) => { if (ok) doSignOut(); });
@@ -1529,6 +1683,15 @@ window.submitLoginProfile = async function() {
   const name  = _currentUser.displayName || _currentUser.email;
 
   try {
+    const [logins, authorized] = await Promise.all([
+      getDocs(collection(db, 'libraries', LIBRARY_ID, 'student_logins')),
+      getDocs(collection(db, 'libraries', LIBRARY_ID, 'authorized_students')),
+    ]);
+    const duplicate = [...logins.docs, ...authorized.docs].find(item => item.id !== email && String(item.data().adm_no || '').trim().toLowerCase() === admNo.toLowerCase());
+    if (duplicate) {
+      errEl.textContent = 'This admission number is already linked to another account. Ask your librarian to check the existing record.';
+      errEl.style.display = 'block'; btn.textContent = 'Continue'; btn.disabled = false; return;
+    }
     await setDoc(doc(db, "libraries", LIBRARY_ID, "student_logins", email), {
       email, name, class: cls, section, adm_no: admNo,
       first_login_at: serverTimestamp(),
@@ -1579,6 +1742,7 @@ onAuthStateChanged(auth, async (user) => {
     stopStudentAlerts();
     _userRole = null; _userGroup = null;
     document.getElementById('push-button').style.display = 'none';
+    document.getElementById('account-delete-button').style.display = 'none';
     updateAuthChip(); updateRequestModalGate(); showGateState("signedout"); return;
   }
 
@@ -1586,6 +1750,7 @@ onAuthStateChanged(auth, async (user) => {
   const resolved = await resolveUserRole(user);
   _userRole  = resolved.role; _userGroup = resolved.group;
   document.getElementById('push-button').style.display = _userRole === 'student' ? 'inline-block' : 'none';
+  document.getElementById('account-delete-button').style.display = _userRole === 'student' ? 'inline-block' : 'none';
   if (_userRole === 'student') startStudentAlerts(user);
   else stopStudentAlerts();
   updateAuthChip(); updateRequestModalGate();
