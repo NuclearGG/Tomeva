@@ -1,7 +1,7 @@
 {
   "name": "tomeva",
   "productName": "Tomeva",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Offline-first library management system for school libraries",
   "main": "main.js",
   "scripts": {

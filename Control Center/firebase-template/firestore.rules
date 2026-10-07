@@ -283,6 +283,35 @@ service cloud.firestore {
       }
 
       // ── STUDENT BOOK REQUESTS ────────────────────────────────────
+      // One atomic quota document per Firebase account. A request and its quota
+      // increment must be committed together; client-side counters alone are bypassable.
+      match /request_quotas/{uid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create: if request.auth != null && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['windowStartedAt', 'updatedAt', 'count', 'lastRequestId'])
+          && request.resource.data.windowStartedAt == request.time
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.count == 1
+          && request.resource.data.lastRequestId is string
+          && getAfter(/databases/$(database)/documents/libraries/$(libraryId)/book_requests/$(request.resource.data.lastRequestId)).data.requester_uid == uid
+          && getAfter(/databases/$(database)/documents/libraries/$(libraryId)/book_requests/$(request.resource.data.lastRequestId)).data.timestamp == request.time;
+        allow update: if request.auth != null && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['windowStartedAt', 'updatedAt', 'count', 'lastRequestId'])
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.lastRequestId is string
+          && request.resource.data.lastRequestId != resource.data.lastRequestId
+          && getAfter(/databases/$(database)/documents/libraries/$(libraryId)/book_requests/$(request.resource.data.lastRequestId)).data.requester_uid == uid
+          && getAfter(/databases/$(database)/documents/libraries/$(libraryId)/book_requests/$(request.resource.data.lastRequestId)).data.timestamp == request.time
+          && ((request.time < resource.data.windowStartedAt + duration.value(10, 'h')
+                && request.resource.data.windowStartedAt == resource.data.windowStartedAt
+                && resource.data.count < 100
+                && request.resource.data.count == resource.data.count + 1)
+              || (request.time >= resource.data.windowStartedAt + duration.value(10, 'h')
+                && request.resource.data.windowStartedAt == request.time
+                && request.resource.data.count == 1));
+        allow delete: if false;
+      }
+
       match /book_requests/{requestId} {
 
         allow read: if isStaffOrKiosk(libraryId) || (request.auth != null
@@ -295,9 +324,14 @@ service cloud.firestore {
             'adm_no', 'student_name', 'class', 'section', 'group',
             'book_access_no', 'book_title', 'priority',
             'note', 'status', 'timestamp', 'timestamp_iso',
-            'requester_email'
+            'requester_email', 'requester_uid'
           ])
           && request.resource.data.requester_email == request.auth.token.email
+          && request.resource.data.requester_uid == request.auth.uid
+          && request.resource.data.timestamp == request.time
+          && getAfter(/databases/$(database)/documents/libraries/$(libraryId)/request_quotas/$(request.auth.uid)).data.lastRequestId == requestId
+          && getAfter(/databases/$(database)/documents/libraries/$(libraryId)/request_quotas/$(request.auth.uid)).data.updatedAt == request.time
+          && getAfter(/databases/$(database)/documents/libraries/$(libraryId)/request_quotas/$(request.auth.uid)).data.count <= 100
           && request.resource.data.adm_no.size()        > 0  && request.resource.data.adm_no.size()        <= 40
           && request.resource.data.student_name.size()  > 0  && request.resource.data.student_name.size()  <= 100
           && request.resource.data.class.size()         <= 20

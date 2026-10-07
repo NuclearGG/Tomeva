@@ -1227,7 +1227,8 @@
     <div id="fpg-state-checking">
       <img class="fpg-icon" src="assets/logo.png" alt="Tomeva" width="64" height="64" style="margin: 0 auto 24px;">
       <div class="fpg-title">Tomeva</div>
-      <div class="fpg-loading">Checking sign-in status…</div>
+      <div class="fpg-loading" id="fpg-loading-message">Checking sign-in status…</div>
+      <button class="google-signin-btn" id="fpg-retry-button" type="button" style="display:none;margin:20px auto 0" onclick="location.reload()">Retry connection</button>
     </div>
 
     <div id="fpg-state-signedout" style="display:none">
@@ -1468,10 +1469,10 @@
 <script src="tomeva-config.js" defer></script>
 <script type="module">
 import { initializeApp }  from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDoc, query, where, getDocs, limit }
+import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, runTransaction, serverTimestamp, getDoc, query, where, getDocs, limit }
   from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, deleteUser
+  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, deleteUser, setPersistence, browserSessionPersistence
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 
 function _esc(str) {
@@ -1544,6 +1545,7 @@ const app  = initializeApp(firebaseConfig);
 const db   = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
+const sessionPersistenceReady = setPersistence(auth, browserSessionPersistence).catch(error => console.warn('Session persistence unavailable:', error));
 const LIBRARY_ID = webConfig.libraryId;
 const STAFF_DOMAIN = webConfig.staffDomain.trim().toLowerCase();
 document.querySelectorAll('[data-institution-name]').forEach(element => {
@@ -1621,13 +1623,28 @@ let _pendingRequestBook = null;
 let _currentUser = null;       
 let _userRole    = null;       
 let _userGroup   = null;       
+const SESSION_WINDOW_MS = 10 * 60 * 60 * 1000;
+const SESSION_KEY = 'tomeva_session_started';
+
+function sessionExpired(user) {
+  const stored = sessionStorage.getItem(SESSION_KEY);
+  if (!stored) {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ uid: user.uid, started: Date.now() }));
+    return false;
+  }
+  try {
+    const session = JSON.parse(stored);
+    return session.uid !== user.uid || !Number.isFinite(session.started) || Date.now() - session.started >= SESSION_WINDOW_MS || session.started > Date.now();
+  } catch { return true; }
+}
 
 window.doGoogleSignIn = async function() {
-  try { await signInWithPopup(auth, googleProvider); } catch (err) { showAlert("Sign-in failed: " + err.message); }
+  try { await sessionPersistenceReady; await signInWithPopup(auth, googleProvider); } catch (err) { showAlert("Sign-in failed: " + err.message); }
 };
 
 window.doSignOut = async function() {
   sessionStorage.removeItem("libra_request_form");
+  sessionStorage.removeItem(SESSION_KEY);
   stopStudentAlerts();
   await signOut(auth);
   closeRequestModal();
@@ -1720,6 +1737,13 @@ async function resolveUserRole(user) {
 }
 
 onAuthStateChanged(auth, async (user) => {
+  window._tomevaAuthReady = true;
+  if (user && sessionExpired(user)) {
+    await signOut(auth);
+    sessionStorage.removeItem(SESSION_KEY);
+    showAlert('Your 10-hour session ended. Sign in again to continue.');
+    return;
+  }
   _currentUser = user;
   const stateChecking   = document.getElementById("fpg-state-checking");
   const stateSignedOut  = document.getElementById("fpg-state-signedout");
@@ -1739,6 +1763,7 @@ onAuthStateChanged(auth, async (user) => {
   window._showGateState = showGateState;
 
   if (!user) {
+    sessionStorage.removeItem(SESSION_KEY);
     stopStudentAlerts();
     _userRole = null; _userGroup = null;
     document.getElementById('push-button').style.display = 'none';
@@ -1781,6 +1806,13 @@ onAuthStateChanged(auth, async (user) => {
   if (view === 'requests') openMyRequestsModal();
   if (view === 'messages') openMyMessagesModal();
 });
+
+setInterval(() => {
+  if (!_currentUser || !sessionExpired(_currentUser)) return;
+  sessionStorage.removeItem(SESSION_KEY);
+  signOut(auth).then(() => showAlert('Your 10-hour session ended. Sign in again to continue.'))
+    .catch(error => console.warn('Session sign-out failed:', error));
+}, 60000);
 
 function updateAuthChip() {
   const chip  = document.getElementById("auth-chip");
@@ -2031,8 +2063,21 @@ window.submitBookRequest = async function() {
   submitBtn.disabled = true; errEl.style.display = "none";
 
   try {
-    await addDoc(collection(db, "libraries", LIBRARY_ID, "book_requests"), {
-      adm_no, student_name: name, class: cls, section, group, priority: isPriority, book_access_no: _pendingRequestBook.id, book_title: _pendingRequestBook.title, note, status: "Pending", timestamp: serverTimestamp(), timestamp_iso: new Date().toISOString(), requester_email: _currentUser.email,
+    const requestRef = doc(collection(db, "libraries", LIBRARY_ID, "book_requests"));
+    const quotaRef = doc(db, "libraries", LIBRARY_ID, "request_quotas", _currentUser.uid);
+    await runTransaction(db, async transaction => {
+      const quota = await transaction.get(quotaRef);
+      const started = quota.exists() ? quota.data().windowStartedAt?.toMillis() : 0;
+      const active = started > 0 && Date.now() - started < SESSION_WINDOW_MS;
+      const count = active ? quota.data().count : 0;
+      if (count >= 100) throw new Error('You have reached 100 book requests in 10 hours. Try again after the window ends.');
+      transaction.set(quotaRef, {
+        windowStartedAt: active ? quota.data().windowStartedAt : serverTimestamp(),
+        updatedAt: serverTimestamp(), count: count + 1, lastRequestId: requestRef.id,
+      });
+      transaction.set(requestRef, {
+        adm_no, student_name: name, class: cls, section, group, priority: isPriority, book_access_no: _pendingRequestBook.id, book_title: _pendingRequestBook.title, note, status: "Pending", timestamp: serverTimestamp(), timestamp_iso: new Date().toISOString(), requester_email: _currentUser.email, requester_uid: _currentUser.uid,
+      });
     });
     sessionStorage.setItem("libra_request_form", JSON.stringify({ adm_no, name, class: cls, section }));
     submitBtn.textContent = "📩 Submit Request"; submitBtn.disabled = false; closeRequestModal(); showRequestSuccessToast(isPriority);
@@ -2149,6 +2194,17 @@ function setLive(online) {
 function showError(msg) { document.getElementById("results-container").innerHTML = `<div class="state-card"><span class="state-icon">📡</span><div class="state-title">Connection Issue</div><div class="state-sub">${escHtml(msg)}</div></div>`; setLive(false); }
 window.addEventListener("offline", () => setLive(false)); window.addEventListener("online", () => setLive(true));
 }
+</script>
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    if (window._tomevaAuthReady) return;
+    const message = document.getElementById('fpg-loading-message');
+    const retry = document.getElementById('fpg-retry-button');
+    if (message) message.textContent = 'Could not reach the sign-in service. Check your connection and try again.';
+    if (retry) retry.style.display = 'block';
+  }, 20000);
+});
 </script>
 
 </body>

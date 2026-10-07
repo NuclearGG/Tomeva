@@ -35,6 +35,7 @@ if (packagedRoot) {
   Object.defineProperty(process, 'resourcesPath', { value: path.join(packagedRoot, 'resources') });
 }
 const deadline = setTimeout(() => { console.error('Control Center smoke timed out'); app.exit(1); }, 60000);
+const bounded = (promise, ms) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('Optional screenshot timed out')), ms))]);
 app.whenReady().then(() => {
   session.defaultSession.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (_, callback) => callback({ cancel: true }));
 });
@@ -110,7 +111,7 @@ app.on('browser-window-created', (_, window) => {
       const overviewVisible = await window.webContents.executeJavaScript(`document.getElementById('page-overview').classList.contains('active')`);
       assert.equal(overviewVisible, true);
       try {
-        const image = await window.webContents.capturePage();
+        const image = await bounded(window.webContents.capturePage(), 5000);
         const artifacts = path.join(__dirname, '..', 'test-artifacts');
         fs.mkdirSync(artifacts, { recursive: true });
         fs.writeFileSync(path.join(artifacts, 'overview.png'), image.toPNG());
@@ -118,8 +119,8 @@ app.on('browser-window-created', (_, window) => {
           await window.webContents.executeJavaScript(`document.querySelector('[data-page="${page}"]').click()`);
           assert.equal(await window.webContents.executeJavaScript(`document.getElementById('page-${page}').classList.contains('active')`), true);
           assert.doesNotMatch(await window.webContents.executeJavaScript(`document.body.innerText`), /me[\s_-]*academy/i);
-          await window.webContents.executeJavaScript(`new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);
-          fs.writeFileSync(path.join(artifacts, page + '.png'), (await window.webContents.capturePage()).toPNG());
+          await bounded(window.webContents.executeJavaScript(`new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`), 5000);
+          fs.writeFileSync(path.join(artifacts, page + '.png'), (await bounded(window.webContents.capturePage(), 5000)).toPNG());
         }
       } catch (error) { console.warn('Screenshot unavailable in this desktop session:', error.message); }
       console.log('PASS: separate app, sandbox, input setup, rules clipboard, institution bundle, web export, navigation.');

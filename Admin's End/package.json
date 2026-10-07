@@ -1,6 +1,6 @@
 {
   "name": "tomeva-admin",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Tomeva Admin - Library Dashboard (Electron desktop app)",
   "main": "main.js",
   "author": "",

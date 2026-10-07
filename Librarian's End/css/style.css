@@ -91,6 +91,7 @@ body.workstation-is-locked > :not(#workstation-lock-screen):not(script) {
   padding: 28px 0 24px;
   position: relative;
   z-index: 10;
+  min-height: 0;
 }
 
 .sidebar-logo {
@@ -116,11 +117,17 @@ body.workstation-is-locked > :not(#workstation-lock-screen):not(script) {
 
 .sidebar-nav {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 20px 14px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
+.sidebar-nav::-webkit-scrollbar { width: 6px; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.28); border-radius: 6px; }
+.sidebar-sync-panel { flex-shrink: 0; }
 
 .nav-item {
   display: flex;

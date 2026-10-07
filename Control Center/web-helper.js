@@ -18,7 +18,10 @@ async function exportWebPackage(window, rawConfig, options = {}) {
 }
 
 async function checkWebDeployment(rawUrl) {
-  const url = new URL(String(rawUrl || ''));
+  if (!rawUrl || !String(rawUrl).trim()) throw new Error('Enter the Student web URL in Firebase setup before checking the deployed version.');
+  let url;
+  try { url = new URL(String(rawUrl)); }
+  catch { throw new Error('Enter a valid HTTPS Student web URL in Firebase setup.'); }
   if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Enter an HTTPS Tomeva Web URL.');
   const manifest = new URL('tomeva-version.json', url.href.endsWith('/') ? url : new URL('.', url));
   const response = await compatibleFetch(manifest, { signal: AbortSignal.timeout(10000), redirect: 'error' });

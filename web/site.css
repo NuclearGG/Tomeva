@@ -37,6 +37,7 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 7rem; }
+html.lenis { scroll-behavior: auto; }
 body {
   margin: 0;
   background:
@@ -433,8 +434,18 @@ main, .site-footer { width: min(92rem, calc(100% - 2rem)); margin-inline: auto; 
 .footer-links a:hover { color: var(--ink); }
 .footer-meta { grid-column: 1/-1; display: flex; justify-content: space-between; gap: 1rem; padding-top: 1rem; border-top: 1px solid var(--line-strong); color: var(--ink-soft); font: 500 .62rem/1.4 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
 
-.reveal { opacity: 0; transform: translateY(2.2rem); transition: opacity .85s var(--ease), transform .85s var(--spring); }
+.motion-ready .reveal { opacity: 0; transform: translateY(2.2rem); transition: opacity .85s var(--ease), transform .85s var(--spring); }
 .reveal.is-visible { opacity: 1; transform: translateY(0); }
+.motion-ready .setup-ledger li:nth-child(2), .motion-ready .ownership-notes article:nth-child(2), .motion-ready .question-list > div:nth-child(2) { transition-delay: .08s; }
+.motion-ready .setup-ledger li:nth-child(3), .motion-ready .ownership-notes article:nth-child(3), .motion-ready .question-list > div:nth-child(3) { transition-delay: .16s; }
+.motion-ready .setup-ledger li:nth-child(4), .motion-ready .question-list > div:nth-child(4) { transition-delay: .24s; }
+.motion-ready .setup-ledger li:nth-child(5), .motion-ready .question-list > div:nth-child(5) { transition-delay: .32s; }
+.motion-ready .setup-ledger li:nth-child(6) { transition-delay: .4s; }
+.motion-ready .bookcase.is-visible .book-choice { animation: book-arrive .65s var(--spring) both; }
+.motion-ready .bookcase.is-visible .book-choice:nth-child(2) { animation-delay: .08s; }
+.motion-ready .bookcase.is-visible .book-choice:nth-child(3) { animation-delay: .16s; }
+.motion-ready .bookcase.is-visible .book-choice:nth-child(4) { animation-delay: .24s; }
+@keyframes book-arrive { from { opacity: 0; transform: translateY(1.3rem); } to { opacity: 1; transform: translateY(0); } }
 
 .not-found-page { min-height: 100dvh; }
 .not-found { position: relative; display: grid; align-content: center; min-height: 100dvh; width: min(78rem, calc(100% - 2rem)); margin: 0 auto; padding: 8rem clamp(.75rem, 5vw, 5rem); }
@@ -536,7 +547,8 @@ main, .site-footer { width: min(92rem, calc(100% - 2rem)); margin-inline: auto; 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
-  .reveal { opacity: 1; transform: none; }
+  .reveal, .motion-ready .reveal { opacity: 1; transform: none; }
+  .motion-ready .bookcase.is-visible .book-choice { animation: none; }
   .hero-book { translate: 0; }
 }
 

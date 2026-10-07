@@ -6,6 +6,8 @@ Tomeva combines an offline desktop circulation app, an online administration das
 
 [Download Control Center](https://github.com/NuclearGG/Tomeva/releases/latest) · [User guide](#for-users) · [Developer guide](#for-developers) · [Installation packages](packages/)
 
+[Visual architecture](documentation/architecture.html) shows the current four-app data flow.
+
 ## Applications
 
 | Application | Who uses it | Purpose |
@@ -47,6 +49,8 @@ In Admin → Student Access, staff can pre-register admission numbers from CSV o
 Librarian treats admission numbers as unique even when letter case differs. If it finds that number while adding a student, it shows the existing person; staff can use that record or correct its name and other details without creating a duplicate. Admin checks admission numbers before approval or import and reserves them when authorizing a student. Staff can delete local student records after all books are returned; remove cloud access in Admin first so sync does not recreate the local record. Admin can delete pre-registration entries, pending profiles, and authorized access. Students can delete their own Tomeva sign-in account from the portal; this does not delete their Google account or historical library requests. Publish the updated Firestore rules before using portal account deletion.
 
 If Admin or Librarian was downloaded separately, open it and enter the institution's deployed Student Portal URL. The app reads `tomeva-institution.json` from that HTTPS site without a Tomeva login. This public file contains browser Firebase settings and the institution name/domain; it contains no password, token, service-account key, or library records.
+
+The Student Portal browser session expires after 10 hours. Each account can submit up to 100 book requests in a 10-hour window; Firestore rules enforce the quota through an atomic request and counter write. Deploy the updated rules and portal together: the old portal cannot submit requests once these rules are active, and the new portal cannot submit until they are active.
 
 Cloud Functions are not required. Firebase service quotas apply. The Firebase CLI is needed only if you choose CLI deployment; generated rules can be published through Firebase Console.
 

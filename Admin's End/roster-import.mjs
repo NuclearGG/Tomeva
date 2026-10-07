@@ -52,7 +52,10 @@ export function parseRosterText(text, format = 'csv') {
     const table = csvRows(text);
     if (table.length < 2) throw new Error('CSV must contain a header and at least one student row.');
     const headers = table.shift();
-    inputRows = table.map(values => Object.fromEntries(headers.map((header, column) => [header, values[column] || ''])));
+    inputRows = table.map((values, index) => {
+      if (values.length !== headers.length) throw new Error(`CSV row ${index + 2} has ${values.length} columns; expected ${headers.length}.`);
+      return Object.fromEntries(headers.map((header, column) => [header, values[column]]));
+    });
   }
   if (!inputRows.length) throw new Error('The roster contains no student rows.');
   if (inputRows.length > MAX_ROSTER_ROWS) throw new Error(`Import at most ${MAX_ROSTER_ROWS} students at a time.`);

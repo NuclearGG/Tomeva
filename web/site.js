@@ -71,6 +71,15 @@
   const themeToggle = document.querySelector(".theme-toggle");
   const bookChoices = Array.from(document.querySelectorAll(".book-choice"));
   const detail = document.querySelector(".app-detail");
+  let lenis = null;
+
+  function updateSmoothScroll() {
+    if (lenis) { lenis.destroy(); lenis = null; }
+    if (reduceMotion.matches || navigator.connection?.saveData || typeof window.Lenis !== "function") return;
+    lenis = new window.Lenis({ autoRaf: true, anchors: { offset: -96 }, duration: 1.05, smoothWheel: true });
+  }
+  updateSmoothScroll();
+  reduceMotion.addEventListener?.("change", updateSmoothScroll);
 
   function closeMenu() {
     if (!menuToggle || !navLinks) return;
@@ -142,7 +151,8 @@
 
     if (focusDetail && window.innerWidth < 781) {
       detail.focus({ preventScroll: true });
-      detail.scrollIntoView({ behavior: reduceMotion.matches ? "auto" : "smooth", block: "center" });
+      if (lenis) lenis.scrollTo(detail, { offset: -96 });
+      else detail.scrollIntoView({ behavior: reduceMotion.matches ? "auto" : "smooth", block: "center" });
     }
   }
 
@@ -189,6 +199,7 @@
         observer.unobserve(entry.target);
       });
     }, { rootMargin: "0px 0px -8%", threshold: .12 });
+    root.classList.add("motion-ready");
     revealItems.forEach(function (item) { observer.observe(item); });
   }
 

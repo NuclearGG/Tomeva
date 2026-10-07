@@ -163,6 +163,36 @@ test('failed imports and restores leave all original rows intact', t => {
   assert.deepEqual(api.getBooks(), books);
   assert.equal(api.getTransactions().length, 1);
 });
+
+test('settings preserve a zero fine and reject invalid loan periods', t => {
+  const { store } = fixture(t);
+  store.initializeLegacy(null);
+  const api = createLibraryService(store);
+  assert.equal(api.saveSettings({ fine_per_day: 0, loan_days: 14 }).ok, true);
+  assert.equal(api.getSettings().fine_per_day, 0);
+  assert.equal(api.saveSettings({ loan_days: -1 }).ok, false);
+  assert.equal(api.saveSettings({ loan_days: 1.5 }).ok, false);
+  assert.equal(api.getSettings().loan_days, 14);
+});
+
+test('catalogue imports preserve active loans and due-date returns stay free until tomorrow', t => {
+  const { store } = fixture(t);
+  store.initializeLegacy(null);
+  const api = createLibraryService(store);
+  assert.equal(api.addBook({ access_no: 'B1', document: 'One' }).ok, true);
+  assert.equal(api.addStudent({ adm_no: 'S1', name: 'Student' }).ok, true);
+  assert.equal(api.issueBook('S1', 'B1').ok, true);
+  const missing = api.importBooks(JSON.stringify([{ access_no: 'B2', document: 'Two' }]));
+  assert.equal(missing.ok, false);
+  assert.equal(api.getBook('B1').status, 'Issued');
+  assert.equal(api.importBooks(JSON.stringify([{ access_no: 'B1', document: 'One', status: 'Available' }])).ok, true);
+  assert.equal(api.getBook('B1').status, 'Issued');
+  const txn = store.collections.transactions.findOne({ status: 'Active' });
+  txn.due_date = new Date().toISOString().slice(0, 10);
+  store.collections.transactions.update(txn);
+  assert.equal(api.calcLateDays(txn.due_date), 0);
+  assert.equal(api.returnBook('B1').fine, 0);
+});
 test('failure after transaction insert rolls back issue and emits no audit log', t => {
   const { store } = fixture(t);
   store.initializeLegacy(legacy());

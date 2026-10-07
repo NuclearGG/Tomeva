@@ -9,8 +9,9 @@ const headings = {
   updates: ['Software updates', 'Review public Tomeva releases.'],
 };
 let config = null;
+const cleanError = value => String(value?.message || value).replace(/^Error invoking remote method '[^']+':\s*(?:[A-Za-z]+Error:\s*)?/, '');
 function notice(message, kind = '') {
-  const el = byId('notice'); el.textContent = message; el.className = 'notice ' + kind;
+  const el = byId('notice'); el.textContent = cleanError(message); el.className = 'notice ' + kind;
   clearTimeout(notice.timer); notice.timer = setTimeout(() => el.classList.add('hidden'), 10000);
 }
 function navigate(page) {
@@ -78,9 +79,12 @@ byId('export-web').addEventListener('click', async () => {
 });
 byId('check-web').addEventListener('click', async () => {
   try {
-    const result = await bridge.checkWeb(formValue().webUrl);
+    const value = formValue();
+    const projectId = value.firebase.projectId;
+    if (!value.webUrl && !/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(projectId)) throw new Error('Enter a valid Firebase project ID or Student web URL in Firebase setup.');
+    const result = await bridge.checkWeb(value.webUrl || `https://${projectId}.web.app/`);
     byId('web-check-result').textContent = result.updateAvailable ? `Deployed ${result.deployedVersion}; package ${result.availableVersion} is available here.` : `Deployed version ${result.deployedVersion} is current.`;
-  } catch (error) { byId('web-check-result').textContent = error.message; }
+  } catch (error) { byId('web-check-result').textContent = cleanError(error); }
 });
 async function showDesktopReleases() {
   const releases = await bridge.updates.desktopReleases();

@@ -16,6 +16,10 @@ test('JSON roster accepts common aliases and rejects unsafe rows', () => {
   assert.throws(() => parseRosterText('adm_no,email\nA1,not-an-email\n'), /email address is invalid/i);
 });
 
+test('CSV roster rejects unexpected columns instead of losing data', () => {
+  assert.throws(() => parseRosterText('adm_no,name\nA1,One,Unexpected\n'), /row 2 has 3 columns/i);
+});
+
 test('Access files return an export instruction', async () => {
   await assert.rejects(parseRosterFile({ name: 'students.accdb', size: 10, text: async () => '' }), /export.*CSV/i);
 });

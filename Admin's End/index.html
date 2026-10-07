@@ -1569,6 +1569,10 @@ function renderCurrentPage(){
   if(id==="control")    renderControlPage();
   if(id==="access")     renderAccessPage();
   if(id==="kiosk")      renderKioskPage();
+  if(id==="issued" || id==="available") {
+    const input=document.getElementById(id==="issued"?"issued-search":"avail-search");
+    if(input) window.adminApp?.filterTable(id==="issued"?"issued-tbody":"available-tbody",input.value);
+  }
 }
 
 /* ── APP CONTROLLER ── */
@@ -1605,8 +1609,17 @@ window.adminApp={
   },
   filterTable(tbodyId,q){
     const tbody=document.getElementById(tbodyId);if(!tbody)return;
-    q=q.toLowerCase();
-    tbody.querySelectorAll("tr").forEach(row=>{row.style.display=row.textContent.toLowerCase().includes(q)?"":"none";});
+    tbody.querySelector('.filter-empty')?.remove();
+    q=q.trim().toLowerCase();
+    const rows=[...tbody.querySelectorAll("tr")];
+    let visible=0;
+    rows.forEach(row=>{const show=!!row.querySelector('.empty-state') || row.textContent.toLowerCase().includes(q);row.style.display=show?"":"none";if(show)visible++;});
+    if(q && rows.length && !visible){
+      const row=document.createElement('tr');row.className='filter-empty';
+      const cell=document.createElement('td');cell.colSpan=tbody.closest('table').querySelectorAll('thead th').length;
+      cell.innerHTML='<div class="empty-state"><h4>No matching books</h4><p>Try another title, book ID, author, or student name.</p></div>';
+      row.appendChild(cell);tbody.appendChild(row);
+    }
   },
   loadLibrarianMessages(){}
 };

@@ -24,6 +24,8 @@ const {
   RulesTestEnvironment,
 } = require('@firebase/rules-unit-testing');
 const { Timestamp } = require('firebase/firestore');
+const firebase = require('firebase/compat/app');
+require('firebase/compat/firestore');
 
 const PROJECT_ID = 'demo-tomeva';
 const LIBRARY_ID = 'main';
@@ -359,12 +361,25 @@ describe('Tomeva Firestore Rules', () => {
     const staffEmail = 'teacher@staff.example';
 
     // Setup: create a request as a student
-    async function createRequestAsStudent(db, overrides = {}) {
+    async function createRequestAsStudent(db, overrides = {}, id = requestId) {
       const req = buildBookRequest({
         requester_email: studentEmail,
+        requester_uid: 'quota-user',
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         ...overrides,
       });
-      return db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).set(req);
+      const batch = db.batch();
+      batch.set(db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(id), req);
+      const quota = db.collection('libraries').doc(LIBRARY_ID).collection('request_quotas').doc('quota-user');
+      const previous = await quota.get();
+      const active = previous.exists && Date.now() - previous.data().windowStartedAt.toMillis() < 10 * 60 * 60 * 1000;
+      batch.set(quota, {
+        windowStartedAt: active ? previous.data().windowStartedAt : firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        count: active ? previous.data().count + 1 : 1,
+        lastRequestId: id,
+      });
+      return batch.commit();
     }
 
     // Create a request directly via admin (for testing updates)
@@ -373,8 +388,45 @@ describe('Tomeva Firestore Rules', () => {
     }
 
     describe('CREATE', () => {
+      test('DENY: a request without its atomic quota increment', async () => {
+        const db = testEnv.authenticatedContext('quota-user', { email: studentEmail, email_verified: true }).firestore();
+        await testEnv.withSecurityRulesDisabled(async ctx => {
+          await ctx.firestore().collection('libraries').doc(LIBRARY_ID).collection('authorized_students').doc(studentEmail).set({ group: 'Regular' });
+        });
+        await assertFails(db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).set(buildBookRequest({
+          requester_email: studentEmail, requester_uid: 'quota-user', timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        })));
+      });
+
+      test('DENY: quota increments without a matching request', async () => {
+        const db = testEnv.authenticatedContext('quota-user', { email: studentEmail, email_verified: true }).firestore();
+        await assertFails(db.collection('libraries').doc(LIBRARY_ID).collection('request_quotas').doc('quota-user').set({
+          windowStartedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          count: 1, lastRequestId: 'missing-request',
+        }));
+      });
+
+      test('DENY: request 101 in a 10-hour window; allow a new window', async () => {
+        const db = testEnv.authenticatedContext('quota-user', { email: studentEmail, email_verified: true }).firestore();
+        const quotaPath = db.collection('libraries').doc(LIBRARY_ID).collection('request_quotas').doc('quota-user');
+        await testEnv.withSecurityRulesDisabled(async ctx => {
+          const library = ctx.firestore().collection('libraries').doc(LIBRARY_ID);
+          await library.collection('authorized_students').doc(studentEmail).set({ group: 'Regular' });
+          await library.collection('request_quotas').doc('quota-user').set({
+            windowStartedAt: Timestamp.now(), updatedAt: Timestamp.now(), count: 99, lastRequestId: 'previous',
+          });
+        });
+        await assertSucceeds(createRequestAsStudent(db, {}, 'request-100'));
+        await assertFails(createRequestAsStudent(db, {}, 'request-101'));
+        await testEnv.withSecurityRulesDisabled(async ctx => {
+          await ctx.firestore().doc(quotaPath.path).update({ windowStartedAt: Timestamp.fromMillis(Date.now() - 11 * 60 * 60 * 1000) });
+        });
+        await assertSucceeds(createRequestAsStudent(db, {}, 'new-window-1'));
+      });
+
       test('ALLOW: verified student with matching authorized_students group', async () => {
-        const db = auth({
+        const db = testEnv.authenticatedContext('quota-user', {
           email: studentEmail,
           email_verified: true,
         }).firestore();
@@ -391,7 +443,7 @@ describe('Tomeva Firestore Rules', () => {
       });
 
       test('DENY: student requester_email mismatch', async () => {
-        const db = auth({
+        const db = testEnv.authenticatedContext('quota-user', {
           email: studentEmail,
           email_verified: true,
         }).firestore();
@@ -400,7 +452,7 @@ describe('Tomeva Firestore Rules', () => {
       });
 
       test('DENY: student not in authorized_students', async () => {
-        const db = auth({
+        const db = testEnv.authenticatedContext('quota-user', {
           email: 'unauthorized@gmail.com',
           email_verified: true,
         }).firestore();
@@ -409,7 +461,7 @@ describe('Tomeva Firestore Rules', () => {
       });
 
       test('ALLOW: staff (auto-verified by domain)', async () => {
-        const db = verifiedStaff().firestore();
+        const db = testEnv.authenticatedContext('quota-user', { email: staffEmail, email_verified: true }).firestore();
         await assertSucceeds(createRequestAsStudent(db, {
           requester_email: staffEmail,
           group: 'Staff',
@@ -418,7 +470,7 @@ describe('Tomeva Firestore Rules', () => {
       });
 
       test('DENY: staff with group != Staff', async () => {
-        const db = verifiedStaff().firestore();
+        const db = testEnv.authenticatedContext('quota-user', { email: staffEmail, email_verified: true }).firestore();
         await assertFails(createRequestAsStudent(db, {
           requester_email: staffEmail,
           group: 'Regular',
@@ -427,7 +479,7 @@ describe('Tomeva Firestore Rules', () => {
       });
 
       test('ALLOW: priority group student (Literary Club)', async () => {
-        const db = auth({
+        const db = testEnv.authenticatedContext('quota-user', {
           email: 'club@gmail.com',
           email_verified: true,
         }).firestore();

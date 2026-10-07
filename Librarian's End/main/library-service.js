@@ -91,6 +91,10 @@ function createLibraryService(store, appendLog = () => {}) {
       const allowed = {};
       if (Object.hasOwn(obj, 'fine_per_day')) allowed.fine_per_day = obj.fine_per_day;
       if (Object.hasOwn(obj, 'loan_days')) allowed.loan_days = obj.loan_days;
+      if (Object.hasOwn(allowed, 'fine_per_day') && (!Number.isFinite(allowed.fine_per_day) || allowed.fine_per_day < 0 || allowed.fine_per_day > 10000))
+        return { ok: false, msg: 'Fine per day must be between 0 and 10,000.' };
+      if (Object.hasOwn(allowed, 'loan_days') && (!Number.isInteger(allowed.loan_days) || allowed.loan_days < 1 || allowed.loan_days > 365))
+        return { ok: false, msg: 'Loan period must be a whole number from 1 to 365 days.' };
       const s = _settings.findOne({});
       if (s) { Object.assign(s, allowed); _settings.update(s); }
       else   { _settings.insert({ fine_per_day: 2, loan_days: 14, ...allowed }); }
@@ -162,6 +166,8 @@ function createLibraryService(store, appendLog = () => {}) {
       if (!Array.isArray(raw)) raw = [raw];
       if (raw.length === 0) return { ok: false, msg: 'File is empty.' };
 
+      if (raw.some(book => !book || typeof book !== 'object' || Array.isArray(book)))
+        return { ok: false, msg: 'Every book must be an object.' };
       const first = raw[0];
       if (!(first.access_no || first.book_id) && !(first.document || first.title)) {
         return { ok: false, msg: 'JSON must have "access_no" or "book_id", and "document" or "title" fields.' };
@@ -173,8 +179,14 @@ function createLibraryService(store, appendLog = () => {}) {
 
       // Validate all entries first
       const errors = [];
+      const seenAccessNos = new Set();
+      const importedAccessNos = new Set();
       raw.forEach((b, idx) => {
         const access_no = (b.access_no || b.book_id || '').toString().trim();
+        const key = access_no.toLowerCase();
+        if (seenAccessNos.has(key)) errors.push(`Row ${idx + 1}: Duplicate access_no`);
+        seenAccessNos.add(key);
+        importedAccessNos.add(access_no);
         const document = (b.document || b.title || '').trim();
         if (!access_no) errors.push(`Row ${idx + 1}: Missing access_no/book_id`);
         if (!document) errors.push(`Row ${idx + 1}: Missing document/title`);
@@ -184,6 +196,9 @@ function createLibraryService(store, appendLog = () => {}) {
         if (b.author && b.author.trim().length > 100) errors.push(`Row ${idx + 1}: author too long (max 100 chars)`);
         if (b.publisher && b.publisher.trim().length > 100) errors.push(`Row ${idx + 1}: publisher too long (max 100 chars)`);
       });
+      for (const access_no of activeAccessNos) {
+        if (!importedAccessNos.has(access_no)) errors.push(`Active loan book ${access_no} is missing from the import`);
+      }
       if (errors.length) return { ok: false, msg: 'Validation errors: ' + errors.join('; ') };
 
       _books.clear({ removeIndices: false });
@@ -198,7 +213,7 @@ function createLibraryService(store, appendLog = () => {}) {
           publisher: (b.publisher || '').trim().slice(0, 100),
           cost:      (b.cost      || '').toString().trim().slice(0, 20),
           pages:     (b.pages     || '').toString().trim().slice(0, 10),
-          status:    b.status || existing_status,
+          status:    activeAccessNos.has(access_no) ? 'Issued' : (b.status || existing_status),
         });
       });
 
@@ -537,11 +552,8 @@ function createLibraryService(store, appendLog = () => {}) {
 
     // Teacher loans have no due date, so they can never accrue a fine.
     if (!isTeacherLoan && txnDoc.due_date) {
-      const due = new Date(txnDoc.due_date);
-      if (today > due) {
-        lateDays = Math.ceil((today - due) / (1000*60*60*24));
-        fine     = lateDays * settings.fine_per_day;
-      }
+      lateDays = _lateCalendarDays(txnDoc.due_date, today);
+      fine = lateDays * settings.fine_per_day;
     }
 
     txnDoc.return_date = today.toISOString().split('T')[0];
@@ -928,10 +940,13 @@ function createLibraryService(store, appendLog = () => {}) {
   ══════════════════════════════ */
   function calcLateDays(due_date) {
     if (!due_date) return 0; // Teacher loans have no due date — never "late"
-    const today = new Date();
-    const due   = new Date(due_date);
-    if (today <= due) return 0;
-    return Math.ceil((today - due) / (1000*60*60*24));
+    return _lateCalendarDays(due_date, new Date());
+  }
+
+  function _lateCalendarDays(dueDate, now) {
+    const due = Date.parse(`${dueDate}T00:00:00Z`);
+    const current = Date.parse(`${now.toISOString().slice(0, 10)}T00:00:00Z`);
+    return Number.isFinite(due) ? Math.max(0, Math.round((current - due) / 86400000)) : 0;
   }
 
   function formatDate(str) {

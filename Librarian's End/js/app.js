@@ -764,6 +764,11 @@ function _initAddBookModal() {
   document.getElementById('add-book-btn').addEventListener('click', function() { document.getElementById('add-book-modal').classList.add('show'); });
   document.getElementById('close-add-book').addEventListener('click', function() { document.getElementById('add-book-modal').classList.remove('show'); });
   document.getElementById('add-book-modal').addEventListener('click', function(e) { if (e.target===this) this.classList.remove('show'); });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.getElementById('add-book-modal').classList.contains('show')) {
+      document.getElementById('add-book-modal').classList.remove('show');
+    }
+  });
   document.getElementById('save-book-btn').addEventListener('click', function() {
     var access_no = document.getElementById('new-book-id').value.trim();
     var doc       = document.getElementById('new-book-title').value.trim();
@@ -914,8 +919,8 @@ function _initSettings() {
 
   document.getElementById('save-settings').addEventListener('click', function() {
     var res = LibraryDB.saveSettings({
-      fine_per_day: parseFloat(document.getElementById('fine-rate').value) || 2,
-      loan_days:    parseInt(document.getElementById('loan-days').value)   || 14,
+      fine_per_day: Number(document.getElementById('fine-rate').value),
+      loan_days:    Number(document.getElementById('loan-days').value),
     });
     showToast(res.ok ? 'Settings saved.' : res.msg, res.ok ? 'success' : 'error');
   });
