@@ -1,13 +1,16 @@
-import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js';
-import { initializeAuth, inMemoryPersistence, createUserWithEmailAndPassword, deleteUser, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js';
-import { doc, collection, query, where, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { initializeAuth, inMemoryPersistence, createUserWithEmailAndPassword, deleteUser, onAuthStateChanged } from 'firebase/auth';
+import { doc, collection, query, where, onSnapshot, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 // A separate, memory-only Auth instance preserves the administrator's session.
-export async function createCredential({ app, db, auth, libraryId, label }) {
+export async function createCredential({ app, db, auth, libraryId, label, staffDomain }) {
   const admin = auth.currentUser;
   if (!admin || libraryId !== 'main' || !admin.providerData?.some(provider => provider.providerId === 'google.com')) {
     throw new Error('Sign in with Google in the Admin panel to manage kiosk credentials.');
   }
+  if (!admin.emailVerified || !admin.email?.toLowerCase().endsWith('@' + staffDomain)) throw new Error('An authorized institution administrator is required.');
+  const [staff, grant] = await Promise.all([getDoc(doc(db, 'staff_accounts', admin.email.toLowerCase())), getDoc(doc(db, 'kiosk_admins', admin.uid))]);
+  if (!staff.exists() || staff.data().active !== true || !grant.exists() || grant.data().enabled !== true || grant.data().libraryId !== libraryId) throw new Error('An enabled institution administrator grant is required.');
   const randomHex = size => Array.from(crypto.getRandomValues(new Uint8Array(size)), n => n.toString(16).padStart(2, '0')).join('');
   const email = `kiosk-${randomHex(16)}@kiosk.tomeva.invalid`;
   const password = randomHex(24) + 'Aa1!';
@@ -123,17 +126,24 @@ export function setupKioskManagement({ app, db, auth, libraryId, staffDomain, sh
     const adminUid = auth.currentUser.uid;
     busy = true; render();
     try {
-      const credential = await createCredential({ app, db, auth, libraryId, label });
+      const credential = await createCredential({ app, db, auth, libraryId, label, staffDomain });
       if (allowed && auth.currentUser?.uid === adminUid) showSecret(credential);
       el('kiosk-label').value = '';
     } catch (error) { showToast('Could not create credential: ' + error.message, 'error', 8000); }
     finally { busy = false; render(); }
   });
 
-  onAuthStateChanged(auth, user => {
+  onAuthStateChanged(auth, async user => {
     accountsUnsub?.(); accountsUnsub = null;
     clearSecret(); allowed = false; records = []; renderRecords(); render();
     allowed = !!(user?.emailVerified && user.email?.toLowerCase().endsWith('@' + staffDomain) && libraryId === 'main' && user.providerData?.some(provider => provider.providerId === 'google.com'));
+    if (allowed) {
+      try {
+        const [staff, grant] = await Promise.all([getDoc(doc(db, 'staff_accounts', user.email.toLowerCase())), getDoc(doc(db, 'kiosk_admins', user.uid))]);
+        if (auth.currentUser?.uid !== user.uid) return;
+        allowed = staff.exists() && staff.data().active === true && grant.exists() && grant.data().enabled === true && grant.data().libraryId === libraryId;
+      } catch (error) { allowed = false; }
+    }
     render();
     if (!allowed) return;
     accountsUnsub = onSnapshot(query(collection(db, 'kiosk_accounts'), where('libraryId', '==', libraryId)), snapshot => {

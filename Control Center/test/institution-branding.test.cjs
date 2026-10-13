@@ -30,7 +30,7 @@ test('desktop provisioning preserves the institution name', () => {
 });
 
 test('student portals display the configured name as text and normalize the staff domain', () => {
-  for (const file of ['../../Student Search/search.html', '../web-template/search.html']) {
+  for (const file of ['../../Student Search/portal.mjs']) {
     const html = fs.readFileSync(path.join(__dirname, file), 'utf8');
     const start = html.indexOf('const STAFF_DOMAIN =');
     const end = html.indexOf('\n});', start) + 4;
@@ -42,17 +42,5 @@ test('student portals display the configured name as text and normalize the staf
     delete context.webConfig.institutionName;
     vm.runInNewContext(html.slice(start, end), { ...context });
     assert.equal(label.textContent, 'your institution’s');
-  }
-});
-
-test('legacy kiosk functions enforce the configured verified staff domain and fail closed without it', () => {
-  const source = fs.readFileSync(path.join(__dirname, "../../Librarian's End/functions/mintKioskToken.js"), 'utf8');
-  const auth = source.slice(source.indexOf('const STAFF_DOMAIN ='), source.indexOf('\n/**', source.indexOf('const STAFF_DOMAIN =')));
-  for (const domain of ['', ' College.EDU ']) {
-    const context = { process: { env: { TOMEVA_STAFF_DOMAIN: domain } } };
-    vm.runInNewContext(auth, context);
-    for (const [email, verified, expected] of [['staff@COLLEGE.edu', true, !!domain], ['staff@college.edu', false, false], ['staff@evilcollege.edu', true, false], ['staff@college.edu.evil.com', true, false]]) {
-      assert.equal(context.isInstitutionStaff({ email, email_verified: verified }), expected);
-    }
   }
 });

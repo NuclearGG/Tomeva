@@ -1,0 +1,12 @@
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+const { createPrivateKey, sign } = require('node:crypto');
+const [manifestPath, keyPath] = process.argv.slice(2);
+if (!manifestPath || !keyPath) throw new Error('Usage: node scripts/sign-release.cjs path/to/SHA256SUMS path/to/existing-private-key');
+const absoluteKey = path.resolve(keyPath), root = path.resolve(__dirname, '..');
+if (absoluteKey === root || absoluteKey.startsWith(root + path.sep)) throw new Error('Keep the private signing key outside the repository.');
+const key = createPrivateKey({ key: fs.readFileSync(absoluteKey), passphrase: process.env.TOMEVA_SIGNING_KEY_PASSPHRASE });
+if (key.asymmetricKeyType !== 'ed25519') throw new Error('An existing Ed25519 private key is required.');
+fs.writeFileSync(manifestPath + '.sig', sign(null, fs.readFileSync(manifestPath), key));
+console.log('Detached release signature written.');

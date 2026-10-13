@@ -6,11 +6,11 @@ const vm = require('node:vm');
 const { webcrypto } = require('node:crypto');
 const root = path.resolve(__dirname, '../..');
 
-function adminHarness({ failRegister = false, failDeleteApp = false, email = 'owner@example.org', provider = 'google.com' } = {}) {
+function adminHarness({ failRegister = false, failDeleteApp = false, email = 'owner@staff.example', provider = 'google.com' } = {}) {
   const source = fs.readFileSync(path.join(root, "Admin's End/kiosk-management.js"), 'utf8');
   const code = source.slice(source.indexOf('export async function createCredential'), source.indexOf('export function setupKioskManagement')).replace('export ', '');
   const calls = [];
-  const auth = { currentUser: { uid: 'admin', email, providerData: [{ providerId: provider }] } };
+  const auth = { currentUser: { uid: 'admin', email, emailVerified: true, providerData: [{ providerId: provider }] } };
   const deps = {
     crypto: webcrypto, Uint8Array,
     initializeApp: (options, name) => { calls.push(['app', name]); return {}; },
@@ -18,12 +18,13 @@ function adminHarness({ failRegister = false, failDeleteApp = false, email = 'ow
     inMemoryPersistence: 'memory',
     createUserWithEmailAndPassword: async (_, email, password) => { calls.push(['create', email, password]); return { user: { uid: 'desk' } }; },
     doc: (_, ...parts) => parts.join('/'), serverTimestamp: () => 'server-time',
+    getDoc: async () => ({ exists: () => true, data: () => ({ active: true, enabled: true, libraryId: 'main' }) }),
     setDoc: async (ref, data) => { calls.push(['register', ref, data]); if (failRegister) throw Error('permission-denied'); },
     deleteUser: async user => calls.push(['delete-user', user.uid]),
     deleteApp: async () => { calls.push(['delete-app']); if (failDeleteApp) throw Error('cleanup failed'); },
   };
   const context = vm.createContext(deps); vm.runInContext(code, context);
-  return { calls, auth, create: () => context.createCredential({ app: { options: {} }, db: {}, auth, libraryId: 'main', label: 'Main desk' }) };
+  return { calls, auth, create: () => context.createCredential({ app: { options: {} }, db: {}, auth, libraryId: 'main', label: 'Main desk', staffDomain: 'staff.example' }) };
 }
 
 test('creation keeps admin signed in, generates strong unique credentials, persists only metadata', async () => {
@@ -42,9 +43,9 @@ test('a kiosk password session cannot provision more credentials', async () => {
   const h = adminHarness({ provider: 'password' }); await assert.rejects(h.create(), /Sign in with Google/);
   assert.equal(h.calls.length, 0);
 });
-test('a Google account on any email domain can create without a grant', async () => {
+test('a Google account outside the institution domain cannot create credentials', async () => {
   const h = adminHarness({ email: 'tester@example.net' });
-  assert.ok((await h.create()).password);
+  await assert.rejects(h.create(), /administrator/);
 });
 test('failed registry write cleans up the Auth account and secondary app', async () => {
   const h = adminHarness({ failRegister: true }); await assert.rejects(h.create(), /permission-denied/);

@@ -10,6 +10,8 @@ const { pathToFileURL } = require('url');
 const { SqliteStore } = require('./main/sqlite-store');
 const { registerDatabaseIpc } = require('./main/db-ipc');
 const { createWorkstationLock } = require('./main/workstation-lock');
+const { createWorkstationAccess } = require('./main/workstation-access');
+const { createActivityLog } = require('./main/activity-log');
 const { createNativeUpdater } = require(app.isPackaged ? './integration/native-updater.cjs' : '../desktop-integration/native-updater.cjs');
 const institution = require(app.isPackaged ? './integration/institution-config.cjs' : '../desktop-integration/institution-config.cjs');
 
@@ -25,16 +27,16 @@ function ensureLogDir() {
 }
 
 function currentLogFilePath() {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  return path.join(LOG_DIR, `transactions-${yyyy}-${mm}.log`);
+  return path.join(LOG_DIR, `transactions-${new Date().toISOString().slice(0, 7)}.audit.log`);
 }
 
 let mainWindow;
 let store;
 let workstationLock;
 let appUpdater;
+let getLibraryService;
+let activityLog;
+const workstationAccess = createWorkstationAccess(() => mainWindow, () => workstationLock, path.join(__dirname, 'index.html'));
 const DESKTOP_ALERTS = Object.freeze({
   NEW_REQUEST: ['Library request', 'A new student request is ready for review.', 'requests'],
   ADMIN_MESSAGE: ['Library message', 'A new administrator message is available.', 'notifications'],
@@ -119,7 +121,7 @@ function createWindow() {
 }
 
 ipcMain.on('desktop-alert', (event, type) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents || !Object.hasOwn(DESKTOP_ALERTS, type) || !Notification.isSupported()) return;
+  if (!workstationAccess.trusted(event) || workstationLock?.isLocked() || !Object.hasOwn(DESKTOP_ALERTS, type) || !Notification.isSupported()) return;
   const [title, body, route] = DESKTOP_ALERTS[type];
   const notice = new Notification({ title, body });
   notice.on('click', () => {
@@ -133,15 +135,19 @@ ipcMain.on('desktop-alert', (event, type) => {
 
 if (hasInstanceLock) app.whenReady().then(() => {
   store = new SqliteStore(app.getPath('userData'));
-  workstationLock = createWorkstationLock(store);
-  registerDatabaseIpc(ipcMain, store, event =>
+  workstationLock = createWorkstationLock(store, safeStorage);
+  activityLog = createActivityLog(LOG_DIR, safeStorage, store);
+  getLibraryService = registerDatabaseIpc(ipcMain, store, event =>
     event.sender === mainWindow?.webContents &&
     event.senderFrame === mainWindow.webContents.mainFrame &&
     event.senderFrame.url.split('#')[0] === pathToFileURL(path.join(__dirname, 'index.html')).href,
-  line => {
-    ensureLogDir();
-    fs.appendFileSync(currentLogFilePath(), line + '\n', 'utf8');
-  }, () => workstationLock.isLocked());
+  (line, event) => activityLog.append(line, event), () => workstationLock.isLocked());
+  try {
+    for (const event of store.database.prepare('SELECT * FROM audit_events WHERE exported = 0 ORDER BY created_at, rowid').all()) {
+      activityLog.append(event.line, event);
+      store.database.prepare('UPDATE audit_events SET exported = 1 WHERE id = ?').run(event.id);
+    }
+  } catch (error) { console.warn('[ActivityLog] Pending events retained:', error.message); }
   createWindow();
   appUpdater = createNativeUpdater({
     getUpdater: () => require('electron-updater').autoUpdater,
@@ -171,9 +177,7 @@ app.on('activate', () => {
 });
 
 function trustedWorkstationFrame(event) {
-  return event.sender === mainWindow?.webContents &&
-    event.senderFrame === mainWindow.webContents.mainFrame &&
-    event.senderFrame.url.split('#')[0] === pathToFileURL(path.join(__dirname, 'index.html')).href;
+  return workstationAccess.trusted(event);
 }
 ipcMain.handle('workstation:status', event => {
   if (!trustedWorkstationFrame(event)) throw new Error('Workstation access denied.');
@@ -184,7 +188,7 @@ ipcMain.handle('institution:read', event => {
   return institution.read();
 });
 ipcMain.handle('institution:connect', (event, url) => {
-  if (!trustedWorkstationFrame(event)) throw new Error('Untrusted window.');
+  workstationAccess.assertUnlocked(event);
   return institution.connectFromPublicUrl(url);
 });
 ipcMain.handle('workstation:set-pin', (event, pin, idleMinutes, currentPin) => {
@@ -202,45 +206,24 @@ ipcMain.handle('workstation:unlock', (event, pin) => {
 
 // ── IPC HANDLERS (secure, purpose-built only) ──
 
-ipcMain.handle('show-save-dialog', async (_, options) => {
-  const safeOptions = {
-    ...options,
-    defaultPath: path.join(app.getPath('downloads'), options.defaultPath || 'backup.json'),
-    filters: options.filters || [{ name: 'JSON Files', extensions: ['json'] }],
-    properties: ['showOverwriteConfirmation', 'createDirectory'],
-  };
-  return dialog.showSaveDialog(mainWindow, safeOptions);
-});
-
-ipcMain.handle('show-open-dialog', async (_, options) => {
-  const safeOptions = {
-    ...options,
-    defaultPath: options.defaultPath || app.getPath('downloads'),
-    filters: options.filters || [{ name: 'JSON Files', extensions: ['json'] }],
-    properties: ['openFile', 'showHiddenFiles'],
-  };
-  return dialog.showOpenDialog(mainWindow, safeOptions);
-});
-
-ipcMain.handle('backup-database', async (_, backupJson) => {
+ipcMain.handle('backup-database', async event => {
+  workstationAccess.assertUnlocked(event);
   try {
     const { filePath } = await dialog.showSaveDialog(mainWindow, {
       defaultPath: path.join(app.getPath('downloads'), `tomeva_backup_${new Date().toISOString().slice(0,10)}.json`),
       filters: [{ name: 'JSON Backup', extensions: ['json'] }],
     });
     if (!filePath) return { ok: false, cancelled: true };
-    if (typeof backupJson === 'string') {
-      fs.writeFileSync(filePath, backupJson, 'utf-8');
-      return { ok: true, filePath };
-    }
-    mainWindow.webContents.send('perform-backup', { filePath });
+    workstationAccess.assertUnlocked(event);
+    fs.writeFileSync(filePath, getLibraryService().exportData(), { encoding: 'utf8', mode: 0o600 });
     return { ok: true, filePath };
   } catch (err) {
     return { ok: false, msg: err.message };
   }
 });
 
-ipcMain.handle('restore-database', async () => {
+ipcMain.handle('restore-database', async event => {
+  workstationAccess.assertUnlocked(event);
   try {
     const { filePaths } = await dialog.showOpenDialog(mainWindow, {
       defaultPath: app.getPath('downloads'),
@@ -248,27 +231,40 @@ ipcMain.handle('restore-database', async () => {
       properties: ['openFile'],
     });
     if (!filePaths?.length) return { ok: false, cancelled: true };
+    workstationAccess.assertUnlocked(event);
+    if (fs.statSync(filePaths[0]).size > 100 * 1024 * 1024) throw new Error('Backup exceeds 100 MiB.');
     const data = fs.readFileSync(filePaths[0], 'utf-8');
-    mainWindow.webContents.send('perform-restore', { data });
-    return { ok: true };
+    const preview = getLibraryService().previewBackup(data);
+    if (!preview.ok) return preview;
+    const { response } = await dialog.showMessageBox(mainWindow, { type: 'warning', buttons: ['Cancel', 'Restore'], defaultId: 0, cancelId: 0,
+      message: 'Replace the local library with this backup?', detail: Object.entries(preview.counts).map(([key, count]) => `${key}: ${count}`).join('\n') + (preview.legacy ? '\nLegacy backup: no checksum is available.' : '\nChecksum verified.') });
+    if (response !== 1) return { ok: false, cancelled: true };
+    workstationAccess.assertUnlocked(event);
+    const recoveryDir = path.join(app.getPath('userData'), 'restore-backups');
+    fs.mkdirSync(recoveryDir, { recursive: true });
+    await store.database.backup(path.join(recoveryDir, `before-restore-${Date.now()}.sqlite3`));
+    workstationAccess.assertUnlocked(event);
+    return getLibraryService().restoreData(data, preview.legacy);
   } catch (err) {
     return { ok: false, msg: err.message };
   }
 });
 
-ipcMain.handle('export-activity-log', async (_, { maxLines }) => {
+ipcMain.handle('export-activity-log', async (event, { maxLines } = {}) => {
+  workstationAccess.assertUnlocked(event);
   try {
     ensureLogDir();
     const filePath = currentLogFilePath();
+    const verifiedLines = activityLog.records(filePath).map(record => record.line);
     if (!fs.existsSync(filePath)) return { ok: false, msg: 'No log file exists' };
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const lines = content.split('\n').filter(Boolean);
+    const lines = verifiedLines;
     const tail = maxLines ? lines.slice(-maxLines) : lines;
     const { filePath: savePath } = await dialog.showSaveDialog(mainWindow, {
       defaultPath: path.join(app.getPath('downloads'), `activity_log_${new Date().toISOString().slice(0,10)}.txt`),
       filters: [{ name: 'Text Files', extensions: ['txt'] }],
     });
     if (!savePath) return { ok: false, cancelled: true };
+    workstationAccess.assertUnlocked(event);
     fs.writeFileSync(savePath, tail.join('\n'), 'utf-8');
     return { ok: true, filePath: savePath };
   } catch (err) {
@@ -278,42 +274,31 @@ ipcMain.handle('export-activity-log', async (_, { maxLines }) => {
 
 // ── ACTIVITY LOG IPC ──
 
-ipcMain.handle('append-log', async (_, line) => {
-  try {
-    ensureLogDir();
-    const filePath = currentLogFilePath();
-    fs.appendFileSync(filePath, line + '\n', 'utf-8');
-    return { ok: true, filePath };
-  } catch (err) {
-    return { ok: false, msg: err.message };
-  }
-});
-
-ipcMain.handle('get-log-info', async () => {
+ipcMain.handle('get-log-info', async event => {
+  workstationAccess.assertUnlocked(event);
   ensureLogDir();
   const filePath = currentLogFilePath();
   let lineCount = 0;
   let sizeKb = 0;
+  lineCount = activityLog.records(filePath).length;
   if (fs.existsSync(filePath)) {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    lineCount = content.split('\n').filter(Boolean).length;
-    sizeKb = Math.round((Buffer.byteLength(content, 'utf-8') / 1024) * 10) / 10;
+    sizeKb = Math.round((fs.statSync(filePath).size / 1024) * 10) / 10;
   }
   return { folder: LOG_DIR, currentFile: filePath, lineCount, sizeKb };
 });
 
-ipcMain.handle('open-log-folder', async () => {
+ipcMain.handle('open-log-folder', async event => {
+  workstationAccess.assertUnlocked(event);
   ensureLogDir();
   shell.openPath(LOG_DIR);
   return true;
 });
 
-ipcMain.handle('read-current-log', async (_, maxLines) => {
+ipcMain.handle('read-current-log', async (event, maxLines) => {
+  workstationAccess.assertUnlocked(event);
   ensureLogDir();
   const filePath = currentLogFilePath();
-  if (!fs.existsSync(filePath)) return '';
-  const content = fs.readFileSync(filePath, 'utf-8');
-  const lines = content.split('\n').filter(Boolean);
+  const lines = activityLog.records(filePath).map(record => record.line);
   const tail = maxLines ? lines.slice(-maxLines) : lines;
   return tail.join('\n');
 });
@@ -328,7 +313,8 @@ function _getCredsKey(workstationId) {
   return KIOSK_CREDS_KEY + workstationId;
 }
 
-ipcMain.handle('get-kiosk-creds', async (_, workstationId) => {
+ipcMain.handle('get-kiosk-creds', async (event, workstationId) => {
+  workstationAccess.assertUnlocked(event);
   try {
     if (!workstationId || typeof workstationId !== 'string') {
       return null;
@@ -337,7 +323,7 @@ ipcMain.handle('get-kiosk-creds', async (_, workstationId) => {
       return null;
     }
 
-    if (!safeStorage.isEncryptionAvailable()) {
+    if (!safeStorage.isEncryptionAvailable() || safeStorage.getSelectedStorageBackend?.() === 'basic_text') {
       console.warn('[KioskAuth] safeStorage not available on this platform');
       return null;
     }
@@ -367,22 +353,23 @@ ipcMain.handle('get-kiosk-creds', async (_, workstationId) => {
   }
 });
 
-ipcMain.handle('set-kiosk-creds', async (_, workstationId, email, password) => {
+ipcMain.handle('set-kiosk-creds', async (event, workstationId, email, password) => {
+  workstationAccess.assertUnlocked(event);
   try {
     if (!workstationId || typeof workstationId !== 'string') {
       return { ok: false, msg: 'Invalid workstationId' };
     }
-    if (!email || !email.includes('@')) {
+    if (typeof email !== 'string' || !/^kiosk-[a-f0-9]{32}@kiosk\.tomeva\.invalid$/.test(email)) {
       return { ok: false, msg: 'Invalid email' };
     }
-    if (!password) {
+    if (typeof password !== 'string' || password.length < 12 || password.length > 256) {
       return { ok: false, msg: 'Invalid password' };
     }
     if (!/^[a-zA-Z0-9_-]+$/.test(workstationId) || workstationId.length > 64) {
       return { ok: false, msg: 'Invalid workstationId format' };
     }
 
-    if (!safeStorage.isEncryptionAvailable()) {
+    if (!safeStorage.isEncryptionAvailable() || safeStorage.getSelectedStorageBackend?.() === 'basic_text') {
       return { ok: false, msg: 'safeStorage not available on this platform' };
     }
 

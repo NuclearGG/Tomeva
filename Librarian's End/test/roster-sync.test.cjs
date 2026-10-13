@@ -14,11 +14,14 @@ test('incoming authorized students sync incrementally and offline work skips the
     { id: 'a@example.com', data: () => ({ email: 'a@example.com', name: 'A', group: 'Regular', adm_no: 'A1', added_at: { toMillis: () => 100 } }) },
     { id: 'b@example.com', data: () => ({ email: 'b@example.com', name: 'B', group: 'Regular', added_at: { toMillis: () => 110 } }) },
   ];
-  const auth = { currentUser: { uid: 'anon', isAnonymous: true },
+  const auth = { currentUser: { uid: 'desk', email: 'kiosk@example.org', isAnonymous: false },
     onAuthStateChanged(cb) { queueMicrotask(() => cb(this.currentUser)); return () => {}; } };
-  const firestore = () => ({ collection: () => ({ doc: () => ({ collection: name => name === 'student_logins'
+  const firestore = () => ({ collection: () => ({ doc: () => ({
+    get: async () => ({ exists: true, data: () => ({ active: true, libraryId: 'main', email: 'kiosk@example.org' }) }),
+    onSnapshot: (options, callback) => { callback({ exists: true, metadata: { fromCache: false }, data: () => ({ active: true, libraryId: 'main', email: 'kiosk@example.org' }) }); return () => {}; },
+    collection: name => name === 'student_logins'
     ? { doc: email => ({ get: async () => ({ exists: email === 'b@example.com', data: () => ({ adm_no: 'B2' }) }) }) }
-    : { get: async () => { reads++; return { docs }; } } }) }) });
+    : { orderBy() { return { limit() { return { onSnapshot() { return () => {}; } }; } }; }, get: async () => { reads++; return { docs }; } } }) }) });
   const navigator = { onLine: false };
   const context = {
     firebase: { apps: [{}], firestore, auth: () => auth }, navigator,

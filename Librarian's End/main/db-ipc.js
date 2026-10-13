@@ -24,5 +24,9 @@ function registerDatabaseIpc(ipcMain, store, isTrusted, appendLog, isLocked = ()
     }
     return service[method](...args);
   });
+  return () => {
+    if (!service) throw new Error('Database migration has not completed.');
+    return service;
+  };
 }
 module.exports = { registerDatabaseIpc };

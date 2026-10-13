@@ -15,6 +15,7 @@ test('workstation pins GitHub to institution-approved tag rather than the newest
       if (name === 'node:fs') return { existsSync: () => true };
       if (name === './institution-config.cjs') return { read: () => ({}) };
       if (name === './update-policy.cjs') return { approvedVersion: async () => '1.2.0', checkApproval: async () => true };
+      if (name === './release-verification.cjs') return require('../../desktop-integration/release-verification.cjs');
       return require(name);
     },
   });

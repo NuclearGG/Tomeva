@@ -51,6 +51,7 @@ before(async () => {
   }); ok(result);
   ok(await request(`/emulator/v1/${database}/documents`, 'owner', 'DELETE'));
   ok(await write('kiosk_admins/rest-admin', { enabled: true, libraryId: 'main' }, 'owner'));
+  ok(await write('staff_accounts/owner@staff.example', { active: true }, 'owner'));
 });
 
 test('administrator can create approved metadata with server timestamps', async () => {
@@ -66,7 +67,7 @@ test('kiosk can read only its own registry entry', async () => {
   denied(await read('kiosk_accounts/rest-desk', null));
 });
 test('active password account can sync protected data and approve requests', async () => {
-  ok(await write('libraries/main/restricted/circulation', { loans: 'test' }, kiosk));
+  ok(await write('libraries/main/restricted/circulation', { stats: {}, generation: 'test-generation', shard_count: 0, sync_version: 7, last_synced_iso: new Date().toISOString() }, kiosk, { times: ['last_synced'] }));
   ok(await write('libraries/main/book_requests/rest-request', { status: 'Pending', requester_email: 'student@example.org' }, 'owner'));
   ok(await write('libraries/main/book_requests/rest-request', { status: 'Approved' }, kiosk, { merge: true }));
 });
@@ -106,15 +107,15 @@ test('revocation blocks existing token approvals and restricted sync immediately
   ok(await write('kiosk_accounts/rest-desk', { active: false, revokedBy: 'rest-admin' }, admin, { merge: true, times: ['revokedAt'] }));
   denied(await write('libraries/main/restricted/circulation', { loans: 'changed' }, kiosk));
   denied(await write('libraries/main/book_requests/rest-request', { status: 'Issued' }, kiosk, { merge: true }));
-  ok(await write('libraries/main/public/catalog', {
+  denied(await write('libraries/main/public/catalog', {
     stats: { total_books: 0, available: 0, issued: 0, damaged: 0, under_repair: 0, lost: 0 },
     availableList: [], issuedList: [], damagedList: [], last_synced_iso: new Date().toISOString(), sync_version: 6,
   }, kiosk, { times: ['last_synced'] }));
   denied(await write('kiosk_accounts/rest-desk', { active: true }, admin, { merge: true }));
   denied(await request(`/v1/${database}/documents/kiosk_accounts/rest-desk`, admin, 'DELETE'));
 });
-test('legacy grant status does not restrict Google logins; password sessions stay denied', async () => {
+test('disabled administrator grant blocks provisioning', async () => {
   denied(await write('kiosk_accounts/disabled', record(), token('rest-admin', { email: 'owner@example.org', email_verified: false }), { times: ['createdAt'] }));
   ok(await write('kiosk_admins/rest-admin', { enabled: false, libraryId: 'main' }, 'owner'));
-  ok(await write('kiosk_accounts/disabled', record(), admin, { times: ['createdAt'] }));
+  denied(await write('kiosk_accounts/disabled', record(), admin, { times: ['createdAt'] }));
 });

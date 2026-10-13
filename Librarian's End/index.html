@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com; img-src 'self' data:; base-uri 'self'; form-action 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com; img-src 'self' data:; base-uri 'self'; form-action 'self';">
   <title>Tomeva</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -67,7 +67,7 @@
     <div class="sidebar-sync-panel">
       <div id="sync-status-badge" class="sync-badge sync-idle">Sync Ready</div>
       <div id="last-sync-time" class="sync-last-time">Not synced yet</div>
-      <button class="sync-manual-btn" onclick="FirebaseSync.syncNow(true)">↑ Sync Now</button>
+      <button class="sync-manual-btn" data-handler-click="h0">↑ Sync Now</button>
       <button id="workstation-lock-shortcut" class="sync-manual-btn" type="button" hidden>🔒 Lock workstation · Ctrl+L</button>
     </div>
   </aside>
@@ -123,22 +123,22 @@
 
         <!-- Quick Actions -->
         <div class="action-cards">
-          <div class="action-card blue" onclick="navigate('issue')">
+          <div class="action-card blue" data-handler-click="h1">
             <span class="action-card-icon">📤</span>
             <h3>Issue a Book</h3>
             <p>Lend a book to a student. Auto-generates due date and records the transaction.</p>
           </div>
-          <div class="action-card green" onclick="navigate('return')">
+          <div class="action-card green" data-handler-click="h2">
             <span class="action-card-icon">📥</span>
             <h3>Return a Book</h3>
             <p>Process a return. Detects borrower automatically and calculates any late fines.</p>
           </div>
-          <div class="action-card yellow" onclick="navigate('fines')">
+          <div class="action-card yellow" data-handler-click="h3">
             <span class="action-card-icon">💰</span>
             <h3>Manage Fines</h3>
             <p>View pending fines and mark them as paid when collected.</p>
           </div>
-          <div class="action-card coral" onclick="navigate('damage')">
+          <div class="action-card coral" data-handler-click="h4">
             <span class="action-card-icon">⚠️</span>
             <h3>Report Damage</h3>
             <p>Record a damaged book, set severity, and add repair notes.</p>
@@ -165,7 +165,7 @@
               <div class="card-title">📋 Recent Activity</div>
               <div class="card-subtitle">Latest 8 transactions</div>
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="navigate('records')">View All →</button>
+            <button class="btn btn-ghost btn-sm" data-handler-click="h5">View All →</button>
           </div>
           <div class="table-wrap">
             <div id="recent-list"></div>
@@ -189,10 +189,10 @@
 
             <!-- Student / Teacher toggle -->
             <div class="issue-mode-toggle">
-              <button type="button" class="issue-mode-btn active" id="issue-mode-student-btn" onclick="setIssueMode('student')">
+              <button type="button" class="issue-mode-btn active" id="issue-mode-student-btn" data-handler-click="h6">
                 🎓 Student
               </button>
-              <button type="button" class="issue-mode-btn" id="issue-mode-teacher-btn" onclick="setIssueMode('teacher')">
+              <button type="button" class="issue-mode-btn" id="issue-mode-teacher-btn" data-handler-click="h7">
                 👨‍🏫 Teacher
               </button>
             </div>
@@ -261,7 +261,7 @@
             <div class="card" id="quick-lookup-card" style="margin-top:16px">
               <div class="card-title" style="margin-bottom:14px">🔍 Quick Student Lookup</div>
               <div class="form-group" style="margin-bottom:10px">
-                <input type="text" id="quick-student-search" placeholder="Search student name or ID…" oninput="quickStudentSearch(this.value)">
+                <input type="text" id="quick-student-search" placeholder="Search student name or ID…" data-handler-input="h8">
               </div>
               <div id="quick-student-results"></div>
             </div>
@@ -312,7 +312,7 @@
               <div id="currently-issued-list" style="font-size:13px; color:var(--text-muted)">
                 Loading…
               </div>
-              <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="_loadCurrentlyIssued()">Refresh</button>
+              <button class="btn btn-ghost btn-sm" style="margin-top:12px" data-handler-click="h9">Refresh</button>
             </div>
           </div>
 
@@ -347,8 +347,8 @@
               <div class="card-subtitle" id="fines-list-subtitle">Click "Mark Paid" after collecting the fine</div>
             </div>
             <div class="flex gap-8">
-              <button class="btn btn-ghost btn-sm" id="fines-tab-pending" onclick="switchFinesTab('pending')">Pending</button>
-              <button class="btn btn-ghost btn-sm" id="fines-tab-collected" onclick="switchFinesTab('collected')">Collected</button>
+              <button class="btn btn-ghost btn-sm" id="fines-tab-pending" data-handler-click="h10">Pending</button>
+              <button class="btn btn-ghost btn-sm" id="fines-tab-collected" data-handler-click="h11">Collected</button>
             </div>
           </div>
           <div class="table-wrap">
@@ -659,7 +659,7 @@
               <div class="card-title">📥 From Admin</div>
               <div class="card-subtitle">Messages, alerts and warnings sent by the Principal / Vice Principal</div>
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="loadIncomingNotifications()">↻ Refresh</button>
+            <button class="btn btn-ghost btn-sm" data-handler-click="h12">↻ Refresh</button>
           </div>
           <div style="padding:16px 24px">
             <div id="incoming-notif-list">
@@ -698,10 +698,10 @@
 
         <div class="card workstation-settings">
           <div class="card-title">🔒 Workstation Lock</div>
-          <p class="card-subtitle">Set a local 4-digit PIN to protect the desk when unattended. Unlocking works offline.</p>
+          <p class="card-subtitle">Set a 6–12 digit screen-lock PIN. Its verifier uses the OS credential store. Unlocking works offline; use your OS account and disk encryption to protect files.</p>
           <form id="workstation-pin-form" class="workstation-pin-form">
-            <label>New PIN <input id="workstation-new-pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" required></label>
-            <label>Current PIN <span id="workstation-current-label">(when changing)</span><input id="workstation-current-pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off"></label>
+            <label>New PIN <input id="workstation-new-pin" type="password" inputmode="numeric" pattern="[0-9]{6,12}" maxlength="12" autocomplete="new-password" required></label>
+            <label>Current PIN <span id="workstation-current-label">(when changing)</span><input id="workstation-current-pin" type="password" inputmode="numeric" pattern="[0-9]{4,12}" maxlength="12" autocomplete="off"></label>
             <label>Lock after inactivity <select id="workstation-idle-minutes"><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="15">15 minutes</option></select></label>
             <button class="btn btn-primary" type="submit">Save PIN</button>
             <button id="workstation-lock-now" class="btn btn-ghost" type="button" hidden>Lock now</button>
@@ -758,10 +758,7 @@
                 <h4>Restore from Backup</h4>
                 <p>Load a previously saved JSON backup file</p>
               </div>
-              <label class="btn btn-green btn-sm" style="cursor:pointer">
-                ⬆ Restore
-                <input id="restore-file" type="file" accept=".json" style="display:none">
-              </label>
+              <button id="restore-file" class="btn btn-green btn-sm" type="button">⬆ Restore</button>
             </div>
 
             <div class="settings-row">
@@ -781,7 +778,7 @@
               <div class="card-title">📜 Activity Log</div>
               <div class="card-subtitle">Every issue, return, damage report, restore, and fine payment is written to a log file on disk</div>
             </div>
-            <button class="btn btn-blue btn-sm" onclick="openActivityLogFolder()">📂 Open Log Folder</button>
+            <button class="btn btn-blue btn-sm" data-handler-click="h13">📂 Open Log Folder</button>
           </div>
 
           <div class="sync-info-grid" id="log-stats-grid">
@@ -807,7 +804,7 @@
 
           <div class="flex" style="justify-content:space-between; align-items:center; margin-bottom:10px">
             <div class="section-title" style="margin:0">Recent Entries</div>
-            <button class="btn btn-ghost btn-sm" onclick="refreshActivityLog()">↻ Refresh</button>
+            <button class="btn btn-ghost btn-sm" data-handler-click="h14">↻ Refresh</button>
           </div>
           <pre id="log-preview" style="background:#2C2416; color:#82D4A8; font-family:monospace; font-size:11.5px; line-height:1.8; padding:16px; border-radius:12px; max-height:260px; overflow-y:auto; white-space:pre-wrap; word-break:break-all">Loading…</pre>
         </div>
@@ -820,7 +817,7 @@
             </div>
             <div class="flex gap-8 flex-center">
               <div id="sync-status-badge-settings" class="sync-badge sync-idle">Sync Ready</div>
-              <button class="btn btn-blue btn-sm" onclick="FirebaseSync.syncNow(true).then(renderSyncStats)">↑ Sync Now</button>
+              <button class="btn btn-blue btn-sm" data-handler-click="h15">↑ Sync Now</button>
             </div>
           </div>
 
@@ -855,7 +852,7 @@
                 style="flex:1; min-width:200px; padding:10px 14px; border:1px solid var(--border); border-radius:10px; font-size:14px">
               <input id="kiosk-password-input" type="password" placeholder="Kiosk account password" autocomplete="off"
                 style="flex:1; min-width:200px; padding:10px 14px; border:1px solid var(--border); border-radius:10px; font-size:14px">
-              <button class="btn btn-blue btn-sm" onclick="saveKioskCreds()">Save & Activate</button>
+              <button class="btn btn-blue btn-sm" data-handler-click="h16">Save & Activate</button>
               <span id="kiosk-creds-status" style="font-size:13px; color:var(--text-muted)">Checking…</span>
             </div>
           </div>
@@ -1022,8 +1019,8 @@
     </div>
 
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="document.getElementById('restore-modal').classList.remove('show')">Cancel</button>
-      <button class="btn btn-green" onclick="confirmRestore()">✅ Confirm Restore</button>
+      <button class="btn btn-ghost" data-handler-click="h17">Cancel</button>
+      <button class="btn btn-green" data-handler-click="h18">✅ Confirm Restore</button>
     </div>
   </div>
 </div>
@@ -1069,7 +1066,7 @@
               <input type="file" id="setup-import-books" accept=".json" style="display:none">
             </label>
             <span class="setup-or">or</span>
-            <button class="setup-btn setup-btn-ghost" onclick="document.getElementById('add-book-modal').classList.add('show')">
+            <button class="setup-btn setup-btn-ghost" data-handler-click="h19">
               + Add Single Book
             </button>
           </div>
@@ -1103,7 +1100,7 @@
               <input type="file" id="setup-import-students" accept=".json" style="display:none">
             </label>
             <span class="setup-or">or</span>
-            <button class="setup-btn setup-btn-ghost" onclick="document.getElementById('add-student-modal').classList.add('show')">
+            <button class="setup-btn setup-btn-ghost" data-handler-click="h20">
               + Add Single Student
             </button>
           </div>
@@ -1125,8 +1122,8 @@
     <h2 id="workstation-lock-title">Workstation locked</h2>
     <p>Enter the local PIN to resume circulation.</p>
     <form id="workstation-unlock-form">
-      <label for="workstation-unlock-pin">4-digit PIN</label>
-      <input id="workstation-unlock-pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" required>
+      <label for="workstation-unlock-pin">Workstation PIN</label>
+      <input id="workstation-unlock-pin" type="password" inputmode="numeric" pattern="[0-9]{4,12}" maxlength="12" autocomplete="off" required>
       <button class="btn btn-primary" type="submit">Unlock</button>
     </form>
     <p id="workstation-unlock-status" role="alert"></p>
@@ -1136,125 +1133,7 @@
 <!-- Toast Container -->
 <div id="toast-container"></div>
 
-<script>
-  // XSS-safe HTML escaping
-  function _esc(str) {
-    return String(str || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;')
-      .replace(/`/g, '&#96;');
-  }
-
-  // Quick student search for Issue page
-  function quickStudentSearch(q) {
-    const res = document.getElementById('quick-student-results');
-    if (!q) { res.innerHTML = ''; return; }
-    const students = LibraryDB.searchStudents(q).slice(0, 5);
-    if (!students.length) { res.innerHTML = '<p class="text-sm text-muted">No students found.</p>'; return; }
-    res.innerHTML = students.map(s =>
-      `<div class="search-result-item" data-student-id="${_esc(s.adm_no || s.student_id)}" style="margin-bottom:6px; cursor:pointer">
-        <div class="sr-left">
-          <h4 style="font-size:13px">${_esc(s.name || ((s.first_name || '') + ' ' + (s.last_name || '')).trim())}</h4>
-          <p>${_esc(s.adm_no || s.student_id)} · Class ${_esc(s.class)}${_esc(s.section)}</p>
-        </div>
-      </div>`
-    ).join('');
-
-    // Use event delegation instead of inline onclick
-    res.querySelectorAll('[data-student-id]').forEach(item => {
-      item.addEventListener('click', () => {
-        const id = item.dataset.studentId;
-        document.getElementById('issue-student-id').value = id;
-        document.getElementById('issue-student-id').dispatchEvent(new Event('input'));
-        res.innerHTML = '';
-        document.getElementById('quick-student-search').value = '';
-      });
-    });
-  }
-
-  // Currently issued list for Return page
-  // NOTE: loadCurrentlyIssued() lives in app.js as _loadCurrentlyIssued()
-  // (kept in sync with the current LokiJS schema — access_no/adm_no/teacher fields).
-
-  // Damaged books for damage page
-  // NOTE: LibraryDB.getSettings() must NOT be called here — LokiJS may not be
-  // ready yet. The loan/fine display is handled inside LibraryDB.onReady() in app.js.
-  document.addEventListener('DOMContentLoaded', () => {
-
-
-  // ── SETUP OVERLAY import handlers ──
-  document.getElementById('setup-import-books').addEventListener('change', function() {
-    const file = this.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-      const res = LibraryDB.importBooks(e.target.result);
-      if (res.ok) {
-        showToast('✅ ' + res.count + ' books imported!', 'success');
-        checkSetupComplete();
-      } else {
-        showToast('❌ ' + res.msg, 'error');
-      }
-    };
-    reader.readAsText(file);
-    this.value = '';
-  });
-
-  document.getElementById('setup-import-students').addEventListener('change', function() {
-    const file = this.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-      const res = LibraryDB.importStudents(e.target.result);
-      if (res.ok) {
-        showToast('✅ ' + res.count + ' students imported!', 'success');
-        checkSetupComplete();
-      } else {
-        showToast('❌ ' + res.msg, 'error');
-      }
-    };
-    reader.readAsText(file);
-    this.value = '';
-  });
-
-    // Load currently issued on return page nav
-    document.querySelector('[data-page="return"]').addEventListener('click', () => {
-      setTimeout(_loadCurrentlyIssued, 50);
-    });
-
-    // Load damaged books on damage page nav
-    document.querySelector('[data-page="damage"]').addEventListener('click', () => {
-      setTimeout(() => {
-        const el = document.getElementById('damaged-books-list');
-        const damaged = LibraryDB.getBooks().filter(b => ['Damaged','Under Repair','Lost'].includes(b.status));
-        if (!damaged.length) { el.innerHTML = '<p class="text-sm text-muted">No damaged books on record.</p>'; return; }
-        el.innerHTML = damaged.map(b => {
-          const badgeMap = { Damaged: 'badge-coral', 'Under Repair': 'badge-yellow', Lost: 'badge-gray' };
-          return `<div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--cream-dark); font-size:13px; gap:8px">
-            <div style="flex:1; min-width:0">
-              <strong>${_esc(b.title)}</strong><br>
-              <span class="td-id">${_esc(b.book_id)}</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:8px; flex-shrink:0">
-              <span class="badge ${badgeMap[b.status]}">${_esc(b.status)}</span>
-              <button class="btn btn-green btn-sm" data-book-id="${_esc(b.book_id)}" data-status="${_esc(b.status)}">🔧 Restore</button>
-            </div>
-          </div>`;
-        }).join('');
-
-        // Event delegation for restore buttons
-        el.querySelectorAll('[data-book-id]').forEach(btn => {
-          btn.addEventListener('click', () => {
-            openRestoreModal(btn.dataset.bookId, btn.dataset.status);
-          });
-        });
-      }, 50);
-    });
-  });
-</script>
+<script src="js/inline-1.js"></script>
 
 
 
@@ -1262,13 +1141,14 @@
   <script src="node_modules/firebase/firebase-app-compat.js"></script>
   <script src="node_modules/firebase/firebase-auth-compat.js"></script>
   <script src="node_modules/firebase/firebase-firestore-compat.js"></script>
-  <script src="node_modules/firebase/firebase-functions-compat.js"></script>
 
   <!-- App scripts — order matters: db → sync → app -->
   <script src="js/migrate-legacy-data.js"></script>
   <script src="js/db.js"></script>
+  <script src="js/cloud-shards.js"></script>
   <script src="js/firebase-sync.js"></script>
   <script src="js/app.js"></script>
 
+<script src="js/event-bindings.js"></script>
 </body>
 </html>

@@ -4,6 +4,7 @@ const { app, Notification } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const legacyWindows = require('./build-variant.json').legacyWindows;
+const verification = require(app.isPackaged ? './integration/release-verification.cjs' : '../desktop-integration/release-verification.cjs');
 
 function createUpdateManager({ send, open, beforeInstall }) {
   let updater;
@@ -11,6 +12,8 @@ function createUpdateManager({ send, open, beforeInstall }) {
   let startupTimer;
   let state = { state: 'idle', version: app.getVersion() };
   let busy = false;
+  let signedManifest;
+  let verifiedFiles = [];
   const emit = (name, extra = {}) => {
     state = { ...state, state: name, message: '', ...extra };
     send(state);
@@ -44,7 +47,7 @@ function createUpdateManager({ send, open, beforeInstall }) {
         notify(info);
       });
       updater.on('download-progress', progress => emit('downloading', { percent: progress.percent }));
-      updater.on('update-downloaded', info => emit('ready', { availableVersion: info.version }));
+      updater.on('update-downloaded', info => emit('verifying', { availableVersion: info.version }));
       updater.on('error', error => emit('error', { message: error.message }));
       startupTimer = setTimeout(() => check(), 10000);
       startupTimer.unref?.();
@@ -66,14 +69,27 @@ function createUpdateManager({ send, open, beforeInstall }) {
     if (!updater || state.state !== 'available' || busy) return;
     busy = true;
     emit('downloading', { percent: 0 });
-    try { await updater.downloadUpdate(); }
+    try {
+      signedManifest = await verification.loadManifest('v' + state.availableVersion);
+      const files = await updater.downloadUpdate();
+      const platform = process.platform === 'win32' ? (legacyWindows ? 'win7' : 'win') : process.platform === 'linux' ? 'linux' : 'mac';
+      const name = `tomeva-control-center-${state.availableVersion}-${platform}-${process.arch}.${process.platform === 'win32' ? 'exe' : process.platform === 'linux' ? 'AppImage' : 'zip'}`;
+      verifiedFiles = [];
+      for (const file of files) { await verification.verifyFile(file, name, signedManifest); verifiedFiles.push({ path: file, name }); }
+      if (!verifiedFiles.length) throw new Error('No publisher-verified installer was downloaded.');
+      emit('ready');
+    }
     catch (error) { emit('error', { message: error.message }); }
     finally { busy = false; }
   }
   async function install() {
     if (!updater || state.state !== 'ready' || busy) return;
     busy = true;
-    try { await beforeInstall(); updater.quitAndInstall(false, true); }
+    try {
+      if (!signedManifest || !verifiedFiles.length) throw new Error('No publisher-verified installer is ready.');
+      for (const file of verifiedFiles) await verification.verifyFile(file.path, file.name, signedManifest);
+      await beforeInstall(); updater.quitAndInstall(false, true);
+    }
     catch (error) { emit('ready', { message: 'Update postponed: checkpoint failed. ' + error.message }); }
     finally { busy = false; }
   }

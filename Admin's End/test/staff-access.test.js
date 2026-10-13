@@ -5,15 +5,16 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 // Exercise the dashboard's actual configuration, auth callback and gate rendering.
-const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '../app.mjs'), 'utf8');
 const domainCode = html.slice(html.indexOf('const STAFF_DOMAIN ='), html.indexOf('let _data ='));
-const accessCode = html.slice(html.indexOf('onAuthStateChanged(auth, (user) => {'), html.indexOf('const kioskManager ='));
-function access(staffDomain, user) {
+const accessCode = html.slice(html.indexOf('onAuthStateChanged(auth, async (user) => {'), html.indexOf('const kioskManager ='));
+async function access(staffDomain, user, granted = true) {
   const nodes = new Map();
   const labels = [{}, {}];
   let onAuth;
   const context = {
-    institution: { staffDomain }, auth: {},
+    institution: { staffDomain }, auth: { currentUser: user }, db: {}, LIBRARY_ID: 'main',
+    doc: (_, ...parts) => parts.join('/'), getDoc: async () => ({ exists: () => granted, data: () => ({ active: true }) }),
     _staffListeners: [], _adminCurrentUser: null, _isStaffVerified: false,
     _restrictedUnsub: null, _restrictedData: null,
     _allRequests: [], _allAuthorizedStudents: [], _allPendingLogins: [], _admissionRoster: [],
@@ -31,35 +32,39 @@ function access(staffDomain, user) {
     'startPendingLoginsListener', 'startAdmissionRosterListener', 'renderAdminRequests', 'updateRequestsBadge', 'updateAdminBadge',
     'renderAuthorizedStudents', 'renderPendingVerification']) context[name] = () => () => {};
   vm.runInNewContext(domainCode + accessCode, context);
-  onAuth(user);
+  await onAuth(user);
   return { context, nodes, labels };
 }
 
 for (const domain of ['school.edu', 'college.ac.in', 'gmail.com']) {
-  test(`Student Access accepts the configured ${domain} domain`, () => {
-    const { nodes, labels } = access(domain, { email: `admin@${domain}`, emailVerified: true });
+  test(`Student Access accepts explicitly granted staff on ${domain}`, async () => {
+    const { nodes, labels } = await access(domain, { email: `admin@${domain}`, emailVerified: true });
     assert.equal(nodes.get('access-management').style.display, 'block');
     assert.equal(nodes.get('access-gate-denied').style.display, 'none');
     assert.ok(labels.every(label => label.textContent === '@' + domain));
   });
 }
-test('Student Access rejects other domains, suffix lookalikes and unverified accounts', () => {
+test('Student Access rejects other domains, suffix lookalikes and unverified accounts', async () => {
   for (const user of [
     { email: 'admin@meacademy.in', emailVerified: true },
     { email: 'admin@evilschool.edu', emailVerified: true },
     { email: 'admin@school.edu.evil.com', emailVerified: true },
     { email: 'admin@school.edu', emailVerified: false },
   ]) {
-    const { nodes } = access('school.edu', user);
+    const { nodes } = await access('school.edu', user);
     assert.equal(nodes.get('access-gate-denied').style.display, 'block');
     assert.equal(nodes.get('access-management').style.display, 'none');
   }
 });
-test('configured domain and email comparisons ignore case', () => {
-  const { nodes, labels } = access(' School.EDU ', { email: 'Admin@SCHOOL.edu', emailVerified: true });
+test('configured domain and email comparisons ignore case', async () => {
+  const { nodes, labels } = await access(' School.EDU ', { email: 'Admin@SCHOOL.edu', emailVerified: true });
   assert.equal(nodes.get('access-management').style.display, 'block');
   assert.equal(labels[0].textContent, '@school.edu');
 });
-test('signed-out users see the sign-in gate', () => {
-  assert.equal(access('school.edu', null).nodes.get('access-gate-signedout').style.display, 'block');
+test('signed-out users see the sign-in gate', async () => {
+  assert.equal((await access('school.edu', null)).nodes.get('access-gate-signedout').style.display, 'block');
+});
+test('a student sharing the staff domain still requires an explicit staff grant', async () => {
+  const { nodes } = await access('school.edu', { email: 'student@school.edu', emailVerified: true }, false);
+  assert.equal(nodes.get('access-management').style.display, 'none');
 });

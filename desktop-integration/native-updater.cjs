@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { checkApproval, approvedVersion } = require('./update-policy.cjs');
 const institution = require('./institution-config.cjs');
+const verification = require('./release-verification.cjs');
 
 // Every desktop app installs its own signed binary. Control Center opens this
 // flow through a fixed application protocol; no institution data is transmitted.
@@ -15,6 +16,8 @@ function createNativeUpdater({ getUpdater, getWindow, beforeInstall = async () =
   let interactive = false;
   let ready = false;
   let releaseVersion = null;
+  let verifiedFiles = [];
+  let signedManifest;
   const component = protocol === 'tomeva-admin' ? 'admin' : 'librarian';
   const approved = () => checkApproval(institution.read(), component, releaseVersion);
   const show = async options => {
@@ -49,6 +52,8 @@ function createNativeUpdater({ getUpdater, getWindow, beforeInstall = async () =
     if (answer.response !== 1) return;
     try {
       await approved();
+      if (!signedManifest || !verifiedFiles.length) throw new Error('No publisher-verified installer is ready.');
+      for (const file of verifiedFiles) await verification.verifyFile(file.path, file.name, signedManifest);
       await beforeInstall();
       updater.quitAndInstall(false, true);
     } catch (error) { await show({ type: 'error', message: 'Update postponed: approval or recovery checks failed.', detail: error.message }); }
@@ -73,12 +78,22 @@ function createNativeUpdater({ getUpdater, getWindow, beforeInstall = async () =
       const notes = Array.isArray(info.releaseNotes) ? info.releaseNotes.map(note => note.note || '').join('\n') : String(info.releaseNotes || '');
       const answer = await show({ type: 'info', message: `${app.name} ${info.version} is available`, detail: notes.slice(0, 5000), buttons: ['Later', 'Download'], defaultId: 0, cancelId: 0 });
       if (answer.response === 1) {
-        try { await approved(); await updater.downloadUpdate(); }
+        try {
+          await approved();
+          signedManifest = await verification.loadManifest('v' + releaseVersion);
+          const files = await updater.downloadUpdate();
+          const platform = process.platform === 'win32' ? (legacyWindows ? 'win7' : 'win') : process.platform === 'linux' ? 'linux' : 'mac';
+          const name = `tomeva-${component}-${releaseVersion}-${platform}-${process.arch}.${process.platform === 'win32' ? 'exe' : process.platform === 'linux' ? 'AppImage' : 'zip'}`;
+          verifiedFiles = [];
+          for (const file of files) { await verification.verifyFile(file, name, signedManifest); verifiedFiles.push({ path: file, name }); }
+          ready = !!verifiedFiles.length;
+          if (ready) await install();
+        }
         catch (error) { await show({ type: 'error', message: 'Download failed.', detail: error.message }); }
       }
     });
     updater.on('download-progress', progress => getWindow()?.setProgressBar(Math.max(0, Math.min(1, progress.percent / 100))));
-    updater.on('update-downloaded', info => { releaseVersion = info.version; ready = true; getWindow()?.setProgressBar(-1); install(); });
+    updater.on('update-downloaded', () => { getWindow()?.setProgressBar(-1); });
     if (app.isPackaged) app.setAsDefaultProtocolClient(protocol);
     startup = setTimeout(() => check(false), 15000); startup.unref?.();
     interval = setInterval(() => check(false), 6 * 60 * 60 * 1000); interval.unref?.();

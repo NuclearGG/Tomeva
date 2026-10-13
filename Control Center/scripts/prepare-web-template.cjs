@@ -6,7 +6,7 @@ const target = path.join(root, 'web-template');
 const helper = path.resolve(root, '..', "Admin's End", 'auth-hosting', 'public', 'admin-sign-in');
 fs.cpSync(helper, path.join(root, 'auth-helper'), { recursive: true, force: true });
 fs.mkdirSync(target, { recursive: true });
-for (const name of ['search.html']) {
+for (const name of ['search.html', 'app.bundle.js', 'connection.js', 'tomeva-config.js']) {
   fs.copyFileSync(path.join(source, name), path.join(target, name));
 }
 fs.cpSync(path.join(source, 'assets'), path.join(target, 'assets'), { recursive: true, force: true });

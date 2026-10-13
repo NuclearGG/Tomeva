@@ -24,6 +24,7 @@ afterAll(async () => { if (env) await env.cleanup(); });
 beforeEach(async () => {
   await env.clearFirestore();
   await seed('kiosk_admins/admin', { enabled: true, libraryId: 'main' });
+  await seed('staff_accounts/owner@staff.example', { active: true });
 });
 
 test('verified institution staff creates and lists credentials for main', async () => {
@@ -62,11 +63,11 @@ test('clients cannot give themselves admin status or read another admin grant', 
   await assertFails(kiosk().doc('kiosk_admins/admin').get());
 });
 
-test('legacy admin grants no longer gate a Google login', async () => {
+test('administrator grants enforce enabled status and library scope', async () => {
   await seed('kiosk_admins/admin', { enabled: false, libraryId: 'main' });
-  await assertSucceeds(admin().doc('kiosk_accounts/desk').set(metadata()));
+  await assertFails(admin().doc('kiosk_accounts/desk').set(metadata()));
   await seed('kiosk_admins/admin', { enabled: true, libraryId: 'other' });
-  await assertSucceeds(admin().doc('kiosk_accounts/second-desk').set(metadata()));
+  await assertFails(admin().doc('kiosk_accounts/second-desk').set(metadata()));
 });
 
 test('kiosk can read its own approval but cannot list, read others, or alter it', async () => {
@@ -83,12 +84,12 @@ test('revocation blocks the same signed-in kiosk from circulation and request de
   const signedIn = kiosk();
   const circulation = signedIn.doc('libraries/main/restricted/circulation');
   const request = signedIn.doc('libraries/main/book_requests/request');
-  await assertSucceeds(circulation.set({ loans: [] }));
+  await assertSucceeds(circulation.set({ stats: {}, generation: 'test-generation', shard_count: 0, sync_version: 7, last_synced: serverTimestamp(), last_synced_iso: new Date().toISOString() }));
   await assertSucceeds(request.update({ status: 'Approved' }));
   await assertSucceeds(admin().doc('kiosk_accounts/desk').update({ active: false, revokedBy: 'admin', revokedAt: serverTimestamp() }));
   await assertFails(circulation.set({ loans: [] }));
   await assertFails(request.update({ status: 'Issued' }));
-  await assertSucceeds(signedIn.doc('libraries/main/public/catalog').set({
+  await assertFails(signedIn.doc('libraries/main/public/catalog').set({
     stats: { total_books: 0, available: 0, issued: 0, damaged: 0, under_repair: 0, lost: 0 },
     availableList: [], issuedList: [], damagedList: [],
     last_synced: serverTimestamp(), last_synced_iso: new Date().toISOString(), sync_version: 6,

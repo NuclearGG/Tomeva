@@ -5,7 +5,10 @@ const crypto = require('node:crypto');
 const directory = path.resolve(__dirname, '../packages');
 const manifestPath = path.join(directory, 'SHA256SUMS');
 if (process.argv.includes('--write')) {
-  const lines = fs.readdirSync(directory).filter(name => /\.(exe|blockmap|AppImage|zip|yml)$/.test(name)).sort().map(name =>
+  const version = require('../package.json').version;
+  const lines = fs.readdirSync(directory).filter(name => /\.(exe|blockmap|AppImage|zip|yml)$/.test(name)
+    && (name.includes(`-${version}-`) || name === `tomeva-student-${version}.zip`
+      || (name.endsWith('.yml') && fs.readFileSync(path.join(directory, name), 'utf8').includes(`version: ${version}`)))).sort().map(name =>
     `${crypto.createHash('sha256').update(fs.readFileSync(path.join(directory, name))).digest('hex')}  ${name}`);
   if (!lines.length) throw new Error('No packages found');
   fs.writeFileSync(manifestPath, lines.join('\n') + '\n');

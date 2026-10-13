@@ -1,4 +1,4 @@
-const build = require('./package.json').build;
+const build = require('../desktop-integration/build-signing.cjs').configureSigning(require('./package.json').build);
 const owner = 'NuclearGG';
 const repo = 'Tomeva';
 const fs = require('node:fs');

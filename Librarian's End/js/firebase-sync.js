@@ -13,8 +13,8 @@
  *   • Let Tomeva approve/decline/mark-issued a request
  *
  * Authentication (Revised PRB-01):
- *   • Anonymous auth for aggregate sync (public catalog + main doc) — no PII
- *   • Registered email/password for restricted/circulation sync + book request decisions
+ *   • Anonymous sessions are unprivileged; all cloud writes require an approved kiosk
+ *   • Registered email/password for catalog/circulation sync and book request decisions
  *   • One-time kiosk provisioning: librarian enters email/password once at setup
  *   • Transparent sign-in on init; Firebase refreshes tokens automatically
  *   • Offline: defer writes, set badge to 'offline', retry on 'online' event
@@ -226,7 +226,7 @@
     if (!navigator.onLine) return { ok: false, reason: 'offline' };
     if (_studentSyncInFlight) return _studentSyncInFlight;
     _studentSyncInFlight = (async () => {
-      if (!(await _initDualAuth())) return { ok: false, reason: 'auth_failed' };
+      if (!(await _ensureKioskAuth())) return { ok: false, reason: 'kiosk_required' };
       try {
         // Query the server so a cached authorization never becomes local authority.
         const snapshot = await _db.collection('libraries').doc(LIBRARY_ID)
@@ -440,6 +440,13 @@
       return { ok: false, reason: 'offline' };
     }
 
+    if (!(await _ensureKioskAuth())) {
+      _setStatus('error', 'Kiosk approval required');
+      if (isManual) _toast('Cloud sync needs an approved kiosk. Local library work is available offline.', 'warning');
+      return { ok: false, reason: 'kiosk_required' };
+    }
+
+    if (_syncStatus === 'syncing') return { ok: false, reason: 'sync_in_progress' };
     _setStatus('syncing');
     if (isManual) _toast('Syncing to cloud…', 'default');
 
@@ -448,29 +455,63 @@
       try { await syncIncomingStudents(); }
       catch (error) { console.warn('[StudentSync] Deferred:', error.message); }
       const { public: publicPayload, restricted: restrictedPayload } = _buildPayload();
+      const generation = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+      const publicSnapshot = TomevaCloudShards.split(publicPayload, generation);
+      const privateSnapshot = TomevaCloudShards.split(restrictedPayload, generation, true);
+      const library = _db.collection('libraries').doc(LIBRARY_ID);
+      const publicRef = library.collection('public').doc('catalog');
+      const projectId = _db.app?.options?.projectId;
+      if (projectId) {
+        const recorded = LibraryDB.recordCloudSnapshot({ generation, projectId, publicCount: publicSnapshot.shards.length, privateCount: privateSnapshot.shards.length });
+        if (!recorded.ok) throw new Error(recorded.msg);
+      }
+      // Stage bounded pages first; readers continue using the last complete generation.
+      const writes = [
+        ...publicSnapshot.shards.map(page => ({ ref: library.collection('catalog_shards').doc(`${generation}-${page.index}`), page })),
+        ...privateSnapshot.shards.map(page => ({ ref: library.collection('circulation_shards').doc(`${generation}-${page.index}`), page })),
+      ];
+      let stage = _db.batch(), stagedCount = 0, stagedBytes = 0;
+      for (const { ref, page } of writes) {
+        const bytes = JSON.stringify(page).length * 3 + 1024;
+        if (stagedCount >= 400 || stagedBytes + bytes > 6 * 1024 * 1024) {
+          await stage.commit(); stage = _db.batch(); stagedCount = 0; stagedBytes = 0;
+        }
+        stage.set(ref, page); stagedCount++; stagedBytes += bytes;
+      }
+      if (stagedCount) await stage.commit();
 
       // Replace public documents so an older sync's borrower fields are removed.
       const batch = _db.batch();
 
-      // 1. Public catalog (readable by students) — ANONYMOUS AUTH OK
-      const publicRef = _db.collection('libraries').doc(LIBRARY_ID).collection('public').doc('catalog');
-      batch.set(publicRef, publicPayload);
+      // 1. Public catalog, published only after kiosk approval.
+      batch.set(publicRef, publicSnapshot.manifest);
 
-      // 2. Main sync document (legacy) — ANONYMOUS AUTH OK
+      // 2. Replace legacy aggregate document to remove any old borrower fields.
       const legacyRef = _db.collection('libraries').doc(LIBRARY_ID);
-      batch.set(legacyRef, publicPayload);
+      batch.set(legacyRef, publicSnapshot.manifest);
+      batch.set(library.collection('restricted').doc('circulation'), privateSnapshot.manifest);
 
       await batch.commit();
 
       // Restricted write is separate: absent/revoked kiosk approval cannot prevent
       // the public catalog and legacy document from shedding old PII.
-      let restrictedSynced = false;
-      if (await _ensureKioskAuth()) {
-        const restrictedRef = _db.collection('libraries').doc(LIBRARY_ID).collection('restricted').doc('circulation');
-        await restrictedRef.set(restrictedPayload);
-        restrictedSynced = true;
-      } else {
-        console.warn('[Sync] No active kiosk registration — skipping restricted/circulation write (PII protected)');
+      const restrictedSynced = true;
+      // Keep a day of complete generations for readers. Local metadata also
+      // records failed staging, so orphaned public and private pages get retired.
+      if (projectId) for (const old of LibraryDB.getCloudSnapshotHistory()) {
+        if (old.projectId !== projectId || old.generation === generation || Date.now() - old.recordedAt < 24 * 60 * 60 * 1000) continue;
+        try {
+          const refs = [
+            ...Array.from({ length: old.publicCount }, (_, index) => library.collection('catalog_shards').doc(`${old.generation}-${index}`)),
+            ...Array.from({ length: old.privateCount }, (_, index) => library.collection('circulation_shards').doc(`${old.generation}-${index}`)),
+          ];
+          for (let offset = 0; offset < refs.length; offset += 400) {
+            const cleanup = _db.batch();
+            for (const ref of refs.slice(offset, offset + 400)) cleanup.delete(ref);
+            await cleanup.commit();
+          }
+          LibraryDB.forgetCloudSnapshot(old.generation);
+        } catch (error) { console.warn('[Sync] Snapshot cleanup deferred:', error.message); }
       }
 
       _lastSyncTime = new Date();

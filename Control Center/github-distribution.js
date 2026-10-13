@@ -9,6 +9,7 @@ const API = `https://api.github.com/repos/${OWNER}/${REPO}`;
 const WEB = `https://github.com/${OWNER}/${REPO}`;
 const hosts = new Set(['github.com', 'release-assets.githubusercontent.com', 'objects.githubusercontent.com']);
 const headers = { Accept: 'application/vnd.github+json', 'User-Agent': 'Tomeva-Control-Center' };
+const verification = require(require('electron').app?.isPackaged ? './integration/release-verification.cjs' : '../desktop-integration/release-verification.cjs');
 
 function combinedSignal(signal, timeout) {
   if (!signal) return timeout;
@@ -128,7 +129,10 @@ async function downloadAsset(asset, directory, { request = compatibleFetch, sign
 async function downloadPackage(component, platform, arch, directory, options = {}) {
   const release = options.release || await latestRelease(options.request, options.signal);
   const asset = selectAsset(release, component, platform, arch);
+  const manifest = await verification.loadManifest(release.tag_name, options);
+  if (manifest.get(asset.name) !== asset.digest.slice(7).toLowerCase()) throw new Error('GitHub metadata disagrees with the publisher-signed package.');
   const filename = await downloadAsset(asset, directory, options);
+  await verification.verifyFile(filename, asset.name, manifest);
   await fs.writeFile(path.join(directory, 'software-origin.json'), JSON.stringify({ repository: `${OWNER}/${REPO}`, tag: release.tag_name, asset: asset.name, sha256: asset.digest.slice(7) }, null, 2));
   return { filename, version: release.version, release };
 }

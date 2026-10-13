@@ -1,8 +1,8 @@
-version: 1.0.7
+version: 1.0.8
 files:
-  - url: tomeva-control-center-1.0.7-win7-x64.exe
-    sha512: 5oJUOMR5XtVTdDVLXBgn2o/uAsMyo/M8Rd36paRoyiAjuUSOtEDEWxz98zyjfNB4BqWPRsWzAWw3sSFWMrnuSQ==
-    size: 69189353
-path: tomeva-control-center-1.0.7-win7-x64.exe
-sha512: 5oJUOMR5XtVTdDVLXBgn2o/uAsMyo/M8Rd36paRoyiAjuUSOtEDEWxz98zyjfNB4BqWPRsWzAWw3sSFWMrnuSQ==
-releaseDate: '2026-10-07T08:54:16.552Z'
+  - url: tomeva-control-center-1.0.8-win7-x64.exe
+    sha512: //o4YnpnZEKHDQW4sPOO2SRsr+5VBqzIh/1pK3KDvfTSCApI/5UEXM9KduHDLaS2GZTXCIN+EVbh8Hx2GdYXqw==
+    size: 69192244
+path: tomeva-control-center-1.0.8-win7-x64.exe
+sha512: //o4YnpnZEKHDQW4sPOO2SRsr+5VBqzIh/1pK3KDvfTSCApI/5UEXM9KduHDLaS2GZTXCIN+EVbh8Hx2GdYXqw==
+releaseDate: '2026-10-13T18:24:46.820Z'

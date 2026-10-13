@@ -1,7 +1,7 @@
 {
   "name": "tomeva",
   "productName": "Tomeva",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Offline-first library management system for school libraries",
   "main": "main.js",
   "scripts": {
@@ -13,10 +13,11 @@
     "build:win": "npx --no-install electron-builder --config electron-builder.config.cjs --win",
     "build:mac": "npx --no-install electron-builder --config electron-builder.config.cjs --mac",
     "build:linux": "npx --no-install electron-builder --config electron-builder.config.cjs --linux",
-    "test:rules": "jest test/firestore-rules.spec.js test/kiosk-rules.spec.js test/notification-rules.spec.js --runInBand --forceExit --detectOpenHandles",
+    "test:rules": "jest test/firestore-rules.spec.js test/kiosk-rules.spec.js test/notification-rules.spec.js test/security-audit-rules.spec.js --runInBand --forceExit --detectOpenHandles",
     "test:kiosk": "node --test test/kiosk-auth.test.cjs",
     "test:kiosk:rules": "node --test test/kiosk-rules-rest.test.cjs",
     "test:sync": "node --test test/roster-sync.test.cjs test/privacy-sync.test.cjs",
+    "test:security": "node --test test/workstation-access.test.cjs test/backup.test.cjs test/activity-log.test.cjs test/cloud-shards.test.cjs ../desktop-integration/test/release-verification.test.cjs",
     "test:rules:emulator": "firebase emulators:exec --only firestore --project demo-tomeva \"npm run test:rules && npm run test:kiosk:rules\""
   },
   "keywords": [

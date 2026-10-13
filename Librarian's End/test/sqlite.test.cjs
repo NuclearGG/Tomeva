@@ -144,7 +144,7 @@ test('student and teacher circulation, return undo, payment undo and restart', t
   t.after(() => reopened.close());
   reopened.initializeLegacy(null);
   const after = JSON.parse(createLibraryService(reopened).exportData());
-  delete before.backup_date; delete after.backup_date;
+  delete before.backup_date; delete after.backup_date; delete before.checksum; delete after.checksum;
   assert.deepEqual(after, before);
 });
 test('failed imports and restores leave all original rows intact', t => {
@@ -275,12 +275,14 @@ test('student corrections keep one admission number and deletion waits for retur
 test('workstation PIN is salted, local, persistent and gates database calls while locked', async t => {
   const { dir, store } = fixture(t);
   store.initializeLegacy(null);
-  const lock = createWorkstationLock(store);
+  const protection = require('./os-protection.cjs')();
+  const lock = createWorkstationLock(store, protection);
   assert.equal(lock.config().configured, false);
   assert.equal((await lock.setPin('12', 5)).ok, false);
-  assert.equal((await lock.setPin('1234', 10)).ok, true);
+  assert.equal((await lock.setPin('123456', 10)).ok, true);
   const row = store.collections.settings.findOne({});
-  assert.notEqual(row.workstation_pin_hash, '1234');
+  assert.equal(row.workstation_pin_hash, null);
+  assert.ok(row.workstation_pin_verifier);
   assert.ok(row.workstation_pin_salt.length >= 32);
   const service = createLibraryService(store);
   assert.equal(service.getSettings().workstation_pin_hash, undefined);
@@ -294,10 +296,43 @@ test('workstation PIN is salted, local, persistent and gates database calls whil
   handlers['db:initialize']({}, null);
   assert.match(call('getBooks').error, /locked/);
   assert.equal((await lock.unlock('0000')).ok, false);
-  assert.equal((await lock.unlock('1234')).ok, true);
+  assert.equal((await lock.unlock('123456')).ok, true);
   assert.equal(call('getBooks').ok, true);
   store.close();
   const reopened = new SqliteStore(dir);
   t.after(() => reopened.close());
-  assert.equal(createWorkstationLock(reopened).config().locked, true);
+  const restarted = createWorkstationLock(reopened, protection);
+  assert.equal(restarted.config().locked, true);
+  for (let i = 0; i < 5; i++) await restarted.unlock('000000');
+  assert.match((await createWorkstationLock(reopened, protection).unlock('123456')).msg, /Too many/);
+});
+
+test('catalog imports preserve recorded damage/loss and cannot inject a status', t => {
+  const { store } = fixture(t);
+  store.initializeLegacy(null);
+  const service = createLibraryService(store);
+  service.addBook({ access_no: 'B1', document: 'Book' });
+  assert.equal(service.updateBookStatus('B1', 'Lost'), true);
+  assert.equal(service.updateBookStatus('B1', 'Anything'), false);
+  assert.equal(service.importBooks(JSON.stringify([{ access_no: 'B1', document: 'Book', status: 'Available' }])).ok, true);
+  assert.equal(service.getBook('B1').status, 'Lost');
+});
+
+test('audit export failure retains committed events for replay and undo survives reopening', t => {
+  const { dir, store } = fixture(t);
+  store.initializeLegacy(null);
+  const service = createLibraryService(store, () => { throw new Error('disk full'); });
+  service.addBook({ access_no: 'B1', document: 'Book' });
+  service.addStudent({ adm_no: 'S1', name: 'Student' });
+  assert.equal(service.issueBook('S1', 'B1').ok, true);
+  assert.ok(store.database.prepare('SELECT COUNT(*) AS n FROM audit_events WHERE exported = 0').get().n > 0);
+  store.close();
+  const reopened = new SqliteStore(dir);
+  t.after(() => reopened.close());
+  const exported = [];
+  const restarted = createLibraryService(reopened, (line, event) => exported.push(event.id));
+  assert.equal(restarted.undoLastTransaction().ok, true);
+  assert.equal(restarted.getBook('B1').status, 'Available');
+  assert.equal(reopened.database.prepare('SELECT COUNT(*) AS n FROM audit_events WHERE exported = 0').get().n, 0);
+  assert.equal(new Set(exported).size, exported.length);
 });

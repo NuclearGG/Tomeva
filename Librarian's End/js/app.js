@@ -217,7 +217,7 @@ function _renderDashboard() {
         var book    = LibraryDB.getBook(txn.book_access_no);
         var days    = LibraryDB.calcLateDays(txn.due_date);
         var fine    = days * settings.fine_per_day;
-        return '<div class="search-result-item row-overdue" onclick="navigate(\'return\')">'
+        return '<div class="search-result-item row-overdue" data-handler-click="h2">'
           + '<div class="sr-left"><h4>' + _esc(book ? book.document : txn.book_access_no) + '</h4>'
           + '<p>' + txn.book_access_no + ' · ' + _esc(student ? student.name : txn.student_adm_no) + '</p></div>'
           + '<div style="text-align:right"><div class="overdue-chip">⏰ ' + days + ' days late</div>'
@@ -682,7 +682,7 @@ function _renderBookCatalogue() {
   var badgeMap = { Available:'badge-green', Issued:'badge-blue', Damaged:'badge-coral', 'Under Repair':'badge-yellow', Lost:'badge-gray' };
   tbody.innerHTML = books.map(function(b) {
     var btn = '';
-    if (b.status === 'Issued') btn = '<button class="btn btn-ghost btn-sm" onclick="navigate(\'return\')">Return</button>';
+    if (b.status === 'Issued') btn = '<button class="btn btn-ghost btn-sm" data-handler-click="h2">Return</button>';
     else if (['Damaged','Under Repair','Lost'].includes(b.status))
       btn = '<button class="btn btn-green btn-sm" data-restore-access="' + _esc(b.access_no) + '" data-restore-status="' + _esc(b.status) + '">🔧 Restore</button>';
     return '<tr>'
@@ -942,11 +942,13 @@ function _initSettings() {
     showToast(res.ok ? 'Last transaction undone.' : res.msg, res.ok ? 'success' : 'error');
   });
 
-  document.getElementById('restore-file').addEventListener('change', function() {
-    _readJsonFile(this, function(res) {
+  document.getElementById('restore-file').addEventListener('click', async function() {
+    try {
+      const res = await window.electronAPI.restoreDatabase();
+      if (res.cancelled) return;
       if (res.ok) { showToast('Database restored!', 'success'); _renderDashboard(); }
       else        { showToast(res.msg, 'error'); }
-    }, LibraryDB.restoreData);
+    } catch (error) { showToast(error.message, 'error'); }
   });
 
   /* update loan/fine hint on issue page */
@@ -1373,7 +1375,7 @@ function _initWorkstationLock(startApp) {
     document.getElementById('workstation-current-pin').required = config.configured;
     document.getElementById('workstation-current-label').textContent = config.configured ? '(required to change)' : '(not needed yet)';
     document.getElementById('workstation-pin-status').textContent = config.configured
-      ? 'PIN enabled. Lock with Ctrl+L or after inactivity.' : 'No PIN set yet.';
+      ? (config.legacyPin ? 'Change your legacy PIN to 6–12 digits. Lock with Ctrl+L or after inactivity.' : 'PIN enabled. Lock with Ctrl+L or after inactivity.') : 'No PIN set yet.';
   }
   async function lockNow() {
     if (!config.configured || config.locked || busy) return;

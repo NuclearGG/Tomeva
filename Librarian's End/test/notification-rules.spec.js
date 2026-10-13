@@ -5,7 +5,13 @@ beforeAll(async () => {
   env = await initializeTestEnvironment({ projectId: 'demo-tomeva', firestore: { host: '127.0.0.1', port: 8080, rules: fs.readFileSync('firestore.rules', 'utf8') } });
 });
 afterAll(async () => { await env?.cleanup(); });
-beforeEach(async () => { await env.clearFirestore(); });
+beforeEach(async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async ctx => {
+    for (const email of ['staff@staff.example', 'supervisor@staff.example']) await ctx.firestore().doc('staff_accounts/' + email).set({ active: true });
+    await ctx.firestore().doc('kiosk_admins/supervisor').set({ enabled: true, libraryId: 'main' });
+  });
+});
 const user = (email, verified = true) => env.authenticatedContext(email, { email, email_verified: verified }).firestore();
 const seed = async (name, data) => env.withSecurityRulesDisabled(context => context.firestore().doc(name).set(data));
 

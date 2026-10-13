@@ -4,9 +4,14 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const apps = ['Control Center', "Admin's End", "Librarian's End"];
 const action = process.argv[2];
+if (['test', 'desktop', 'win', 'linux'].includes(action)) {
+  const result = spawnSync(process.execPath, [path.join(__dirname, 'prepare-client.cjs')], { cwd: root, stdio: 'inherit' });
+  if (result.error) throw result.error;
+  if (result.status !== 0) process.exit(result.status ?? 1);
+}
 const jobs = {
   install: apps.map(folder => [folder, ['ci']]),
-  test: [['Control Center', ['test']], ["Admin's End", ['run', 'test:oauth']], ["Admin's End", ['run', 'test:staff']], ["Admin's End", ['run', 'test:roster']], ["Admin's End", ['run', 'test:releases']], ["Librarian's End", ['run', 'test:sqlite']], ["Librarian's End", ['run', 'test:kiosk']], ["Librarian's End", ['run', 'test:sync']]],
+  test: [['Control Center', ['test']], ["Admin's End", ['run', 'test:oauth']], ["Admin's End", ['run', 'test:staff']], ["Admin's End", ['run', 'test:roster']], ["Admin's End", ['run', 'test:releases']], ["Librarian's End", ['run', 'test:sqlite']], ["Librarian's End", ['run', 'test:kiosk']], ["Librarian's End", ['run', 'test:sync']], ["Librarian's End", ['run', 'test:security']]],
   desktop: apps.map(folder => [folder, ['run', 'test:desktop']]),
   win: apps.map(folder => [folder, ['run', 'build:win', '--', '--publish', 'never']]),
   linux: apps.map(folder => [folder, ['run', 'build:linux', '--', '--publish', 'never']]),

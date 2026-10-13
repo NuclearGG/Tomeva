@@ -3,10 +3,11 @@
 // The renderer keeps the existing LibraryDB signatures through a narrow IPC API.
 const { randomUUID } = require('node:crypto');
 const crypto = { randomUUID };
+const { encodeBackup, decodeBackup, BOOK_STATUSES } = require('./backup');
 
 function createLibraryService(store, appendLog = () => {}) {
   const { books: _books, students: _students, transactions: _txns, finePayments: _finePayments, settings: _settings } = store.collections;
-  let _actionHistory = [];
+  let _actionHistory = _settings.findOne({})?.undo_history || [];
   let _pendingLogs = [];
   const MAX_HISTORY = 50;
 
@@ -118,6 +119,28 @@ function createLibraryService(store, appendLog = () => {}) {
     return { ok: true };
   }
 
+  function getCloudSnapshotHistory() {
+    return _settings.findOne({})?.cloud_snapshot_history || [];
+  }
+  function recordCloudSnapshot(value) {
+    if (!value || typeof value.generation !== 'string' || typeof value.projectId !== 'string' || !/^[a-z0-9-]{1,80}$/.test(value.generation)
+      || !/^[a-z0-9-]{1,63}$/.test(value.projectId)
+      || !Number.isInteger(value.publicCount) || value.publicCount < 0 || value.publicCount > 5000
+      || !Number.isInteger(value.privateCount) || value.privateCount < 0 || value.privateCount > 5000) return { ok: false, msg: 'Invalid cloud snapshot metadata.' };
+    const row = _settings.findOne({});
+    row.cloud_snapshot_history = [...getCloudSnapshotHistory().filter(item => item.generation !== value.generation), {
+      generation: value.generation, projectId: value.projectId, publicCount: value.publicCount, privateCount: value.privateCount, recordedAt: Date.now(),
+    }].slice(-1000);
+    _settings.update(row);
+    return { ok: true };
+  }
+  function forgetCloudSnapshot(generation) {
+    const row = _settings.findOne({});
+    row.cloud_snapshot_history = getCloudSnapshotHistory().filter(item => item.generation !== generation);
+    _settings.update(row);
+    return { ok: true };
+  }
+
   /* ══════════════════════════════
      BOOKS
   ══════════════════════════════ */
@@ -151,6 +174,7 @@ function createLibraryService(store, appendLog = () => {}) {
   }
 
   function updateBookStatus(access_no, status) {
+    if (!BOOK_STATUSES.has(status)) return false;
     access_no = _normalizeAccessNo(access_no);
     const b = _books.findOne({ access_no });
     if (!b) return false;
@@ -176,6 +200,7 @@ function createLibraryService(store, appendLog = () => {}) {
       const activeAccessNos = new Set(
         _txns.find({ status: 'Active' }).map(t => t.book_access_no)
       );
+      const previousStatuses = new Map(_books.find().map(book => [book.access_no, book.status]));
 
       // Validate all entries first
       const errors = [];
@@ -213,7 +238,7 @@ function createLibraryService(store, appendLog = () => {}) {
           publisher: (b.publisher || '').trim().slice(0, 100),
           cost:      (b.cost      || '').toString().trim().slice(0, 20),
           pages:     (b.pages     || '').toString().trim().slice(0, 10),
-          status:    activeAccessNos.has(access_no) ? 'Issued' : (b.status || existing_status),
+          status:    activeAccessNos.has(access_no) ? 'Issued' : (previousStatuses.get(access_no) || existing_status),
         });
       });
 
@@ -758,29 +783,13 @@ function createLibraryService(store, appendLog = () => {}) {
   }
 
   function undoLastTransaction() {
-    // Use action history if available, fallback to transaction-based undo
+    // Undo only actions recorded by this service, including after restart.
     if (_actionHistory.length > 0) {
       const lastAction = _actionHistory.pop();
       return _undoAction(lastAction);
     }
 
-    // Fallback: original transaction-based undo
-    const all = _txns.find().sort((a,b) => (b.$loki||0)-(a.$loki||0));
-    if (!all.length) return { ok: false, msg: 'No transactions to undo.' };
-
-    const last    = all[0];
-    const lastDoc = _txns.findOne({ transaction_id: last.transaction_id });
-    if (!lastDoc) return { ok: false, msg: 'Transaction not found.' };
-    _txns.remove(lastDoc);
-
-    const book = getBook(last.book_access_no);
-    if (book) {
-      updateBookStatus(last.book_access_no, last.return_date ? 'Issued' : 'Available');
-    }
-
-
-    _logActivity('UNDO', `Reverted transaction: ${last.transaction_id} | Book: ${last.book_access_no} | Student: ${last.student_adm_no || '—'}`);
-    return { ok: true, txn: last };
+    return { ok: false, msg: 'No recorded action to undo. Historical transactions cannot be safely undone.' };
   }
 
   // Undo a specific action from history
@@ -856,19 +865,21 @@ function createLibraryService(store, appendLog = () => {}) {
      BACKUP / RESTORE (full DB)
   ══════════════════════════════ */
   function exportData() {
-    return JSON.stringify({
+    return encodeBackup({
       books: getBooks(), students: getStudents(), transactions: getTransactions(),
       finePayments: getFinePayments(), settings: getSettings(),
-      backup_date: new Date().toISOString(), format: 'tomeva-v2',
-    }, null, 2);
+      backup_date: new Date().toISOString(),
+    });
   }
 
-  function restoreData(jsonStr) {
+  function previewBackup(jsonStr) {
+    try { const { counts, legacy } = decodeBackup(jsonStr, true); return { ok: true, counts, legacy }; }
+    catch (error) { return { ok: false, msg: error.message }; }
+  }
+
+  function restoreData(jsonStr, allowLegacy = false) {
     try {
-      const data = JSON.parse(jsonStr);
-      if (data.format !== 'tomeva-v2') {
-        return { ok: false, msg: 'Unrecognised backup format. Use a Tomeva backup file.' };
-      }
+      const { data } = decodeBackup(jsonStr, allowLegacy === true);
 
       // Validate data structure before restoring
       const errors = [];
@@ -910,6 +921,8 @@ function createLibraryService(store, appendLog = () => {}) {
         const saved = saveSettings(data.settings);
         if (!saved.ok) throw new Error(saved.msg);
       }
+      _actionHistory = [];
+      _logActivity('RESTORE', 'Restored a validated library backup.');
 
   
       return { ok: true };
@@ -960,6 +973,7 @@ function createLibraryService(store, appendLog = () => {}) {
   const api = {
 
     getSettings, saveSettings, getRosterSyncCursor, setRosterSyncCursor,
+    getCloudSnapshotHistory, recordCloudSnapshot, forgetCloudSnapshot,
 
     getBooks, getBook, searchBooks, addBook, updateBookStatus,
     importBooks,
@@ -976,9 +990,8 @@ function createLibraryService(store, appendLog = () => {}) {
     getFinePayments, getTotalCollected, getCollectedToday,
     reportDamage, restoreBook,
     undoLastTransaction,
-    undoAction: _undoAction,
 
-    exportData, restoreData,
+    exportData, previewBackup, restoreData,
 
     calcLateDays, formatDate,
 
@@ -987,10 +1000,11 @@ function createLibraryService(store, appendLog = () => {}) {
     isEmpty:     () => _books.count() === 0 && _students.count() === 0,
   };
   const mutations = [
+    'recordCloudSnapshot', 'forgetCloudSnapshot',
     'saveSettings', 'setRosterSyncCursor', 'addBook', 'updateBookStatus', 'importBooks', 'addStudent', 'updateStudent', 'deleteStudent',
     'updateStudentGroup', 'importStudents', 'upsertStudentFromCloud', 'issueBook', 'issueBookToTeacher',
     'returnBook', 'markFinePaid', 'reportDamage', 'restoreBook',
-    'undoLastTransaction', 'undoAction', 'restoreData',
+    'undoLastTransaction', 'restoreData',
   ];
   for (const name of mutations) {
     const operation = api[name];
@@ -1001,11 +1015,18 @@ function createLibraryService(store, appendLog = () => {}) {
         const result = store.transaction(() => {
           const result = operation(...args);
           if (result === false || result?.ok === false) throw { operationResult: result };
+          const row = _settings.findOne({});
+          if (row) { row.undo_history = _actionHistory; _settings.update(row); }
+          const insertEvent = store.database.prepare('INSERT INTO audit_events(id, line, created_at) VALUES (?, ?, ?)');
+          for (const line of _pendingLogs) insertEvent.run(randomUUID(), String(line).replace(/[\r\n\u0000]/g, ' ').slice(0, 4096), new Date().toISOString());
           return result;
         });
-        for (const line of _pendingLogs) {
-          try { appendLog(line); } catch (error) { console.warn('[ActivityLog]', error.message); }
-        }
+        try {
+          for (const event of store.database.prepare('SELECT * FROM audit_events WHERE exported = 0 ORDER BY created_at, rowid').all()) {
+            appendLog(event.line, event);
+            store.database.prepare('UPDATE audit_events SET exported = 1 WHERE id = ?').run(event.id);
+          }
+        } catch (error) { console.warn('[ActivityLog] Export deferred:', error.message); }
         return result;
       } catch (error) {
         _actionHistory = historyBefore;

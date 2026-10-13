@@ -9,6 +9,9 @@ app.setPath('userData', path.join(directory, 'user-data'));
 fs.mkdirSync(app.getPath('userData'), { recursive: true });
 const webFixture = require('../../scripts/package-student.cjs').packageStudent(path.join(directory, 'publisher-fixture'));
 const crypto = require('node:crypto');
+// Use the fixed test fixture in memory; production trust files remain unchanged.
+const fixtureSigningKey = crypto.createPrivateKey({ key: Buffer.from('302e020100300506032b657004220420' + '11'.repeat(32), 'hex'), format: 'der', type: 'pkcs8' });
+const fixturePublisherKey = crypto.createPublicKey(fixtureSigningKey).export({ type: 'spki', format: 'pem' });
 global.fetch = async url => {
   const zip = fs.readFileSync(await webFixture);
   const version = require('../package.json').version;
@@ -21,6 +24,9 @@ global.fetch = async url => {
   ]);
   const assets = [...payloads].map(([name, data]) => ({ name, size: data.length, digest: 'sha256:' + crypto.createHash('sha256').update(data).digest('hex'), browser_download_url: `https://github.com/NuclearGG/Tomeva/releases/download/v${version}/${name}` }));
   if (url === 'https://api.github.com/repos/NuclearGG/Tomeva/releases/latest') return new Response(JSON.stringify({ tag_name: 'v' + version, assets }), { headers: { 'content-type': 'application/json' } });
+  const sums = Buffer.from(assets.map(asset => asset.digest.slice(7) + '  ' + asset.name).join('\n') + '\n');
+  if (url.endsWith('/SHA256SUMS')) return new Response(sums);
+  if (url.endsWith('/SHA256SUMS.sig')) return new Response(crypto.sign(null, sums, fixtureSigningKey));
   const asset = assets.find(item => item.browser_download_url === url);
   if (asset) return new Response(payloads.get(asset.name));
   throw new Error('Unexpected network request: ' + url);
@@ -30,6 +36,7 @@ dialog.showOpenDialog = async (_, options) => ({ canceled: false, filePaths: [op
 dialog.showSaveDialog = async () => ({ canceled: false, filePath: kitPath });
 dialog.showMessageBox = async () => ({ response: 1 });
 const packagedRoot = process.env.TOMEVA_PACKAGED_ROOT;
+require(packagedRoot ? path.join(packagedRoot, 'resources/app.asar/integration/release-keys.cjs') : '../../desktop-integration/release-keys.cjs').push(fixturePublisherKey);
 if (packagedRoot) {
   Object.defineProperty(app, 'isPackaged', { get: () => true });
   Object.defineProperty(process, 'resourcesPath', { value: path.join(packagedRoot, 'resources') });

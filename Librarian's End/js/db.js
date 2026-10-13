@@ -4,7 +4,7 @@ const LibraryDB = (() => {
   let ready = false;
   let notice = '';
   const callbacks = [];
-  const api = Object.fromEntries(["getSettings","saveSettings","getBooks","getBook","searchBooks","addBook","updateBookStatus","importBooks","getStudents","getStudent","getStudentByAdmNo","searchStudents","addStudent","updateStudent","deleteStudent","upsertStudentFromCloud","updateStudentGroup","importStudents","studentDisplayName","bookDisplayTitle","getTransactions","issueBook","issueBookToTeacher","returnBook","getActiveTxnForBook","getActiveTransactions","getOverdueTransactions","getReturnedToday","getPendingFines","markFinePaid","getFinePayments","getTotalCollected","getCollectedToday","reportDamage","restoreBook","undoLastTransaction","undoAction","exportData","restoreData","calcLateDays","formatDate","hasBooks","hasStudents","isEmpty"].map(
+  const api = Object.fromEntries(["getCloudSnapshotHistory","recordCloudSnapshot","forgetCloudSnapshot","getSettings","saveSettings","getBooks","getBook","searchBooks","addBook","importBooks","getStudents","getStudent","getStudentByAdmNo","searchStudents","addStudent","updateStudent","deleteStudent","upsertStudentFromCloud","updateStudentGroup","importStudents","studentDisplayName","bookDisplayTitle","getTransactions","issueBook","issueBookToTeacher","returnBook","getActiveTxnForBook","getActiveTransactions","getOverdueTransactions","getReturnedToday","getPendingFines","markFinePaid","getFinePayments","getTotalCollected","getCollectedToday","reportDamage","restoreBook","undoLastTransaction","exportData","calcLateDays","formatDate","hasBooks","hasStudents","isEmpty"].map(
     method => [method, (...args) => {
       if (!ready) throw new Error('Library database is not ready.');
       return window.electronAPI.db[method](...args);
@@ -19,7 +19,7 @@ const LibraryDB = (() => {
   }
   api.onReady = cb => ready ? cb() : callbacks.push(cb);
   api.getMigrationNotice = () => notice;
-  api.backupData = async () => window.electronAPI.backupDatabase(api.exportData());
+  api.backupData = async () => window.electronAPI.backupDatabase();
   api.init = () => {
     if (ready) return;
     try {

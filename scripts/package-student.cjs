@@ -21,6 +21,8 @@ async function packageStudent(directory = path.join(root, 'packages')) {
   add('Student Search/search.html', 'public/index.html');
   add('Student Search/search.html', 'public/search.html');
   add('Student Search/tomeva-config.js', 'public/tomeva-config.js');
+  add('Student Search/app.bundle.js', 'public/app.bundle.js');
+  add('Student Search/connection.js', 'public/connection.js');
   add('Student Search/assets', 'public/assets');
   add("Admin's End/auth-hosting/public/admin-sign-in", 'public/admin-sign-in');
   for (const name of ['firestore.rules', 'firestore.indexes.json']) add(`Librarian's End/${name}`, name);

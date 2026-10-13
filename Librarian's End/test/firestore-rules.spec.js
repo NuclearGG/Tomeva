@@ -199,6 +199,9 @@ describe('Tomeva Firestore Rules', () => {
   beforeEach(async () => {
     await testEnv.clearFirestore();
     await testEnv.withSecurityRulesDisabled(async context => {
+      for (const email of ['teacher@staff.example', 'librarian@staff.example']) {
+        await context.firestore().doc('staff_accounts/' + email).set({ active: true });
+      }
       await context.firestore().doc('kiosk_accounts/kiosk-main').set({
         email: 'kiosk-' + 'a'.repeat(32) + '@kiosk.tomeva.invalid',
         libraryId: LIBRARY_ID, active: true,
@@ -218,19 +221,19 @@ describe('Tomeva Firestore Rules', () => {
       await assertFails(db.collection('libraries').doc(LIBRARY_ID).set(validPayload));
     });
 
-    test('ALLOW: anonymous session can write aggregate sync', async () => {
+    test('DENY: anonymous session can write aggregate sync', async () => {
       const db = anonymous().firestore();
-      await assertSucceeds(db.collection('libraries').doc(LIBRARY_ID).set(validPayload));
+      await assertFails(db.collection('libraries').doc(LIBRARY_ID).set(validPayload));
     });
 
-    test('ALLOW: non-staff domain can write aggregate sync (no PII here)', async () => {
+    test('DENY: non-staff domain can write aggregate sync', async () => {
       const db = verifiedNonStaff().firestore();
-      await assertSucceeds(db.collection('libraries').doc(LIBRARY_ID).set(validPayload));
+      await assertFails(db.collection('libraries').doc(LIBRARY_ID).set(validPayload));
     });
 
-    test('ALLOW: unverified staff-domain email can write aggregate sync', async () => {
+    test('DENY: unverified staff-domain email can write aggregate sync', async () => {
       const db = unverifiedStaff().firestore();
-      await assertSucceeds(db.collection('libraries').doc(LIBRARY_ID).set(validPayload));
+      await assertFails(db.collection('libraries').doc(LIBRARY_ID).set(validPayload));
     });
 
     test('ALLOW: verified staff (@staff.example + email_verified)', async () => {
@@ -391,7 +394,7 @@ describe('Tomeva Firestore Rules', () => {
       test('DENY: a request without its atomic quota increment', async () => {
         const db = testEnv.authenticatedContext('quota-user', { email: studentEmail, email_verified: true }).firestore();
         await testEnv.withSecurityRulesDisabled(async ctx => {
-          await ctx.firestore().collection('libraries').doc(LIBRARY_ID).collection('authorized_students').doc(studentEmail).set({ group: 'Regular' });
+          await ctx.firestore().collection('libraries').doc(LIBRARY_ID).collection('authorized_students').doc(studentEmail).set({ group: 'Regular', name: 'Test Student', adm_no: 'ADM001' });
         });
         await assertFails(db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).set(buildBookRequest({
           requester_email: studentEmail, requester_uid: 'quota-user', timestamp: firebase.firestore.FieldValue.serverTimestamp(),
@@ -412,7 +415,7 @@ describe('Tomeva Firestore Rules', () => {
         const quotaPath = db.collection('libraries').doc(LIBRARY_ID).collection('request_quotas').doc('quota-user');
         await testEnv.withSecurityRulesDisabled(async ctx => {
           const library = ctx.firestore().collection('libraries').doc(LIBRARY_ID);
-          await library.collection('authorized_students').doc(studentEmail).set({ group: 'Regular' });
+          await library.collection('authorized_students').doc(studentEmail).set({ group: 'Regular', name: 'Test Student', adm_no: 'ADM001' });
           await library.collection('request_quotas').doc('quota-user').set({
             windowStartedAt: Timestamp.now(), updatedAt: Timestamp.now(), count: 99, lastRequestId: 'previous',
           });
@@ -436,7 +439,7 @@ describe('Tomeva Firestore Rules', () => {
           await ctx.firestore()
             .collection('libraries').doc(LIBRARY_ID)
             .collection('authorized_students').doc(studentEmail)
-            .set({ email: studentEmail, name: 'Test Student', group: 'Regular', added_by: 'admin', added_at: Timestamp.now() });
+            .set({ email: studentEmail, name: 'Test Student', adm_no: 'ADM001', group: 'Regular', added_by: 'admin', added_at: Timestamp.now() });
         });
 
         await assertSucceeds(createRequestAsStudent(db));
@@ -488,11 +491,12 @@ describe('Tomeva Firestore Rules', () => {
           await ctx.firestore()
             .collection('libraries').doc(LIBRARY_ID)
             .collection('authorized_students').doc('club@gmail.com')
-            .set({ email: 'club@gmail.com', name: 'Club Member', group: 'Literary Club', added_by: 'admin', added_at: Timestamp.now() });
+            .set({ email: 'club@gmail.com', name: 'Club Member', adm_no: 'ADM001', group: 'Literary Club', added_by: 'admin', added_at: Timestamp.now() });
         });
 
         await assertSucceeds(createRequestAsStudent(db, {
           requester_email: 'club@gmail.com',
+          student_name: 'Club Member',
           group: 'Literary Club',
           priority: true,
         }));
@@ -793,9 +797,9 @@ describe('Tomeva Firestore Rules', () => {
       );
     });
 
-    test('ALLOW: write by anonymous session (aggregate sync, REVISED)', async () => {
+    test('DENY: write by anonymous session', async () => {
       const db = anonymous().firestore();
-      await assertSucceeds(
+      await assertFails(
         db.collection('libraries').doc(LIBRARY_ID).collection('public').doc('catalog').set(buildValidSyncPayload())
       );
     });
@@ -859,13 +863,10 @@ describe('Tomeva Firestore Rules', () => {
       const db = kiosk().firestore();
       await assertSucceeds(
         db.collection('libraries').doc(LIBRARY_ID).collection('restricted').doc('circulation').set({
-          overdueList: [],
-          issuedList: [],
-          finesList: [],
-          recentCollections: [],
+          stats: {}, generation: 'test-generation', shard_count: 0,
           last_synced: Timestamp.now(),
           last_synced_iso: new Date().toISOString(),
-          sync_version: 4,
+          sync_version: 7,
         })
       );
     });
@@ -874,13 +875,10 @@ describe('Tomeva Firestore Rules', () => {
       const db = verifiedStaff().firestore();
       await assertSucceeds(
         db.collection('libraries').doc(LIBRARY_ID).collection('restricted').doc('circulation').set({
-          overdueList: [],
-          issuedList: [],
-          finesList: [],
-          recentCollections: [],
+          stats: {}, generation: 'test-generation', shard_count: 0,
           last_synced: Timestamp.now(),
           last_synced_iso: new Date().toISOString(),
-          sync_version: 4,
+          sync_version: 7,
         })
       );
     });
@@ -1062,8 +1060,8 @@ describe('Tomeva Firestore Rules', () => {
       added_at: Timestamp.now(),
     };
 
-    test('ALLOW: read by authenticated user', async () => {
-      const db = nonStaff().firestore();
+    test('ALLOW: verified student reads own authorization', async () => {
+      const db = auth({ email: studentEmail, email_verified: true }).firestore();
       await assertSucceeds(
         db.collection('libraries').doc(LIBRARY_ID).collection('authorized_students').doc(studentEmail).get()
       );
@@ -1152,9 +1150,10 @@ describe('Tomeva Firestore Rules', () => {
         email_verified: true,
       }).firestore();
 
-      await assertSucceeds(
-        db.collection('libraries').doc(LIBRARY_ID).collection('student_logins').doc(studentEmail).set(validLogin)
-      );
+      const batch = db.batch();
+      batch.set(db.doc(`libraries/${LIBRARY_ID}/adm_claims/adm-adm001`), { email: studentEmail, adm_no: 'ADM001' });
+      batch.set(db.collection('libraries').doc(LIBRARY_ID).collection('student_logins').doc(studentEmail), validLogin);
+      await assertSucceeds(batch.commit());
     });
 
     test('DENY: user creates login for different email', async () => {

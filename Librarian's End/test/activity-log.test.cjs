@@ -1,0 +1,20 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { createActivityLog } = require('../main/activity-log');
+test('activity events replay once, survive restart, and detect forged lines', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'tomeva-audit-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const protection = require('./os-protection.cjs')();
+  const event = { id: 'event-1', created_at: new Date().toISOString() };
+  const log = createActivityLog(directory, protection);
+  log.append('Issued B1', event);
+  log.append('Issued B1', event);
+  const reopened = createActivityLog(directory, protection);
+  assert.equal(reopened.records(log.fileFor()).length, 1);
+  const file = log.fileFor();
+  fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('Issued B1', 'Issued B2'));
+  assert.throws(() => reopened.records(file), /integrity/);
+});

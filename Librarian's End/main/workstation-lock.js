@@ -1,76 +1,82 @@
 'use strict';
-
-const { webcrypto, timingSafeEqual } = require('node:crypto');
+const { pbkdf2Sync, randomBytes, timingSafeEqual } = require('node:crypto');
 const ITERATIONS = 210000;
 const VALID_IDLE = new Set([5, 10, 15]);
-
-function createWorkstationLock(store) {
+function createWorkstationLock(store, protection) {
   const settings = store.collections.settings;
-  let locked = !!settings.findOne({})?.workstation_pin_hash;
-  let failures = 0;
-  let retryAfter = 0;
-
+  const read = () => settings.findOne({}) || {};
+  let locked = !!(read().workstation_pin_verifier || read().workstation_pin_hash);
+  let busy = false;
+  const secure = () => !!protection?.isEncryptionAvailable() && protection.getSelectedStorageBackend?.() !== 'basic_text';
+  const update = values => store.transaction(() => {
+    const row = settings.findOne({});
+    if (row) { Object.assign(row, values); settings.update(row); }
+    else settings.insert({ fine_per_day: 2, loan_days: 14, ...values });
+  });
+  if (read().workstation_pin_hash && secure()) {
+    update({ workstation_pin_verifier: protection.encryptString(read().workstation_pin_hash).toString('base64'), workstation_pin_hash: null, workstation_legacy_pin: true });
+  }
   function config() {
-    const row = settings.findOne({}) || {};
-    return { configured: !!row.workstation_pin_hash, locked,
-      idleMinutes: VALID_IDLE.has(row.workstation_idle_minutes) ? row.workstation_idle_minutes : 10 };
+    const row = read();
+    return { configured: !!(row.workstation_pin_verifier || row.workstation_pin_hash), locked,
+      legacyPin: !!(row.workstation_pin_hash || row.workstation_legacy_pin), idleMinutes: VALID_IDLE.has(row.workstation_idle_minutes) ? row.workstation_idle_minutes : 10 };
   }
-
-  async function derive(pin, salt, iterations = ITERATIONS) {
-    const key = await webcrypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
-    const bits = await webcrypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, key, 256);
-    return Buffer.from(bits);
+  function verify(pin) {
+    if (typeof pin !== 'string' || !/^\d{4,12}$/.test(pin)) return false;
+    const row = read();
+    if (!row.workstation_pin_salt) return false;
+    let hash = row.workstation_pin_hash;
+    if (row.workstation_pin_verifier) {
+      if (!secure()) return false;
+      hash = protection.decryptString(Buffer.from(row.workstation_pin_verifier, 'base64'));
+    }
+    if (typeof hash !== 'string' || !/^[a-f0-9]{64}$/.test(hash)) return false;
+    const actual = pbkdf2Sync(pin, Buffer.from(row.workstation_pin_salt, 'hex'), ITERATIONS, 32, 'sha256');
+    return timingSafeEqual(actual, Buffer.from(hash, 'hex'));
   }
-
-  async function verify(pin) {
-    if (!/^\d{4}$/.test(pin)) return false;
-    const row = settings.findOne({}) || {};
-    if (!row.workstation_pin_hash || !row.workstation_pin_salt) return false;
-    const actual = await derive(pin, Buffer.from(row.workstation_pin_salt, 'hex'), row.workstation_pin_iterations || ITERATIONS);
-    const expected = Buffer.from(row.workstation_pin_hash, 'hex');
-    return actual.length === expected.length && timingSafeEqual(actual, expected);
+  function failedAttempt() {
+    const failures = Number(read().workstation_pin_failures || 0) + 1;
+    update({ workstation_pin_failures: failures, workstation_pin_retry_after: failures >= 5 ? Date.now() + Math.min(300000, 30000 * (failures - 4)) : 0 });
+    return { ok: false, msg: 'Incorrect PIN.' };
   }
-
+  const allowedAttempt = () => Date.now() >= Number(read().workstation_pin_retry_after || 0);
   async function setPin(pin, idleMinutes, currentPin) {
+    if (busy) return { ok: false, msg: 'A PIN operation is already running.' };
     if (locked) return { ok: false, msg: 'Unlock the workstation first.' };
-    if (!/^\d{4}$/.test(pin)) return { ok: false, msg: 'Enter exactly four digits.' };
+    if (typeof pin !== 'string' || !/^\d{6,12}$/.test(pin)) return { ok: false, msg: 'Enter 6 to 12 digits.' };
     if (!VALID_IDLE.has(idleMinutes)) return { ok: false, msg: 'Choose 5, 10, or 15 minutes.' };
-    if (config().configured && !(await verify(currentPin))) return { ok: false, msg: 'Current PIN is incorrect.' };
-    const salt = webcrypto.getRandomValues(new Uint8Array(16));
-    const hash = await derive(pin, salt);
-    store.transaction(() => {
-      const row = settings.findOne({});
-      const update = { workstation_pin_salt: Buffer.from(salt).toString('hex'),
-        workstation_pin_hash: hash.toString('hex'), workstation_pin_iterations: ITERATIONS,
-        workstation_idle_minutes: idleMinutes };
-      if (row) { Object.assign(row, update); settings.update(row); }
-      else settings.insert({ fine_per_day: 2, loan_days: 14, ...update });
-    });
-    failures = 0;
-    return { ok: true, ...config() };
+    if (!secure()) return { ok: false, msg: 'A secure OS credential store is required to configure a PIN.' };
+    if (!allowedAttempt()) return { ok: false, msg: 'Too many attempts. Try again shortly.' };
+    busy = true;
+    try {
+      if (config().configured && !verify(currentPin)) return failedAttempt();
+      const salt = randomBytes(16);
+      const hash = pbkdf2Sync(pin, salt, ITERATIONS, 32, 'sha256').toString('hex');
+      update({ workstation_pin_salt: salt.toString('hex'), workstation_pin_verifier: protection.encryptString(hash).toString('base64'),
+        workstation_pin_hash: null, workstation_legacy_pin: false, workstation_pin_iterations: ITERATIONS, workstation_idle_minutes: idleMinutes,
+        workstation_pin_failures: 0, workstation_pin_retry_after: 0 });
+      return { ok: true, ...config() };
+    } finally { busy = false; }
   }
-
   function lock() {
     if (!config().configured) return { ok: false, msg: 'Set a workstation PIN in Settings first.' };
     locked = true;
     return { ok: true, ...config() };
   }
-
   async function unlock(pin) {
     if (!locked) return { ok: true, ...config() };
-    if (Date.now() < retryAfter) return { ok: false, msg: 'Too many attempts. Try again shortly.' };
-    if (!(await verify(pin))) {
-      failures++;
-      if (failures >= 5) { failures = 0; retryAfter = Date.now() + 30000; }
-      return { ok: false, msg: 'Incorrect PIN.' };
-    }
-    failures = 0;
-    retryAfter = 0;
-    locked = false;
-    return { ok: true, ...config() };
+    if (busy || !allowedAttempt()) return { ok: false, msg: 'Too many attempts. Try again shortly.' };
+    busy = true;
+    try {
+      if (!verify(pin)) return failedAttempt();
+      const row = read();
+      const migrated = row.workstation_pin_hash && secure()
+        ? { workstation_pin_verifier: protection.encryptString(row.workstation_pin_hash).toString('base64'), workstation_pin_hash: null } : {};
+      update({ ...migrated, workstation_pin_failures: 0, workstation_pin_retry_after: 0 });
+      locked = false;
+      return { ok: true, ...config() };
+    } finally { busy = false; }
   }
-
   return { config, setPin, lock, unlock, isLocked: () => locked };
 }
-
 module.exports = { createWorkstationLock };

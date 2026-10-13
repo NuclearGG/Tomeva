@@ -15,7 +15,7 @@ const db = {
   initialize: raw => databaseCall('db:initialize', raw),
   getRosterSyncCursor: () => databaseCall('db:call', 'getRosterSyncCursor', []),
   setRosterSyncCursor: value => databaseCall('db:call', 'setRosterSyncCursor', [value]),
-  ...Object.fromEntries(["getSettings","saveSettings","getBooks","getBook","searchBooks","addBook","upsertStudentFromCloud","updateBookStatus","importBooks","getStudents","getStudent","getStudentByAdmNo","searchStudents","addStudent","updateStudentGroup","importStudents","studentDisplayName","bookDisplayTitle","getTransactions","issueBook","issueBookToTeacher","returnBook","getActiveTxnForBook","getActiveTransactions","getOverdueTransactions","getReturnedToday","getPendingFines","markFinePaid","getFinePayments","getTotalCollected","getCollectedToday","reportDamage","restoreBook","undoLastTransaction","undoAction","exportData","restoreData","calcLateDays","formatDate","hasBooks","hasStudents","isEmpty"].map(
+  ...Object.fromEntries(["getCloudSnapshotHistory","recordCloudSnapshot","forgetCloudSnapshot","getSettings","saveSettings","getBooks","getBook","searchBooks","addBook","upsertStudentFromCloud","importBooks","getStudents","getStudent","getStudentByAdmNo","searchStudents","addStudent","updateStudentGroup","importStudents","studentDisplayName","bookDisplayTitle","getTransactions","issueBook","issueBookToTeacher","returnBook","getActiveTxnForBook","getActiveTransactions","getOverdueTransactions","getReturnedToday","getPendingFines","markFinePaid","getFinePayments","getTotalCollected","getCollectedToday","reportDamage","restoreBook","undoLastTransaction","exportData","calcLateDays","formatDate","hasBooks","hasStudents","isEmpty"].map(
     method => [method, (...args) => databaseCall('db:call', method, args)]
   )),
 };
@@ -28,17 +28,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     lock: () => ipcRenderer.invoke('workstation:lock'),
     unlock: pin => ipcRenderer.invoke('workstation:unlock', pin),
   },
-  // File dialogs (restricted to downloads folder, JSON only)
-  showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
-  showOpenDialog: (options) => ipcRenderer.invoke('show-open-dialog', options),
-
   // Purpose-built database operations
   backupDatabase: (backupJson) => ipcRenderer.invoke('backup-database', backupJson),
   restoreDatabase: () => ipcRenderer.invoke('restore-database'),
   exportActivityLog: (maxLines) => ipcRenderer.invoke('export-activity-log', { maxLines }),
 
   // Activity log (transactions.log — appended on every issue/return/etc.)
-  appendLog:     (line)     => ipcRenderer.invoke('append-log', line),
   getLogInfo:    ()         => ipcRenderer.invoke('get-log-info'),
   openLogFolder: ()         => ipcRenderer.invoke('open-log-folder'),
   readCurrentLog:(maxLines) => ipcRenderer.invoke('read-current-log', maxLines),

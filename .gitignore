@@ -5,19 +5,22 @@ node_modules-*/
 
 # Build output and packaged apps
 dist/
-Control Center/desktop-installers/
-Librarian's End/integration/
-Admin's End/public-releases.json
+/Control Center/desktop-installers/
+/Librarian's End/integration/
+/Admin's End/public-releases.json
 .firebase/
-dist/linux-unpacked
-dist/win-unpacked
 build/
 out/
 release/
+Admin's End/app.bundle.js
+Student Search/app.bundle.js
+Control Center/web-template/app.bundle.js
 *.exe
 *.blockmap
+*.AppImage
 !/packages/*.exe
 !/packages/*.blockmap
+!/packages/*.AppImage
 builder-debug.yml
 builder-effective-config.yaml
 effectiveConfig/
@@ -31,6 +34,8 @@ yarn-error.log*
 firebase-debug.log
 test-results/
 coverage/
+test-artifacts/
+/LinkedIn Screenshots/
 
 # Local config and secrets
 .env
@@ -38,6 +43,14 @@ coverage/
 !.env.example
 *.pem
 *.key
+*.p12
+*.pfx
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+*.db-shm
+*.db-wal
 serviceAccount*.json
 credentials*.json
 secrets*.json

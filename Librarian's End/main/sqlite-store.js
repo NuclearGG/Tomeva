@@ -58,6 +58,10 @@ class SqliteStore {
         name TEXT PRIMARY KEY, source_hash TEXT, backup_path TEXT,
         row_counts TEXT NOT NULL, committed_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS audit_events (
+        id TEXT PRIMARY KEY, line TEXT NOT NULL, created_at TEXT NOT NULL,
+        exported INTEGER NOT NULL DEFAULT 0
+      );
       CREATE INDEX IF NOT EXISTS books_status ON books(status);
       CREATE INDEX IF NOT EXISTS students_email ON students(email);
       CREATE INDEX IF NOT EXISTS transactions_book_status ON transactions(book_access_no, status);

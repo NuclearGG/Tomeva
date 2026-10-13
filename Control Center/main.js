@@ -7,6 +7,8 @@ const { createUpdateManager } = require('./update-manager');
 const { exportWebPackage, checkWebDeployment } = require('./web-helper');
 const { exportSetupBundle, copyRules, getRules } = require('./setup-export');
 const { checkDesktopReleases } = require('./desktop-releases');
+const { pathToFileURL } = require('node:url');
+const verification = require(app.isPackaged ? './integration/release-verification.cjs' : '../desktop-integration/release-verification.cjs');
 
 let window = null;
 let updater = null;
@@ -50,7 +52,9 @@ function createWindow() {
   window.webContents.on('will-navigate', event => event.preventDefault());
   window.on('closed', () => { window = null; });
 }
-const fromWindow = event => window && event.sender === window.webContents;
+const fromWindow = event => window && event.sender === window.webContents
+  && event.senderFrame === window.webContents.mainFrame
+  && event.senderFrame?.url.split('#')[0] === pathToFileURL(path.join(__dirname, 'ui', 'index.html')).href;
 function handle(name, fn) { ipcMain.handle(name, (event, ...args) => { if (!fromWindow(event)) throw new Error('Untrusted window.'); return fn(...args); }); }
 handle('config:read', () => configStore.read());
 handle('config:save', value => configStore.save(value));
@@ -74,6 +78,8 @@ handle('setup:install', async (value, component) => {
   const result = await distribute(options => exportSetupBundle(window, value, component, localPlatform, options));
   if (result.cancelled) return result;
   if (!result.installerPath) throw new Error('No verified installer was downloaded.');
+  const signedManifest = await verification.loadManifest('v' + result.version);
+  await verification.verifyFile(result.installerPath, path.basename(result.installerPath), signedManifest);
   if (process.platform === 'linux') {
     await new Promise((resolve, reject) => {
       const child = require('node:child_process').spawn(result.installerPath, [], { detached: true, stdio: 'ignore' });

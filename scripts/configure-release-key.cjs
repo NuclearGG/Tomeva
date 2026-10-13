@@ -1,0 +1,12 @@
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+const { createPublicKey } = require('node:crypto');
+const filename = process.argv[2];
+if (!filename) throw new Error('Pass the path to an existing public Ed25519 release key.');
+const input = fs.readFileSync(filename, 'utf8');
+if (/PRIVATE KEY/.test(input)) throw new Error('Supply a public key; private keys must remain outside the repository.');
+const key = createPublicKey(input);
+if (key.asymmetricKeyType !== 'ed25519') throw new Error('An Ed25519 publisher public key is required.');
+fs.writeFileSync(path.join(__dirname, '../desktop-integration/release-keys.cjs'), "'use strict';\nmodule.exports = " + JSON.stringify([key.export({ type: 'spki', format: 'pem' })], null, 2) + ';\n');
+console.log('Publisher public key configured. Rebuild all desktop apps to distribute this trust key.');

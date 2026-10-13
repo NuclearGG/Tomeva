@@ -60,14 +60,14 @@ app.on('browser-window-created', (_, window) => {
           throw new Error('Workstation lock UI did not change state');
         };
         const overlay = document.getElementById('workstation-lock-screen');
-        document.getElementById('workstation-new-pin').value = '1234';
+        document.getElementById('workstation-new-pin').value = '123456';
         document.getElementById('workstation-pin-form').requestSubmit();
         await waitFor(() => !document.getElementById('workstation-lock-now').hidden);
         document.getElementById('workstation-lock-now').click();
         await waitFor(() => !overlay.hidden);
         let blocked = false;
         try { LibraryDB.getBooks(); } catch (error) { blocked = /locked/.test(error.message); }
-        document.getElementById('workstation-unlock-pin').value = '1234';
+        document.getElementById('workstation-unlock-pin').value = '123456';
         document.getElementById('workstation-unlock-form').requestSubmit();
         await waitFor(() => overlay.hidden);
         return { blocked, books: LibraryDB.getBooks().length };

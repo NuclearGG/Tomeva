@@ -1,2 +1,3 @@
 const pkg = require('./package.json');
-module.exports = { ...pkg.build, directories: { output: 'dist/release' }, publish: [{ provider: 'github', owner: 'NuclearGG', repo: 'Tomeva', releaseType: 'release' }] };
+const build = require('../desktop-integration/build-signing.cjs').configureSigning(pkg.build);
+module.exports = { ...build, directories: { output: 'dist/release' }, publish: [{ provider: 'github', owner: 'NuclearGG', repo: 'Tomeva', releaseType: 'release' }] };

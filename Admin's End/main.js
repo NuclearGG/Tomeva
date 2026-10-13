@@ -1,11 +1,15 @@
 const { app, BrowserWindow, shell, Menu, ipcMain, Notification } = require('electron');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { OAuthFlow } = require('./oauth-flow');
 const { createNativeUpdater } = require(app.isPackaged ? './integration/native-updater.cjs' : '../desktop-integration/native-updater.cjs');
 const institution = require(app.isPackaged ? './integration/institution-config.cjs' : '../desktop-integration/institution-config.cjs');
 
 let mainWindow = null;
 let appUpdater;
+const trustedFrame = event => mainWindow && event.sender === mainWindow.webContents
+  && event.senderFrame === mainWindow.webContents.mainFrame
+  && event.senderFrame?.url.split('#')[0] === pathToFileURL(path.join(__dirname, 'index.html')).href;
 const oauth = new OAuthFlow({
   getLoginUrl: () => {
     const config = institution.read();
@@ -49,6 +53,7 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
+  mainWindow.webContents.on('will-navigate', event => event.preventDefault());
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     openHttpsUrl(url);
     return { action: 'deny' };
@@ -83,7 +88,7 @@ function buildMenu() {
 }
 
 ipcMain.on('sign-in-google', async (event) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return;
+  if (!trustedFrame(event)) return;
   try {
     await oauth.start();
   } catch (error) {
@@ -101,19 +106,19 @@ ipcMain.on('sign-in-google', async (event) => {
 
 const gotTheLock = app.requestSingleInstanceLock();
 ipcMain.handle('updates:releases', event => {
-  if (event.sender !== mainWindow?.webContents) throw new Error('Untrusted window.');
+  if (!trustedFrame(event)) throw new Error('Untrusted window.');
   return require('./release-discovery.js').checkDesktopReleases(app.isPackaged ? require('./public-releases.json') : undefined);
 });
 ipcMain.handle('institution:read', event => {
-  if (event.sender !== mainWindow?.webContents) throw new Error('Untrusted window.');
+  if (!trustedFrame(event)) throw new Error('Untrusted window.');
   return institution.read();
 });
 ipcMain.handle('institution:connect', (event, url) => {
-  if (event.sender !== mainWindow?.webContents) throw new Error('Untrusted window.');
+  if (!trustedFrame(event)) throw new Error('Untrusted window.');
   return institution.connectFromPublicUrl(url);
 });
 ipcMain.on('desktop:notify', (event, type) => {
-  if (event.sender !== mainWindow?.webContents || !['NEW_REQUEST', 'LIBRARIAN_MESSAGE'].includes(type) || !Notification.isSupported()) return;
+  if (!trustedFrame(event) || !['NEW_REQUEST', 'LIBRARIAN_MESSAGE'].includes(type) || !Notification.isSupported()) return;
   const notice = new Notification({ title: 'Tomeva Admin', body: type === 'NEW_REQUEST' ? 'A new library request is available.' : 'A new librarian message is available.' });
   notice.on('click', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;

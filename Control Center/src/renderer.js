@@ -100,7 +100,7 @@ document.querySelectorAll('[data-desktop-update]').forEach(button => button.addE
   bridge.updates.openDesktop(button.dataset.desktopUpdate).catch(error => notice('Could not open the installed updater: ' + error.message, 'error'));
 }));
 function showUpdateStatus(status) {
-  const labels = { development: 'Development build', checking: 'Checking public releases', current: 'Up to date', available: `Version ${status.availableVersion} available`, downloading: 'Downloading update', ready: 'Ready to install', error: 'Update check needs attention', unconfigured: 'Release channel not configured' };
+  const labels = { development: 'Development build', checking: 'Checking public releases', current: 'Up to date', available: `Version ${status.availableVersion} available`, downloading: 'Downloading update', verifying: 'Verifying release checksums', ready: 'Ready to install', error: 'Update check needs attention', unconfigured: 'Release channel not configured' };
   byId('update-heading').textContent = labels[status.state] || status.state;
   byId('update-status').textContent = status.message || ({ available: 'Review the notes, then download when ready.', ready: 'Restart to install the downloaded version.', development: 'Update checks are available in installed builds.', unconfigured: 'The release owner and repository must be configured when building the installer.' }[status.state] || '');
   byId('update-version').textContent = `Installed version ${status.version || '—'}`;
