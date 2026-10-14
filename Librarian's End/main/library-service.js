@@ -4,6 +4,7 @@
 const { randomUUID } = require('node:crypto');
 const crypto = { randomUUID };
 const { encodeBackup, decodeBackup, BOOK_STATUSES } = require('./backup');
+const { localDate, lateDays: _lateCalendarDays, formatDate } = require('./calendar');
 
 function createLibraryService(store, appendLog = () => {}) {
   const { books: _books, students: _students, transactions: _txns, finePayments: _finePayments, settings: _settings } = store.collections;
@@ -163,12 +164,17 @@ function createLibraryService(store, appendLog = () => {}) {
   }
 
   function addBook(b) {
+    if (!b || typeof b.document !== 'string' || !b.document.trim() || b.document.length > 200
+      || ['author', 'publisher'].some(field => b[field] != null && (typeof b[field] !== 'string' || b[field].length > 100))
+      || ['cost', 'pages'].some(field => b[field] != null && !['string', 'number'].includes(typeof b[field])))
+      return { ok: false, msg: 'Enter a title (up to 200 characters), author and publisher (up to 100 each), and valid cost and pages.' };
     const accessCheck = _validateAccessNo(b.access_no);
     if (!accessCheck.ok) return accessCheck;
     b.access_no = accessCheck.accessNo;
-    if (_books.findOne({ access_no: b.access_no }))
+    if (_books.where(book => String(book.access_no).toLowerCase() === b.access_no.toLowerCase()).length)
       return { ok: false, msg: `Access No "${b.access_no}" already exists.` };
-    _books.insert({ ...b, status: 'Available' });
+    _books.insert({ access_no: b.access_no, document: b.document.trim(), author: b.author || '', publisher: b.publisher || '',
+      cost: String(b.cost ?? '').slice(0, 20), pages: String(b.pages ?? '').slice(0, 10), status: 'Available' });
 
     return { ok: true };
   }
@@ -460,6 +466,7 @@ function createLibraryService(store, appendLog = () => {}) {
 
     const student = getStudent(adm_no);
     if (!student) return { ok: false, msg: `Student ADM No "${adm_no}" not found.` };
+    adm_no = student.adm_no;
 
     const book = getBook(access_no);
     if (!book)   return { ok: false, msg: `Book Access No "${access_no}" not found.` };
@@ -478,8 +485,8 @@ function createLibraryService(store, appendLog = () => {}) {
       teacher_name:    null,
       teacher_email:   null,
       book_access_no:  access_no,
-      issue_date:      today.toISOString().split('T')[0],
-      due_date:        due.toISOString().split('T')[0],
+      issue_date:      localDate(today),
+      due_date:        localDate(due),
       return_date:     null,
       fine:            0,
       damage_reported: false,
@@ -532,7 +539,7 @@ function createLibraryService(store, appendLog = () => {}) {
       teacher_name:    name,
       teacher_email:   email,
       book_access_no:  access_no,
-      issue_date:      today.toISOString().split('T')[0],
+      issue_date:      localDate(today),
       due_date:        null,   // no due date for teacher loans
       return_date:     null,
       fine:            0,
@@ -581,7 +588,7 @@ function createLibraryService(store, appendLog = () => {}) {
       fine = lateDays * settings.fine_per_day;
     }
 
-    txnDoc.return_date = today.toISOString().split('T')[0];
+    txnDoc.return_date = localDate(today);
     txnDoc.fine        = fine;
     txnDoc.status      = fine > 0 ? 'FinePending' : 'Returned';
     _txns.update(txnDoc);
@@ -628,13 +635,13 @@ function createLibraryService(store, appendLog = () => {}) {
   }
 
   function getOverdueTransactions() {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDate();
     // Teacher loans (due_date null) can never be overdue.
     return _stripAll(_txns.where(t => t.status === 'Active' && !!t.due_date && t.due_date < todayStr));
   }
 
   function getReturnedToday() {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDate();
     return _stripAll(_txns.where(t => t.return_date === todayStr));
   }
 
@@ -658,7 +665,7 @@ function createLibraryService(store, appendLog = () => {}) {
       student_adm_no: t.student_adm_no,
       book_access_no: t.book_access_no,
       amount,
-      paid_date:      new Date().toISOString().split('T')[0],
+      paid_date:      localDate(),
       paid_at:        new Date().toISOString(),
     });
 
@@ -692,7 +699,7 @@ function createLibraryService(store, appendLog = () => {}) {
   }
 
   function getCollectedToday() {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDate();
     const rows = _finePayments.find({ paid_date: todayStr });
     return { count: rows.length, amount: rows.reduce((s, p) => s + (p.amount || 0), 0) };
   }
@@ -756,9 +763,9 @@ function createLibraryService(store, appendLog = () => {}) {
       teacher_name:     null,
       teacher_email:    null,
       book_access_no:   access_no,
-      issue_date:       new Date().toISOString().split('T')[0],
+      issue_date:       localDate(),
       due_date:         null,
-      return_date:      new Date().toISOString().split('T')[0],
+      return_date:      localDate(),
       fine:             0,
       damage_reported:  false,
       status:           'Returned',
@@ -956,16 +963,6 @@ function createLibraryService(store, appendLog = () => {}) {
     return _lateCalendarDays(due_date, new Date());
   }
 
-  function _lateCalendarDays(dueDate, now) {
-    const due = Date.parse(`${dueDate}T00:00:00Z`);
-    const current = Date.parse(`${now.toISOString().slice(0, 10)}T00:00:00Z`);
-    return Number.isFinite(due) ? Math.max(0, Math.round((current - due) / 86400000)) : 0;
-  }
-
-  function formatDate(str) {
-    if (!str) return '—';
-    return new Date(str).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
-  }
 
 /* ══════════════════════════════
      PUBLIC API

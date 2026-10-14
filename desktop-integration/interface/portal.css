@@ -1,0 +1,91 @@
+:root { --surface:var(--paper); --muted:var(--ink-secondary); --forest:var(--bookcloth); --forest-dark:var(--bookcloth-hover); --line:var(--rule); }
+body.t-workspace-student { min-height:100vh; height:auto; overflow:auto; background:var(--catalogue); animation:none; }
+.t-workspace-student header { background:var(--catalogue); color:var(--ink); border-bottom:1px solid var(--rule); height:auto; min-height:80px; padding:16px max(24px,calc((100vw - 1200px)/2)); box-shadow:none; backdrop-filter:none; gap:24px; }
+.t-workspace-student .header-brand { gap:12px; }
+.t-workspace-student .header-brand .logo { width:40px; height:40px; border-radius:7px; filter:none; }
+.t-workspace-student .header-brand h1 { font:800 19px/1.2 var(--font-ui); letter-spacing:-.6px; color:var(--ink); text-shadow:none; }
+.t-workspace-student .header-brand p { font-size:10px; color:var(--ink-secondary); line-height:1.6; }
+.t-workspace-student .header-badge, .t-workspace-student .auth-chip { background:var(--paper); color:var(--ink-secondary); border:1px solid var(--rule); border-radius:5px; font-size:10px; box-shadow:none; backdrop-filter:none; }
+.t-workspace-student .live-dot { width:6px; height:6px; box-shadow:none; }
+.t-workspace-student .hero { max-width:1200px; padding:40px 24px 32px; grid-template-columns:minmax(260px,.8fr) minmax(0,1.2fr); column-gap:48px; }
+.t-workspace-student .hero::before { content:'Tomeva / Student catalogue'; color:var(--ink-caption); font:500 10px/1.6 var(--font-ui); letter-spacing:.03em; margin-bottom:12px; }
+.t-workspace-student .hero-title { font:750 clamp(28px,3vw,36px)/1.15 var(--font-ui); letter-spacing:-1.2px; max-width:14ch; color:var(--ink); }
+.t-workspace-student .hero-subtitle { font-size:12px; line-height:1.8; color:var(--ink-secondary); max-width:42ch; }
+.t-workspace-student .search-input-wrap { min-height:60px; background:var(--paper); border:1px solid var(--rule-emphasis); border-left:3px solid var(--bookcloth); border-radius:0 8px 8px 0; padding:8px 8px 8px 16px; box-shadow:none; backdrop-filter:none; }
+.t-workspace-student .search-input-wrap:focus-within { border-color:var(--focus); box-shadow:0 0 0 3px var(--selection); }
+.t-workspace-student .search-input-wrap input { font:500 14px var(--font-ui); color:var(--ink); min-width:0; }
+.t-workspace-student .search-icon { color:var(--ink-caption); display:flex; align-items:center; font-size:18px; filter:none; }
+.t-workspace-student .search-btn, .t-workspace-student .req-submit-btn { background:var(--bookcloth); color:white; border:1px solid var(--bookcloth); border-radius:5px; min-height:44px; padding:12px 20px; font:700 12px var(--font-ui); box-shadow:none; transform:none; }
+.t-workspace-student .search-btn:hover, .t-workspace-student .req-submit-btn:hover { background:var(--bookcloth-hover); border-color:var(--bookcloth-hover); box-shadow:none; transform:none; }
+.t-workspace-student .main { max-width:1200px; margin:0 auto; padding:0 24px 48px; }
+.t-workspace-student .stats-bar { border:1px solid var(--rule); border-radius:8px; background:var(--paper); overflow:hidden; margin-bottom:16px; }
+.t-workspace-student .stat-pill { border-right:1px solid var(--rule-soft); padding:20px 24px; display:flex; align-items:center; gap:12px; }
+.t-workspace-student .stat-pill-icon { color:var(--ink-caption); display:flex; }
+.t-workspace-student .stat-pill-val { font:700 26px/1.2 var(--font-ui); letter-spacing:-.7px; font-variant-numeric:tabular-nums; color:var(--ink); }
+.t-workspace-student .stat-pill .stat-pill-val { color:var(--ink); }
+.t-workspace-student .stat-pill-label { font-size:10px; color:var(--ink-secondary); margin-top:4px; }
+.t-workspace-student .last-updated { color:var(--ink-caption); font:400 10px/1.7 var(--font-id); margin-bottom:20px; }
+.t-workspace-student .my-requests-btn { background:var(--paper); color:var(--ink-secondary); border:1px solid var(--control-border); border-radius:5px; font:650 11px var(--font-ui); min-height:40px; padding:10px 14px; }
+.t-workspace-student .my-requests-btn:hover { background:var(--selection); border-color:var(--rule-emphasis); }
+.t-workspace-student .filter-chip { background:transparent; color:var(--ink-secondary); border:1px solid var(--rule); border-radius:5px; font:650 11px var(--font-ui); padding:9px 14px; min-height:36px; box-shadow:none; text-shadow:none; backdrop-filter:none; }
+.t-workspace-student .filter-chip.active { background:var(--selection); color:var(--bookcloth); border-color:var(--blue-mid); }
+.t-workspace-student .filter-chip:hover { border-color:var(--rule-emphasis); color:var(--bookcloth); }
+.t-workspace-student .section-header { gap:16px; margin-bottom:20px; }
+.t-workspace-student .section-title { font:750 18px var(--font-ui); color:var(--ink); letter-spacing:-.4px; }
+.t-workspace-student .results-count { font:500 10px var(--font-id); background:var(--label-stock); color:var(--ink-secondary); border:0; padding:5px 8px; }
+.t-workspace-student .book-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.t-workspace-student .book-card { background:var(--paper); border:1px solid var(--rule); border-left:2px solid var(--bookcloth); border-radius:0 8px 8px 0; padding:24px; min-height:250px; gap:16px; box-shadow:none; transition:border-color var(--transition), background-color var(--transition); }
+.t-workspace-student .book-card.available, .t-workspace-student .book-card.unavailable { border-color:var(--rule); border-left-color:var(--bookcloth); opacity:1; }
+.t-workspace-student .book-card:hover { transform:none; border-color:var(--rule-emphasis); border-left-color:var(--bookcloth); box-shadow:none; }
+.t-workspace-student .book-card-top { align-items:center; gap:8px; margin:0; }
+.t-workspace-student .book-card-top .slip-id { font-size:10px; color:var(--ink-caption); }
+.t-workspace-student .book-title, .t-workspace-student .bli-title { font:750 19px/1.4 var(--font-ui); letter-spacing:-.4px; color:var(--ink); text-shadow:none; }
+.t-workspace-student .book-author { font:400 12px/1.8 var(--font-ui); color:var(--ink-secondary); margin-top:8px; }
+.t-workspace-student .book-card-footer { border-top:1px solid var(--rule-soft); padding-top:12px; color:var(--ink-caption); font-size:11px; line-height:1.6; }
+.t-workspace-student .book-card .book-card-footer { color:var(--ink-caption); }
+.t-workspace-student .availability-badge { color:var(--ink-secondary); background:var(--label-stock); border:0; border-radius:4px; font:650 9px/1.5 var(--font-ui); padding:4px 6px; text-shadow:none; backdrop-filter:none; white-space:nowrap; }
+.t-workspace-student .availability-badge.available { color:var(--cleared); background:var(--cleared-paper); }
+.t-workspace-student .availability-badge .badge-dot { width:5px; height:5px; box-shadow:none; }
+.t-workspace-student .request-btn { min-height:40px; background:var(--catalogue); color:var(--bookcloth); border:1px solid var(--control-border); border-radius:5px; font:700 11px var(--font-ui); margin-top:auto; padding:10px 12px; display:flex; gap:8px; align-items:center; justify-content:center; box-shadow:none; }
+.t-workspace-student .request-btn:hover { color:var(--bookcloth); background:var(--selection); border-color:var(--blue-mid); transform:none; box-shadow:none; }
+.t-workspace-student .book-list-item { background:var(--paper); border:1px solid var(--rule); border-left:2px solid var(--bookcloth); border-radius:0 8px 8px 0; padding:20px; box-shadow:none; gap:20px; }
+.t-workspace-student .book-list-item.available, .t-workspace-student .book-list-item.unavailable { border-color:var(--rule); border-left-color:var(--bookcloth); }
+.t-workspace-student .book-list-item:hover { transform:none; border-color:var(--rule-emphasis); }
+.t-workspace-student .bli-title { font-size:16px; }
+.t-workspace-student .bli-icon { background:var(--label-stock); border:0; border-radius:5px; color:var(--ink-caption); font:400 10px var(--font-id); width:40px; height:48px; }
+.t-workspace-student .book-id, .t-workspace-student .req-modal-book-id { color:var(--ink-secondary); background:var(--label-stock); border:0; border-radius:4px; font:400 10px var(--font-id); }
+.t-workspace-student .bli-meta { color:var(--ink-secondary); }
+.t-workspace-student mark { background:var(--selection); color:var(--bookcloth); }
+.t-workspace-student .state-card, .t-workspace-student .no-results { background:var(--paper); border:1px solid var(--rule); border-radius:8px; padding:40px 24px; box-shadow:none; }
+.t-workspace-student .state-title { font:750 20px var(--font-ui); color:var(--ink); letter-spacing:-.5px; }
+.t-workspace-student .state-sub { color:var(--ink-secondary); font-size:12px; line-height:1.8; }
+.t-workspace-student .state-icon { color:var(--ink-caption); display:flex; justify-content:center; }
+.t-workspace-student .state-icon .t-icon { width:32px; height:32px; flex-basis:32px; }
+.t-workspace-student footer { background:var(--catalogue); border-top:1px solid var(--rule); color:var(--ink-caption); font-size:10px; line-height:1.8; padding:24px; }
+.t-workspace-student footer strong { color:var(--ink-secondary); }
+.t-workspace-student .full-page-gate { background:var(--catalogue); min-height:calc(100vh - 80px); display:grid; grid-template-columns:minmax(260px,.8fr) minmax(0,1fr); gap:64px; align-items:center; align-content:center; max-width:1040px; margin:0 auto; padding:64px 24px; }
+.portal-welcome .slip-label { margin-bottom:20px; }
+.portal-welcome h2 { font:750 40px/1.15 var(--font-ui); letter-spacing:-1.5px; color:var(--ink); max-width:12ch; margin:0 0 20px; }
+.portal-welcome p { font-size:13px; line-height:1.8; color:var(--ink-secondary); max-width:35ch; }
+.t-workspace-student .fpg-card { max-width:none; width:100%; background:var(--paper); border:1px solid var(--rule); border-top:3px solid var(--bookcloth); border-radius:0 0 10px 10px; box-shadow:none; padding:40px 32px; }
+.t-workspace-student .fpg-title { font:750 24px/1.3 var(--font-ui); letter-spacing:-.7px; color:var(--ink); }
+.t-workspace-student .fpg-sub, .t-workspace-student .fpg-loading { color:var(--ink-secondary); font-size:12px; line-height:1.8; }
+.t-workspace-student img.fpg-icon { border:0; background:none; border-radius:8px; }
+.t-workspace-student .google-signin-btn { font:700 12px var(--font-ui); background:var(--paper); border:1px solid var(--control-border); border-radius:6px; color:var(--ink); box-shadow:none; min-height:44px; }
+.t-workspace-student .google-signin-btn:hover { background:var(--label-stock); box-shadow:none; }
+.t-workspace-student .req-modal-overlay { background:rgba(27,25,50,.36); backdrop-filter:none; padding:24px; }
+.t-workspace-student .req-modal { color:var(--ink); background:var(--paper); border:1px solid var(--rule); border-radius:14px; box-shadow:0 12px 48px rgba(27,25,50,.14); max-height:calc(100vh - 48px); }
+.t-workspace-student .req-modal-title { font:750 22px var(--font-ui); letter-spacing:-.6px; color:var(--ink); }
+.t-workspace-student .req-modal-book, .t-workspace-student .mri-title { color:var(--ink); font-family:var(--font-ui); }
+.t-workspace-student .req-form-group label { color:var(--ink-secondary); font-size:11px; }
+.t-workspace-student .req-form-group input, .t-workspace-student .req-form-group select, .t-workspace-student .req-form-group textarea { background:var(--control-bg); color:var(--ink); border:1px solid var(--control-border); border-radius:6px; min-height:42px; padding:11px 12px; font:400 13px var(--font-ui); }
+.t-workspace-student .req-form-group input:focus, .t-workspace-student .req-form-group select:focus, .t-workspace-student .req-form-group textarea:focus { border-color:var(--focus); box-shadow:0 0 0 3px var(--selection); background:var(--paper); }
+.t-workspace-student .req-modal-close { background:var(--label-stock); color:var(--ink-secondary); border:1px solid var(--rule); border-radius:5px; min-width:36px; min-height:36px; }
+.t-workspace-student .req-modal-error { background:var(--exception-paper); border-color:var(--coral-mid); color:var(--exception); }
+.t-workspace-student .verified-chip { background:var(--cleared-paper); border-color:var(--green-mid); color:var(--cleared); }
+.t-workspace-student .unverified-notice { background:var(--due-paper); color:var(--due); border-color:var(--yellow-mid); }
+.t-workspace-student .mri-status { background:var(--label-stock); color:var(--ink-secondary); }
+.t-workspace-student .account-delete-link, .t-workspace-student #account-delete-button { color:var(--exception); }
+@media(max-width:960px){.t-workspace-student .book-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.t-workspace-student .hero{column-gap:24px}.t-workspace-student .full-page-gate{gap:32px}}
+@media(max-width:760px){.t-workspace-student header{padding:12px 16px;min-height:72px;gap:12px}.t-workspace-student .hero{display:block;padding:28px 16px}.t-workspace-student .hero::before{display:block;margin-bottom:12px}.t-workspace-student .hero-title{font-size:30px;max-width:none}.t-workspace-student .hero-subtitle{margin:10px 0 24px;max-width:none}.t-workspace-student .search-input-wrap{flex-wrap:nowrap}.t-workspace-student .search-btn{width:auto;padding:12px 16px}.t-workspace-student .search-box{margin:0}.t-workspace-student .main{padding:0 16px 32px}.t-workspace-student .stat-pill{padding:16px 12px;gap:8px}.t-workspace-student .stat-pill-icon{display:none}.t-workspace-student .stat-pill-val{font-size:23px}.t-workspace-student .stat-pill-label{font-size:9px}.t-workspace-student .full-page-gate{grid-template-columns:1fr;padding:32px 16px;gap:24px;min-height:calc(100vh - 72px)}.portal-welcome h2{font-size:30px;max-width:none;margin-bottom:12px}.portal-welcome p{max-width:none;font-size:12px}.portal-welcome .slip-label{margin-bottom:12px}.t-workspace-student .fpg-card{padding:28px 24px}.t-workspace-student .book-card{padding:20px;min-height:240px}.t-workspace-student .portal-actions{gap:8px}.t-workspace-student .section-header{flex-wrap:wrap}.t-workspace-student .book-list-item{flex-wrap:wrap;gap:12px}.t-workspace-student .bli-right{width:100%;flex-direction:row;justify-content:space-between}.t-workspace-student .req-modal-overlay{padding:12px}}
+@media(max-width:520px){.t-workspace-student .book-grid{grid-template-columns:1fr}.t-workspace-student .book-card{min-height:220px}.t-workspace-student .stats-bar{grid-template-columns:repeat(3,minmax(0,1fr))}.t-workspace-student .header-brand h1{font-size:17px}.t-workspace-student .auth-chip{max-width:150px;overflow:hidden}.t-workspace-student .header-badge{display:none}}

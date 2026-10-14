@@ -13,6 +13,8 @@ function databaseCall(channel, ...args) {
 }
 const db = {
   initialize: raw => databaseCall('db:initialize', raw),
+  updateStudent: (...args) => databaseCall('db:call', 'updateStudent', args),
+  deleteStudent: (...args) => databaseCall('db:call', 'deleteStudent', args),
   getRosterSyncCursor: () => databaseCall('db:call', 'getRosterSyncCursor', []),
   setRosterSyncCursor: value => databaseCall('db:call', 'setRosterSyncCursor', [value]),
   ...Object.fromEntries(["getCloudSnapshotHistory","recordCloudSnapshot","forgetCloudSnapshot","getSettings","saveSettings","getBooks","getBook","searchBooks","addBook","upsertStudentFromCloud","importBooks","getStudents","getStudent","getStudentByAdmNo","searchStudents","addStudent","updateStudentGroup","importStudents","studentDisplayName","bookDisplayTitle","getTransactions","issueBook","issueBookToTeacher","returnBook","getActiveTxnForBook","getActiveTransactions","getOverdueTransactions","getReturnedToday","getPendingFines","markFinePaid","getFinePayments","getTotalCollected","getCollectedToday","reportDamage","restoreBook","undoLastTransaction","exportData","calcLateDays","formatDate","hasBooks","hasStudents","isEmpty"].map(

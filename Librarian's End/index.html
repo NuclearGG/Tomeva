@@ -6,8 +6,10 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com; img-src 'self' data:; base-uri 'self'; form-action 'self';">
   <title>Tomeva</title>
   <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="assets/interface/workspace.css">
+<link rel="stylesheet" href="assets/interface/appearance.css"><script src="assets/interface/appearance.js"></script><script defer src="assets/interface/workspace.js"></script>
 </head>
-<body>
+<body class="t-workspace-librarian">
 
 <div class="app-shell">
 
@@ -121,30 +123,30 @@
           </div>
         </div>
 
-        <!-- Quick Actions -->
-        <div class="action-cards">
-          <div class="action-card blue" data-handler-click="h1">
-            <span class="action-card-icon">📤</span>
-            <h3>Issue a Book</h3>
-            <p>Lend a book to a student. Auto-generates due date and records the transaction.</p>
+        <section class="desk-slip" aria-labelledby="desk-slip-title">
+          <div class="desk-slip-main">
+            <div class="slip-label"><span class="t-icon" data-icon="book-open" aria-hidden="true"></span> CIRCULATION SLIP</div>
+            <h3 id="desk-slip-title">Keep the collection moving.</h3>
+            <p>Check a reader, confirm a copy, and let Tomeva record the rest.</p>
+            <div class="desk-slip-actions">
+              <button class="btn btn-primary" data-workspace-page="issue"><span class="t-icon" data-icon="arrow-up-right" aria-hidden="true"></span> Issue a Book <kbd class="shortcut-hint">Alt I</kbd></button>
+              <button class="btn btn-ghost" data-workspace-page="return"><span class="t-icon" data-icon="arrow-down-left" aria-hidden="true"></span> Return a Book <kbd class="shortcut-hint">Alt R</kbd></button>
+            </div>
           </div>
-          <div class="action-card green" data-handler-click="h2">
-            <span class="action-card-icon">📥</span>
-            <h3>Return a Book</h3>
-            <p>Process a return. Detects borrower automatically and calculates any late fines.</p>
+          <div class="desk-slip-side">
+            <div class="slip-stages">
+              <div class="slip-stage"><span>01</span><div><strong>Reader</strong><p>Find the student or staff member.</p></div></div>
+              <div class="slip-stage"><span>02</span><div><strong>Copy</strong><p>Use the accession number inside the book.</p></div></div>
+              <div class="slip-stage"><span>03</span><div><strong>Loan</strong><p>Due dates and returns stay in one record.</p></div></div>
+            </div>
+            <div class="desk-support">
+              <button data-workspace-page="fines"><span class="t-icon" data-icon="coins" aria-hidden="true"></span> Manage Fines</button>
+              <button data-workspace-page="damage"><span class="t-icon" data-icon="warning-circle" aria-hidden="true"></span> Report Damage</button>
+            </div>
           </div>
-          <div class="action-card yellow" data-handler-click="h3">
-            <span class="action-card-icon">💰</span>
-            <h3>Manage Fines</h3>
-            <p>View pending fines and mark them as paid when collected.</p>
-          </div>
-          <div class="action-card coral" data-handler-click="h4">
-            <span class="action-card-icon">⚠️</span>
-            <h3>Report Damage</h3>
-            <p>Record a damaged book, set severity, and add repair notes.</p>
-          </div>
-        </div>
+        </section>
 
+        <div class="desk-queues">
         <!-- Overdue -->
         <div class="list-card">
           <div class="list-card-header">
@@ -172,6 +174,7 @@
           </div>
         </div>
 
+        </div><!-- /desk-queues -->
       </div><!-- /dashboard -->
 
 
@@ -327,16 +330,16 @@
           <div class="card" style="background:var(--yellow); border-color:var(--yellow-mid); flex-direction:row; display:flex; align-items:center; justify-content:space-between; padding:22px 28px">
             <div>
               <div style="font-size:13px; color:var(--yellow-dark); font-weight:600; text-transform:uppercase; letter-spacing:0.05em">Total Pending Fines</div>
-              <div style="font-family:'Fraunces',serif; font-size:38px; font-weight:700; color:var(--yellow-dark)" id="total-fines-due">₹0</div>
+              <div style="font-family:var(--font-display); font-size:38px; font-weight:700; color:var(--yellow-dark)" id="total-fines-due">₹0</div>
             </div>
-            <span style="font-size:48px">💰</span>
+            <span class="workspace-symbol" style="font-size:48px">💰</span>
           </div>
           <div class="card" style="background:var(--green); border-color:var(--green-mid); flex-direction:row; display:flex; align-items:center; justify-content:space-between; padding:22px 28px">
             <div>
               <div style="font-size:13px; color:var(--green-dark); font-weight:600; text-transform:uppercase; letter-spacing:0.05em">Total Collected (All-time)</div>
-              <div style="font-family:'Fraunces',serif; font-size:38px; font-weight:700; color:var(--green-dark)" id="total-fines-collected">₹0</div>
+              <div style="font-family:var(--font-display); font-size:38px; font-weight:700; color:var(--green-dark)" id="total-fines-collected">₹0</div>
             </div>
-            <span style="font-size:48px">✅</span>
+            <span class="workspace-symbol" style="font-size:48px">✅</span>
           </div>
         </div>
 
@@ -580,9 +583,9 @@
         <div class="card" style="background:var(--purple); border-color:var(--purple-mid); display:flex; align-items:center; justify-content:space-between; padding:22px 28px">
           <div>
             <div style="font-size:13px; color:var(--purple-dark); font-weight:600; text-transform:uppercase; letter-spacing:0.05em">Pending Requests</div>
-            <div style="font-family:'Fraunces',serif; font-size:38px; font-weight:700; color:var(--purple-dark)" id="requests-pending-count">0</div>
+            <div style="font-family:var(--font-display); font-size:38px; font-weight:700; color:var(--purple-dark)" id="requests-pending-count">0</div>
           </div>
-          <span style="font-size:48px">📩</span>
+          <span class="workspace-symbol" style="font-size:48px">📩</span>
         </div>
 
         <div class="list-card">
@@ -721,7 +724,7 @@
               </div>
               <div class="fine-rate-box">
                 <span>₹</span>
-                <input id="fine-rate" type="number" min="0" step="0.5" class="form-group" style="margin:0; padding:8px 12px; width:80px; border-radius:8px; border:1.5px solid var(--cream-dark); font-family:'DM Sans',sans-serif; font-size:14px; outline:none">
+                <input id="fine-rate" type="number" min="0" step="0.5" class="form-group" style="margin:0; padding:8px 12px; width:80px; border-radius:8px; border:1.5px solid var(--cream-dark); font-family:var(--font-ui); font-size:14px; outline:none">
                 <span>/ day</span>
               </div>
             </div>
@@ -732,7 +735,7 @@
                 <p>Default number of days a book can be borrowed</p>
               </div>
               <div class="fine-rate-box">
-                <input id="loan-days" type="number" min="1" class="form-group" style="margin:0; padding:8px 12px; width:80px; border-radius:8px; border:1.5px solid var(--cream-dark); font-family:'DM Sans',sans-serif; font-size:14px; outline:none">
+                <input id="loan-days" type="number" min="1" class="form-group" style="margin:0; padding:8px 12px; width:80px; border-radius:8px; border:1.5px solid var(--cream-dark); font-family:var(--font-ui); font-size:14px; outline:none">
                 <span>days</span>
               </div>
             </div>
@@ -1019,7 +1022,7 @@
     </div>
 
     <div class="modal-actions">
-      <button class="btn btn-ghost" data-handler-click="h17">Cancel</button>
+      <button class="btn btn-ghost" data-handler-click="h17" data-dialog-cancel>Cancel</button>
       <button class="btn btn-green" data-handler-click="h18">✅ Confirm Restore</button>
     </div>
   </div>
@@ -1150,5 +1153,6 @@
   <script src="js/app.js"></script>
 
 <script src="js/event-bindings.js"></script>
+<script src="js/dialogs.js"></script>
 </body>
 </html>

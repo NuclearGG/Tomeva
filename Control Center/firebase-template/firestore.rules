@@ -130,6 +130,31 @@ service cloud.firestore {
 
     match /libraries/{libraryId} {
 
+      // Public presentation data only. Publishing uses the existing institution
+      // administrator grant; neither a student nor a kiosk may change identity.
+      match /public/appearance {
+        allow get: if libraryId == 'main';
+        allow list, delete: if false;
+        allow create, update: if isKioskAdmin(libraryId)
+          && request.resource.data.keys().hasAll(['schemaVersion', 'brandEnabled', 'accentColor', 'surfaceTone', 'typography', 'density', 'corners', 'displayName', 'portalHeading', 'notice', 'revision', 'updatedAt', 'updatedBy'])
+          && request.resource.data.keys().hasOnly(['schemaVersion', 'brandEnabled', 'accentColor', 'surfaceTone', 'typography', 'density', 'corners', 'displayName', 'portalHeading', 'notice', 'revision', 'updatedAt', 'updatedBy'])
+          && request.resource.data.schemaVersion == 1
+          && request.resource.data.brandEnabled is bool
+          && request.resource.data.accentColor is string && request.resource.data.accentColor.matches('^#[0-9a-fA-F]{6}$')
+          && request.resource.data.surfaceTone in ['catalogue', 'warm']
+          && request.resource.data.typography in ['manrope', 'system', 'editorial']
+          && request.resource.data.density in ['comfortable', 'compact']
+          && request.resource.data.corners in ['soft', 'crisp']
+          && request.resource.data.displayName is string && request.resource.data.displayName.size() <= 120
+          && request.resource.data.portalHeading is string && request.resource.data.portalHeading.size() <= 100
+          && request.resource.data.notice is string && request.resource.data.notice.size() <= 280
+          && request.resource.data.revision is int && request.resource.data.revision >= 1
+          && ((!exists(/databases/$(database)/documents/libraries/$(libraryId)/public/appearance) && request.resource.data.revision == 1)
+            || (exists(/databases/$(database)/documents/libraries/$(libraryId)/public/appearance) && request.resource.data.revision == resource.data.revision + 1))
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.updatedBy == request.auth.uid;
+      }
+
       // Release versions and schedules are public; institution staff authorize rollout.
       match /update_approvals/{component} {
         allow read: if true;

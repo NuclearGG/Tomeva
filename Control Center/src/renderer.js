@@ -1,6 +1,8 @@
+import { initializeCustomization } from './customization.js';
 const bridge = window.controlCenter;
 const byId = id => document.getElementById(id);
 const headings = {
+  customization: ['Appearance', 'Publish a shared visual identity to connected Tomeva apps.'],
   recovery: ['Backup & recovery', 'Institution-owned encrypted recovery for a replacement computer.'],
   overview: ['Overview', 'Prepare Tomeva for a new institution Firebase project.'],
   setup: ['Firebase setup', 'Enter project details, copy the complete rules, and export.'],
@@ -9,6 +11,7 @@ const headings = {
   updates: ['Software updates', 'Review public Tomeva releases.'],
 };
 let config = null;
+const customization = initializeCustomization({ getConfig: () => config, bridge, notice });
 const cleanError = value => String(value?.message || value).replace(/^Error invoking remote method '[^']+':\s*(?:[A-Za-z]+Error:\s*)?/, '');
 function notice(message, kind = '') {
   const el = byId('notice'); el.textContent = cleanError(message); el.className = 'notice ' + kind;
@@ -43,6 +46,7 @@ function fillForm(value) {
   }
 }
 function showConfig() {
+  customization.configurationChanged();
   const project = config?.firebase.projectId;
   byId('sidebar-institution').textContent = config?.institutionName || project || 'No project entered';
   byId('overview-setup').textContent = project ? 'Project settings saved' : 'Waiting for project details';

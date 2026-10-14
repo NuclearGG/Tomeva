@@ -1,6 +1,7 @@
 const fs = require('fs');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
 const { serverTimestamp } = require('firebase/firestore');
+const appearance = require('../../desktop-integration/interface/appearance.js');
 
 let env;
 const email = 'kiosk-' + 'a'.repeat(32) + '@kiosk.tomeva.invalid';
@@ -25,6 +26,32 @@ beforeEach(async () => {
   await env.clearFirestore();
   await seed('kiosk_admins/admin', { enabled: true, libraryId: 'main' });
   await seed('staff_accounts/owner@staff.example', { active: true });
+});
+
+const appearancePath = 'libraries/main/public/appearance';
+const presentation = extra => ({ ...appearance.defaults, revision:1, updatedAt:serverTimestamp(), updatedBy:'admin', ...extra });
+test('appearance is public to read, but only an enabled institution administrator can publish', async () => {
+  await assertSucceeds(admin().doc(appearancePath).set(presentation()));
+  await assertSucceeds(env.unauthenticatedContext().firestore().doc(appearancePath).get());
+  for (const db of [kiosk(), context('student',{email:'student@example.org',email_verified:true}), env.unauthenticatedContext().firestore(), context('staff',{email:'teacher@staff.example',email_verified:true,firebase:{sign_in_provider:'google.com'}})]) {
+    await assertFails(db.doc(appearancePath).set(presentation({revision:2})));
+  }
+  await assertFails(admin().doc(appearancePath).delete());
+});
+test('appearance rejects stale revisions, spoofed authors, invalid styles and unbounded text', async () => {
+  await assertSucceeds(admin().doc(appearancePath).set(presentation()));
+  for (const patch of [{revision:1},{revision:3},{revision:2.5},{schemaVersion:2},{updatedBy:'someone-else'},{updatedAt:new Date(0)},{customCss:'body {display:none}'},{accentColor:'url(evil)'},{brandEnabled:'true'},{surfaceTone:'javascript'},{typography:'download-font'},{density:'hidden'},{corners:'custom'},{displayName:'x'.repeat(121)},{portalHeading:'x'.repeat(101)},{notice:'x'.repeat(281)}]) {
+    await assertFails(admin().doc(appearancePath).set(presentation({revision:2,...patch})));
+  }
+  await assertSucceeds(admin().doc(appearancePath).set(presentation({revision:2,brandEnabled:true,accentColor:'#175a46',density:'compact'})));
+});
+test('revoked staff or administrator access immediately prevents appearance publishing', async () => {
+  await seed('kiosk_admins/admin',{enabled:false,libraryId:'main'});
+  await assertFails(admin().doc(appearancePath).set(presentation()));
+  await seed('kiosk_admins/admin',{enabled:true,libraryId:'main'});
+  await seed('staff_accounts/owner@staff.example',{active:false});
+  await assertFails(admin().doc(appearancePath).set(presentation()));
+  await assertFails(admin().doc('libraries/other/public/appearance').set(presentation()));
 });
 
 test('verified institution staff creates and lists credentials for main', async () => {

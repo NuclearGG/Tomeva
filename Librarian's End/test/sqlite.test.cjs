@@ -218,7 +218,21 @@ test('IPC rejects untrusted senders, unknown methods and access before migration
   assert.equal(call(true, 'db:initialize', null).value.verified, true);
   assert.match(call(true, 'db:call', '__proto__', []).error, /Unsupported/);
   assert.match(call(true, 'db:call', 'exec', ['DROP TABLE books']).error, /Unsupported/);
+  for (const method of ['restoreData', 'previewBackup', 'updateBookStatus'])
+    assert.match(call(true, 'db:call', method, []).error, /Unsupported/);
   assert.deepEqual(call(true, 'db:call', 'getBooks', []), { ok: true, value: [] });
+});
+
+test('case-insensitive student lookup preserves canonical loan ownership and deletion protection', t => {
+  const { store } = fixture(t); store.initializeLegacy(null);
+  const api = createLibraryService(store);
+  api.addBook({ access_no: 'B1', document: 'Book' });
+  api.addStudent({ adm_no: 'ADM-ONE', name: 'Student' });
+  assert.equal(api.issueBook('adm-one', 'B1').txn.student_adm_no, 'ADM-ONE');
+  assert.equal(api.deleteStudent('adm-one').ok, false);
+  assert.equal(api.previewBackup(api.exportData()).ok, true);
+  assert.equal(api.returnBook('B1').ok, true);
+  assert.equal(api.deleteStudent('adm-one').ok, true);
 });
 
 test('cloud roster upsert requires real admission numbers and reconciles by email or admission number', t => {

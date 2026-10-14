@@ -44,11 +44,22 @@ if (packagedRoot) {
 const deadline = setTimeout(() => { console.error('Control Center smoke timed out'); app.exit(1); }, 60000);
 const bounded = (promise, ms) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('Optional screenshot timed out')), ms))]);
 app.whenReady().then(() => {
+  console.log('Control smoke: Electron ready');
   session.defaultSession.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (_, callback) => callback({ cancel: true }));
 });
 app.on('browser-window-created', (_, window) => {
+  console.log('Control smoke: window created');
+  if (process.env.TOMEVA_SMOKE_TRACE) {
+    const evaluate = window.webContents.executeJavaScript.bind(window.webContents);
+    let step = 0;
+    window.webContents.executeJavaScript = async (...args) => {
+      const index = ++step; console.log('Control smoke step', index, 'start');
+      const result = await evaluate(...args); console.log('Control smoke step', index, 'done'); return result;
+    };
+  }
   window.webContents.on('preload-error', (_, file, error) => console.error(file, error));
   window.webContents.once('did-finish-load', async () => {
+    console.log('Control smoke: page loaded');
     try {
       await window.webContents.executeJavaScript(`new Promise(resolve => setTimeout(resolve, 500))`);
       const status = await window.webContents.executeJavaScript(`({ node: typeof require, title: document.title, setupVisible: document.getElementById('page-overview').classList.contains('active') })`);
@@ -117,6 +128,27 @@ app.on('browser-window-created', (_, window) => {
       await window.webContents.executeJavaScript(`document.querySelector('[data-page="overview"]').click()`);
       const overviewVisible = await window.webContents.executeJavaScript(`document.getElementById('page-overview').classList.contains('active')`);
       assert.equal(overviewVisible, true);
+      const appearance = await window.webContents.executeJavaScript(`(() => {
+        document.querySelector('[data-page="customization"]').click();
+        const form = document.getElementById('appearance-form');
+        form.elements.brandEnabled.checked = true;
+        form.elements.accentColor.value = '#175a46';
+        form.elements.surfaceTone.value = 'warm';
+        form.dispatchEvent(new Event('input', {bubbles:true}));
+        const branded = getComputedStyle(document.documentElement).getPropertyValue('--bookcloth').trim();
+        const warm = document.documentElement.dataset.surfaceTone;
+        const publishDisabled = document.getElementById('appearance-publish').disabled;
+        form.elements.brandEnabled.checked = false;
+        form.dispatchEvent(new Event('input', {bubbles:true}));
+        const standard = getComputedStyle(document.documentElement).getPropertyValue('--bookcloth').trim();
+        document.getElementById('appearance-reset').click();
+        const reset = document.documentElement.dataset.surfaceTone;
+        document.querySelector('[data-page="overview"]').click();
+        return {branded,warm,publishDisabled,standard,reset};
+      })()`);
+      assert.deepEqual(appearance, {branded:'#175a46',warm:'warm',publishDisabled:true,standard:'#302866',reset:'catalogue'});
+      // Functional checks are complete; optional screenshots have their own bounds.
+      clearTimeout(deadline);
       try {
         const image = await bounded(window.webContents.capturePage(), 5000);
         const artifacts = path.join(__dirname, '..', 'test-artifacts');

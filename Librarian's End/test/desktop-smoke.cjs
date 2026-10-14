@@ -51,6 +51,34 @@ app.on('browser-window-created', (_, window) => {
       assert.equal(result.legacy, null);
       assert.equal(await window.webContents.executeJavaScript(`typeof window.electronAPI.connectInstitution`), 'function');
       assert.equal(await window.webContents.executeJavaScript(`!!document.getElementById('institution-connect-overlay')`), true);
+      const ux = await window.webContents.executeJavaScript(`(async () => {
+        const tick = () => new Promise(resolve => setTimeout(resolve, 80));
+        document.querySelector('#institution-connect-overlay [data-dialog-cancel]').click();
+        checkSetupComplete(); navigate('students');
+        await tick();
+        document.querySelector('[data-edit-student="OFFLINE-S"]').click();
+        await tick();
+        const dialog = document.querySelector('#add-student-modal .modal');
+        const dialogRole = dialog.getAttribute('role');
+        document.getElementById('new-student-name').value = 'Corrected student';
+        document.getElementById('save-student-btn').click();
+        await tick();
+        const corrected = LibraryDB.getStudent('OFFLINE-S').name;
+        LibraryDB.addStudent({adm_no:'TEMP-DELETE',name:'Temporary'}); _renderStudents();
+        document.querySelector('[data-delete-student="TEMP-DELETE"]').click(); await tick();
+        document.querySelector('.modal-overlay.show [data-dialog-cancel]').nextElementSibling.click(); await tick();
+        const deleted = !LibraryDB.getStudent('TEMP-DELETE');
+        LibraryDB.addStudent({adm_no:'<em data-audit>123</em>',name:'Markup student',class:'<b>10</b>'});
+        navigate('search'); _performSearch('Markup');
+        const markupEscaped = !document.querySelector('#search-results em, #search-results b') && document.getElementById('search-results').textContent.includes('<em data-audit>123</em>');
+        LibraryDB.deleteStudent('<em data-audit>123</em>');
+        navigate('books'); document.getElementById('add-book-btn').focus(); document.getElementById('add-book-btn').click(); await tick();
+        document.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape', bubbles:true})); await tick();
+        const dismissed = !document.getElementById('add-book-modal').classList.contains('show');
+        const focusReturned = document.activeElement.id === 'add-book-btn';
+        return {corrected,deleted,markupEscaped,dialogRole,dismissed,focusReturned};
+      })()`);
+      assert.deepEqual(ux, { corrected: 'Corrected student', deleted: true, markupEscaped: true, dialogRole: 'dialog', dismissed: true, focusReturned: true });
       const lock = await window.webContents.executeJavaScript(`(async () => {
         const waitFor = async condition => {
           for (let i = 0; i < 100; i++) {

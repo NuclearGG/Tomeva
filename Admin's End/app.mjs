@@ -15,16 +15,16 @@ function _esc(str) {
 
 const institution = await window.tomevaAdmin?.getInstitution?.();
 if (!institution?.firebase) {
-  const panel = document.createElement('main'); panel.className = 'card';
+  const panel = document.createElement('main'); panel.className = 'admin-setup-screen'; const layout=document.createElement('div'); layout.className='admin-setup-layout'; const brand=document.createElement('section'); brand.className='admin-setup-brand'; const mark=document.createElement('img'); mark.src='assets/logo.png'; mark.alt='Tomeva'; const brandName=document.createElement('strong'); brandName.textContent='Tomeva Admin'; const brandCopy=document.createElement('p'); brandCopy.textContent='A clear view of your collection, your readers, and the work at the library desk.'; brand.append(mark,brandName,brandCopy); const content=document.createElement('section'); content.className='admin-setup-form';
   const heading = document.createElement('h1'); heading.textContent = 'Set up Tomeva Admin';
   const detail = document.createElement('p'); detail.textContent = 'Enter the public Student Portal address supplied by your institution. No Tomeva account is required.';
-  const form = document.createElement('form'); form.style.cssText = 'display:grid;gap:12px;max-width:640px;margin-top:20px';
+  const form = document.createElement('form'); form.className='form-group';
   const label = document.createElement('label'); label.textContent = 'Institution Student Portal URL';
   const input = document.createElement('input'); input.type = 'url'; input.required = true; input.autocomplete = 'url'; input.placeholder = 'https://your-school.web.app/'; input.style.cssText = 'display:block;width:100%;margin-top:8px';
   const button = document.createElement('button'); button.type = 'submit'; button.className = 'btn btn-primary'; button.textContent = 'Connect institution';
   const status = document.createElement('p'); status.setAttribute('role', 'status');
   const fileHelp = document.createElement('p'); fileHelp.textContent = 'You can also choose Setup → Import institution setup to use institution.json from Control Center.';
-  label.appendChild(input); form.append(label, button, status); panel.append(heading, detail, form, fileHelp); document.body.replaceChildren(panel);
+  fileHelp.className='setup-file-help'; label.appendChild(input); form.append(label, button, status); content.append(heading, detail, form, fileHelp); layout.append(brand,content); panel.append(layout); document.body.replaceChildren(panel);
   form.addEventListener('submit', async event => {
     event.preventDefault(); button.disabled = true; status.textContent = 'Checking public institution setup…';
     try {
@@ -55,6 +55,11 @@ const db   = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 const LIBRARY_ID = "main";
+window.TomevaAppearance.load(firebaseConfig.projectId, { institutionName:institution.institutionName });
+onSnapshot(doc(db, 'libraries', LIBRARY_ID, 'public', 'appearance'), { includeMetadataChanges:true }, snapshot => {
+  try { window.TomevaAppearance.receive(firebaseConfig.projectId, snapshot, { institutionName:institution.institutionName }); }
+  catch (error) { console.warn('[Appearance]', error.message); }
+}, error => console.warn('[Appearance] Keeping cached appearance:', error.code));
 const STAFF_DOMAIN = institution.staffDomain.trim().toLowerCase();
 document.querySelectorAll('[data-staff-domain]').forEach(element => {
   element.textContent = '@' + STAFF_DOMAIN;
@@ -241,130 +246,44 @@ function animateBars(rows) {
 ══════════════════════════════ */
 function buildStatCards(s) {
   const cards = [
-    { cls:"blue",   icon:"📚", id:"s-total",       val: s.total_books    ?? 0, label:"Total Books" },
-    { cls:"green",  icon:"📗", id:"s-available",   val: s.available      ?? 0, label:"Available" },
-    { cls:"blue",   icon:"📤", id:"s-issued",      val: s.issued         ?? 0, label:"Issued Out" },
-    { cls:"coral",  icon:"⏰", id:"s-overdue",     val: s.overdue_count  ?? 0, label:"Overdue" },
-    { cls:"yellow", icon:"💰", id:"s-fines-count", val: s.pending_fines  ?? 0, label:"Pending Fines" },
-    { cls:"yellow", icon:"₹",  id:"s-fines-amt",   val: s.total_fine_amt ?? 0, label:"Fine Amount", prefix:"₹" },
-    { cls:"green",  icon:"✅", id:"s-collected",   val: s.collected_total ?? 0, label:"Fines Collected (All-time)", prefix:"₹" },
-    { cls:"coral",  icon:"⚠️", id:"s-damaged",     val: (s.damaged||0)+(s.under_repair||0)+(s.lost||0), label:"Damaged/Lost" },
-    { cls:"purple", icon:"🎓", id:"s-students",    val: s.total_students ?? 0, label:"Students" },
+    { id:'s-available', val:s.available, label:'On the shelf' },
+    { id:'s-issued', val:s.issued, label:'On loan' },
+    { id:'s-overdue', val:s.overdue_count, label:'Overdue', tone:'exception' },
+    { id:'s-students', val:s.total_students, label:'Students' },
+    { id:'s-fines-count', val:s.pending_fines, label:'Pending fines' },
+    { id:'s-fines-amt', val:s.total_fine_amt, label:'Fine amount', prefix:'₹' },
+    { id:'s-collected', val:s.collected_total, label:'Collected, all time', prefix:'₹' },
+    { id:'s-damaged', val:(s.damaged||0)+(s.under_repair||0)+(s.lost||0), label:'Damaged / lost' },
   ];
-
-  document.getElementById("overview-stats").innerHTML = cards.map(c => `
-    <div class="stat-card ${c.cls}">
-      <span class="stat-icon">${c.icon}</span>
-      <div class="stat-value" id="${c.id}">0</div>
-      <div class="stat-label">${c.label}</div>
-    </div>`).join("");
-
-  // Trigger count-up after DOM paint
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-      cards.forEach(c => {
-        countUp(document.getElementById(c.id), c.val, c.prefix || "");
-      });
-    }, 120);
-  });
+  const node = document.getElementById('overview-stats');
+  node.className = 'overview-ledger';
+  node.innerHTML = '<div class="collection-total"><div class="slip-label"><span class="t-icon" data-icon="books" aria-hidden="true"></span> COLLECTION LEDGER</div><div class="stat-value" id="s-total">'+_esc(s.total_books??0)+'</div><div class="stat-label">Books in your collection</div><p class="ledger-meta">On the shelf, on loan,<br>or awaiting care.</p></div><div class="overview-ledger-items">'
+    + cards.map(c => '<div class="ledger-item" data-tone="'+(c.tone||'neutral')+'"><div class="stat-value" id="'+c.id+'">'+(c.prefix||'')+_esc(c.val??0)+'</div><div class="stat-label">'+c.label+'</div></div>').join('')+'</div>';
 }
 
-/* ══════════════════════════════
-   RENDER OVERVIEW (with charts)
-══════════════════════════════ */
 function renderOverview() {
   if (!_data) return;
   const s = _data.stats || {};
-  const total = s.total_books || 1;
-
-  // Stat cards with count-up
   buildStatCards(s);
-
-  // Sync label
-  if (_lastUpdated) {
-    const timeStr = _lastUpdated.toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
-    const syncLabel = `<span style="font-size:12px;color:var(--text-muted)">Synced ${timeStr}</span>`;
-
-    // ── DONUT CHART ──
-    const donutSegments = [
-      { label:"Available",    val: s.available      ?? 0, color:"var(--green-dark)"  },
-      { label:"Issued",       val: s.issued          ?? 0, color:"var(--blue-dark)"   },
-      { label:"Overdue",      val: s.overdue_count   ?? 0, color:"var(--coral-dark)"  },
-      { label:"Damaged/Lost", val: (s.damaged||0)+(s.under_repair||0)+(s.lost||0), color:"var(--yellow-dark)" },
-    ];
-    const donutTotal = donutSegments.reduce((a,b)=>a+b.val,0) || 1;
-
-    const donutCard = `
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">📊 Book Status</div>
-          ${syncLabel}
-        </div>
-        ${buildDonut(donutSegments, donutTotal, s.total_books ?? 0, "Total Books")}
-      </div>`;
-
-    // ── PROGRESS BAR CHART ──
-    const barRows = [
-      { label:"Available",   val:s.available,     pct:Math.round((s.available||0)/total*100),     color:"var(--green-dark)"  },
-      { label:"Issued",      val:s.issued,          pct:Math.round((s.issued||0)/total*100),          color:"var(--blue-dark)"   },
-      { label:"Overdue",     val:s.overdue_count,  pct:Math.round((s.overdue_count||0)/total*100),  color:"var(--coral-dark)"  },
-      { label:"Damaged",     val:(s.damaged||0)+(s.under_repair||0)+(s.lost||0), pct:Math.round(((s.damaged||0)+(s.under_repair||0)+(s.lost||0))/total*100), color:"var(--yellow-dark)" },
-    ];
-
-    const barCard = `
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">📈 Distribution</div>
-          <span style="font-size:12px;color:var(--text-muted)">${s.total_books ?? 0} books total</span>
-        </div>
-        ${buildProgressBars(barRows)}
-      </div>`;
-
-    document.getElementById("charts-row").innerHTML = donutCard + barCard;
-
-    // Animate bars & donut center
-    animateBars(barRows);
-    setTimeout(()=>{ countUp(document.getElementById("donut-center-num"), s.total_books ?? 0); }, 200);
-
-    // ── OVERDUE PREVIEW ──
-    const overdue = (_data.overdueList||[]).slice().sort((a,b)=>b.days_overdue-a.days_overdue).slice(0,5);
-    const overdueHTML = overdue.length
-      ? overdue.map(o=>`
-          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--cream-dark);font-size:13px;align-items:center">
-            <div><strong>${_esc(o.book_title)}</strong><br><span class="td-id">${_esc(o.student_name)} · ${_esc(o.student_class)}</span></div>
-            <div style="text-align:right">
-              <span class="overdue-chip">⏰ ${o.days_overdue}d</span>
-              <div style="color:var(--coral-dark);font-weight:700;font-size:12px;margin-top:3px">₹${o.fine_accrued}</div>
-            </div>
-          </div>`).join("")
-      : `<div class="empty-state" style="padding:28px 16px"><span class="empty-icon" style="font-size:32px">🎉</span><h4>No overdue books</h4></div>`;
-
-    // ── FINES PREVIEW ──
-    const fines = (_data.finesList||[]).slice().sort((a,b)=>b.fine_amount-a.fine_amount).slice(0,5);
-    const finesHTML = fines.length
-      ? fines.map(f=>`
-          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--cream-dark);font-size:13px;align-items:center">
-            <div><strong>${_esc(f.student_name)}</strong><br><span class="td-id">${_esc(f.book_title)} · ${_esc(f.student_class)}</span></div>
-            <span class="fine-amount-big">₹${f.fine_amount}</span>
-          </div>`).join("")
-      : `<div class="empty-state" style="padding:28px 16px"><span class="empty-icon" style="font-size:32px">🎊</span><h4>No pending fines</h4></div>`;
-
-    document.getElementById("bottom-row").innerHTML = `
-      <div class="list-card">
-        <div class="list-card-header">
-          <div><div class="card-title">⏰ Overdue (Top 5)</div><div class="card-subtitle">Most days overdue first</div></div>
-          <button class="btn btn-ghost btn-sm" data-handler-click="h9">View All →</button>
-        </div>
-        <div style="padding:0 24px 8px">${overdueHTML}</div>
-      </div>
-      <div class="list-card">
-        <div class="list-card-header">
-          <div><div class="card-title">💰 Top Fines</div><div class="card-subtitle">Highest pending fines</div></div>
-          <button class="btn btn-ghost btn-sm" data-handler-click="h10">View All →</button>
-        </div>
-        <div style="padding:0 24px 8px">${finesHTML}</div>
-      </div>`;
-  }
+  const total = s.total_books || 0;
+  const statuses = [
+    {label:'Available to borrow', val:s.available||0, icon:'book-open'},
+    {label:'Currently on loan', val:s.issued||0, icon:'arrow-up-right'},
+    {label:'Damaged or under repair', val:(s.damaged||0)+(s.under_repair||0), icon:'gear-six'},
+    {label:'Lost copies', val:s.lost||0, icon:'warning-circle'},
+  ];
+  const updated = _lastUpdated ? _lastUpdated.toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : 'No sync received';
+  const overdue = (_data.overdueList||[]).slice().sort((a,b)=>b.days_overdue-a.days_overdue).slice(0,5);
+  const fines = (_data.finesList||[]).slice().sort((a,b)=>b.fine_amount-a.fine_amount).slice(0,5);
+  const pendingRequests = _allRequests.filter(r=>r.status==='Pending').length;
+  document.getElementById('charts-row').innerHTML = '<section class="card"><div class="card-header"><div><div class="card-title">Where the collection is</div><div class="card-subtitle">Each copy belongs to one collection state.</div></div><span class="slip-id">'+_esc(total)+' copies</span></div><div class="collection-state">'
+    + statuses.map(row=>'<div class="collection-state-row"><span class="t-icon" data-icon="'+row.icon+'" aria-hidden="true"></span><strong>'+row.label+'</strong><span>'+_esc(row.val)+'<small>'+Math.round(total?row.val/total*100:0)+'%</small></span></div>').join('')
+    + '</div></section><section class="card attention-slip"><div class="slip-label"><span class="t-icon" data-icon="tray" aria-hidden="true"></span> FOLLOW THROUGH</div><div class="card-title">Needs your attention</div><div class="attention-rows">'
+    + [{page:'overdue',label:'Overdue books',detail:'Copies waiting to come back.',value:s.overdue_count||0},{page:'fines',label:'Pending fines',detail:'Review outstanding collections.',value:s.pending_fines||0},{page:'requests',label:'Book requests',detail:'Borrowing requests for the desk.',value:pendingRequests}].map(row=>'<button class="attention-row" data-workspace-page="'+row.page+'"><span><strong>'+row.label+'</strong><small>'+row.detail+'</small></span><span>'+_esc(row.value)+'<span class="t-icon" data-icon="arrow-right" aria-hidden="true"></span></span></button>').join('')
+    + '</div><p class="overview-queue-caption">Latest library sync: '+_esc(updated)+'. Circulation records are managed at the librarian desk.</p></section>';
+  const overdueHTML = overdue.length ? overdue.map(o=>'<div class="collection-state-row"><span class="t-icon" data-icon="clock" aria-hidden="true"></span><div><strong>'+_esc(o.book_title)+'</strong><br><span class="td-id">'+_esc(o.student_name)+' · '+_esc(o.student_class)+'</span></div><span class="overdue-chip">'+_esc(o.days_overdue)+'d</span></div>').join('') : '<div class="empty-state"><span class="empty-icon"><span class="t-icon" data-icon="check-circle" aria-hidden="true"></span></span><h4>No overdue books</h4><p>The collection is returning on time.</p></div>';
+  const finesHTML = fines.length ? fines.map(f=>'<div class="collection-state-row"><span class="t-icon" data-icon="coins" aria-hidden="true"></span><div><strong>'+_esc(f.student_name)+'</strong><br><span class="td-id">'+_esc(f.book_title)+'</span></div><span>₹'+_esc(f.fine_amount)+'</span></div>').join('') : '<div class="empty-state"><span class="empty-icon"><span class="t-icon" data-icon="check-circle" aria-hidden="true"></span></span><h4>No pending fines</h4><p>Outstanding balances will appear here.</p></div>';
+  document.getElementById('bottom-row').innerHTML = '<section class="list-card"><div class="list-card-header"><div><div class="card-title">Overdue reading list</div><div class="card-subtitle">The five longest outstanding loans</div></div><button class="btn btn-ghost btn-sm" data-workspace-page="overdue">View All</button></div><div style="padding:0 24px">'+overdueHTML+'</div></section><section class="list-card"><div class="list-card-header"><div><div class="card-title">Outstanding fines</div><div class="card-subtitle">Highest balances first</div></div><button class="btn btn-ghost btn-sm" data-workspace-page="fines">View All</button></div><div style="padding:0 24px">'+finesHTML+'</div></section>';
 }
 
 /* ── OTHER PAGE RENDERERS (unchanged logic, no skeleton needed) ── */
@@ -410,7 +329,7 @@ function renderOverdue() {
     <td><span class="badge badge-blue">${_esc(o.student_class)}</span></td>
     <td>${fmtDate(o.due_date)}</td>
     <td><span class="overdue-chip">⏰ ${o.days_overdue} days</span></td>
-    <td style="color:var(--coral-dark);font-family:'Fraunces',serif;font-size:15px;font-weight:700">₹${o.fine_accrued}</td>
+    <td style="color:var(--coral-dark);font-family:var(--font-display);font-size:15px;font-weight:700">₹${o.fine_accrued}</td>
   </tr>`).join("");
 }
 
@@ -427,7 +346,7 @@ function renderFines() {
     <td>${_esc(f.student_name)}<br><span class="td-id">${_esc(f.student_id)}</span></td>
     <td><span class="badge badge-blue">${_esc(f.student_class)}</span></td>
     <td>${fmtDate(f.return_date)}</td>
-    <td style="color:var(--yellow-dark);font-family:'Fraunces',serif;font-size:16px;font-weight:700">₹${f.fine_amount}</td>
+    <td style="color:var(--yellow-dark);font-family:var(--font-display);font-size:16px;font-weight:700">₹${f.fine_amount}</td>
   </tr>`).join("");
 }
 
@@ -694,6 +613,7 @@ document.querySelectorAll(".notif-type-chip").forEach(chip=>{
   });
 });
 
+
 document.querySelectorAll(".nav-item").forEach(item=>{
   item.addEventListener("click",()=>adminApp.navigate(item.dataset.page));
 });
@@ -766,6 +686,7 @@ function startRequestsListener() {
     updateRequestsBadge(_allRequests.filter(r => r.status === "Pending").length);
     const active = document.querySelector(".page-view.active");
     if (active && active.id === "page-requests") renderAdminRequests();
+    if (active && active.id === "page-overview") renderOverview();
     if (initialized && _isStaffVerified && !snap.metadata.hasPendingWrites && snap.docChanges().some(change => change.type === 'added' && change.doc.data().status === 'Pending')) window.tomevaAdmin?.notify('NEW_REQUEST');
     initialized = true;
   }, err => console.warn("[Requests]", err.message));

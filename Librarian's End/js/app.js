@@ -14,18 +14,23 @@ function showInstitutionConnection() {
   if (document.getElementById('institution-connect-overlay')) return;
   var overlay = document.createElement('div');
   overlay.id = 'institution-connect-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(20,26,31,.72);z-index:100000;display:grid;place-items:center;padding:24px';
+  overlay.className = 'modal-overlay show'; overlay.style.zIndex = '100000';
   var panel = document.createElement('section');
-  panel.style.cssText = 'width:min(620px,100%);background:#fffdf8;border-radius:18px;padding:28px;box-shadow:0 24px 80px rgba(0,0,0,.25)';
+  panel.className = 'modal institution-connection';
   var heading = document.createElement('h2'); heading.textContent = 'Connect this Librarian app';
   var detail = document.createElement('p'); detail.textContent = 'Enter your institution’s public Student Portal address. No Tomeva login is required. You may continue offline or import institution.json later from the File menu.';
+  heading.className = 'modal-title'; detail.className = 'modal-sub';
   var form = document.createElement('form'); form.style.cssText = 'display:grid;gap:12px;margin-top:18px';
   var input = document.createElement('input'); input.type = 'url'; input.required = true; input.autocomplete = 'url'; input.placeholder = 'https://your-school.web.app/'; input.setAttribute('aria-label', 'Institution Student Portal URL');
+  var field = document.createElement('div'); field.className = 'form-group';
+  var label = document.createElement('label'); label.textContent = 'Student Portal URL'; input.id = 'institution-portal-url'; label.htmlFor = input.id;
+  field.append(label, input);
   var actions = document.createElement('div'); actions.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap';
   var connect = document.createElement('button'); connect.type = 'submit'; connect.className = 'btn btn-primary'; connect.textContent = 'Connect institution';
   var offline = document.createElement('button'); offline.type = 'button'; offline.className = 'btn btn-ghost'; offline.textContent = 'Continue offline';
+  offline.dataset.dialogCancel = '';
   var status = document.createElement('p'); status.setAttribute('role', 'status');
-  actions.append(connect, offline); form.append(input, actions, status); panel.append(heading, detail, form); overlay.appendChild(panel); document.body.appendChild(overlay);
+  actions.append(connect, offline); form.append(field, actions, status); panel.append(heading, detail, form); overlay.appendChild(panel); document.body.appendChild(overlay);
   offline.addEventListener('click', function() { overlay.remove(); });
   form.addEventListener('submit', async function(event) {
     event.preventDefault(); connect.disabled = true; status.textContent = 'Checking public institution setup…';
@@ -42,6 +47,7 @@ window.electronAPI?.getInstitution?.().then(config => {
   document.querySelectorAll('[data-institution-name]').forEach(element => {
     element.textContent = config?.institutionName || 'Library Management';
   });
+  if (config?.firebase && window.TomevaAppearance) window.TomevaAppearance.load(config.firebase.projectId, { institutionName:config.institutionName });
   const field = document.getElementById('issue-teacher-email');
   if (field && config?.staffDomain) field.placeholder = 'e.g. teacher@' + config.staffDomain;
   if (!config?.firebase) showInstitutionConnection();
@@ -219,7 +225,7 @@ function _renderDashboard() {
         var fine    = days * settings.fine_per_day;
         return '<div class="search-result-item row-overdue" data-handler-click="h2">'
           + '<div class="sr-left"><h4>' + _esc(book ? book.document : txn.book_access_no) + '</h4>'
-          + '<p>' + txn.book_access_no + ' · ' + _esc(student ? student.name : txn.student_adm_no) + '</p></div>'
+          + '<p>' + _esc(txn.book_access_no) + ' · ' + _esc(student ? student.name : txn.student_adm_no) + '</p></div>'
           + '<div style="text-align:right"><div class="overdue-chip">⏰ ' + days + ' days late</div>'
           + '<div class="fine-amount mt-4">₹' + fine + '</div></div></div>';
       }).join('');
@@ -238,11 +244,11 @@ function _renderDashboard() {
         + all.map(function(txn) {
             var book = LibraryDB.getBook(txn.book_access_no);
             var b    = _borrowerCell(txn);
-            return '<tr><td><strong>' + _esc(book ? book.document : txn.book_access_no) + '</strong><br><span class="td-id">' + txn.book_access_no + '</span></td>'
+            return '<tr><td><strong>' + _esc(book ? book.document : txn.book_access_no) + '</strong><br><span class="td-id">' + _esc(txn.book_access_no) + '</span></td>'
               + '<td>' + _esc(b.name) + '<br><span class="td-id">' + _esc(b.sub) + '</span></td>'
               + '<td>' + LibraryDB.formatDate(txn.issue_date) + '</td>'
               + '<td>' + _dueDateCell(txn) + '</td>'
-              + '<td>' + (badges[txn.status] || '<span class="badge badge-gray">' + txn.status + '</span>') + '</td></tr>';
+              + '<td>' + (badges[txn.status] || '<span class="badge badge-gray">' + _esc(txn.status) + '</span>') + '</td></tr>';
           }).join('')
         + '</tbody></table>';
     }
@@ -391,7 +397,7 @@ function _initIssuePage() {
         box.innerHTML = '<div class="result-title">✅ Book Issued to Staff</div>'
           + '<div class="result-details">'
           + '<div class="result-row"><span>Teacher</span><strong>' + _esc(res.teacherName) + (res.teacherEmail ? ' (' + _esc(res.teacherEmail) + ')' : '') + '</strong></div>'
-          + '<div class="result-row"><span>Book</span><strong>' + _esc(res.book.document) + ' [' + res.book.access_no + ']</strong></div>'
+          + '<div class="result-row"><span>Book</span><strong>' + _esc(res.book.document) + ' [' + _esc(res.book.access_no) + ']</strong></div>'
           + '<div class="result-row"><span>Issue Date</span><strong>' + LibraryDB.formatDate(res.txn.issue_date) + '</strong></div>'
           + '<div class="result-row"><span>Due Date</span><strong>No due date</strong></div>'
           + '</div>';
@@ -400,8 +406,8 @@ function _initIssuePage() {
       } else {
         box.innerHTML = '<div class="result-title">✅ Book Issued Successfully</div>'
           + '<div class="result-details">'
-          + '<div class="result-row"><span>Student</span><strong>' + _esc(res.student.name) + ' (' + res.student.adm_no + ')</strong></div>'
-          + '<div class="result-row"><span>Book</span><strong>' + _esc(res.book.document) + ' [' + res.book.access_no + ']</strong></div>'
+          + '<div class="result-row"><span>Student</span><strong>' + _esc(res.student.name) + ' (' + _esc(res.student.adm_no) + ')</strong></div>'
+          + '<div class="result-row"><span>Book</span><strong>' + _esc(res.book.document) + ' [' + _esc(res.book.access_no) + ']</strong></div>'
           + '<div class="result-row"><span>Issue Date</span><strong>' + LibraryDB.formatDate(res.txn.issue_date) + '</strong></div>'
           + '<div class="result-row"><span>Due Date</span><strong>'   + LibraryDB.formatDate(res.txn.due_date)   + '</strong></div>'
           + '</div>';
@@ -415,7 +421,7 @@ function _initIssuePage() {
       showToast(_issueMode === 'teacher' ? 'Book issued to staff!' : 'Book issued successfully!', 'success');
     } else {
       box.classList.add('error'); box.classList.remove('success');
-      box.innerHTML = '<div class="result-title">❌ ' + res.msg + '</div>';
+      box.innerHTML = '<div class="result-title">❌ ' + _esc(res.msg) + '</div>';
       showToast(res.msg, 'error');
     }
   });
@@ -429,12 +435,12 @@ function _initReturnPage() {
     var book    = LibraryDB.getBook(this.value.trim());
     var preview = document.getElementById('return-book-preview');
     if (!book) { preview.innerHTML = this.value.length ? '<span style="color:var(--coral-dark)">Book not found</span>' : ''; return; }
-    if (book.status !== 'Issued') { preview.innerHTML = '<span style="color:var(--coral-dark)">✗ ' + _esc(book.document) + ' — ' + book.status + '</span>'; return; }
+    if (book.status !== 'Issued') { preview.innerHTML = '<span style="color:var(--coral-dark)">✗ ' + _esc(book.document) + ' — ' + _esc(book.status) + '</span>'; return; }
     var txn = LibraryDB.getActiveTxnForBook(this.value.trim());
     if (!txn) { preview.innerHTML = '<span style="color:var(--coral-dark)">No active transaction</span>'; return; }
 
     if (txn.borrower_type === 'teacher') {
-      preview.innerHTML = '<div style="color:var(--green-dark)">✓ <strong>' + _esc(book.document) + '</strong> [' + book.access_no + ']<br>'
+      preview.innerHTML = '<div style="color:var(--green-dark)">✓ <strong>' + _esc(book.document) + '</strong> [' + _esc(book.access_no) + ']<br>'
         + 'Issued to: <strong>👨‍🏫 ' + _esc(txn.teacher_name) + '</strong>' + (txn.teacher_email ? ' (' + _esc(txn.teacher_email) + ')' : '') + '<br>'
         + '<span style="color:var(--purple-dark, #6644BB)">Staff loan — no due date, no fine</span>'
         + '</div>';
@@ -444,8 +450,8 @@ function _initReturnPage() {
     var student = LibraryDB.getStudent(txn.student_adm_no);
     var days    = LibraryDB.calcLateDays(txn.due_date);
     var fine    = days * LibraryDB.getSettings().fine_per_day;
-    preview.innerHTML = '<div style="color:var(--green-dark)">✓ <strong>' + _esc(book.document) + '</strong> [' + book.access_no + ']<br>'
-      + 'Issued to: <strong>' + _esc(student ? student.name : txn.student_adm_no) + '</strong> (ADM: ' + txn.student_adm_no + ')<br>'
+    preview.innerHTML = '<div style="color:var(--green-dark)">✓ <strong>' + _esc(book.document) + '</strong> [' + _esc(book.access_no) + ']<br>'
+      + 'Issued to: <strong>' + _esc(student ? student.name : txn.student_adm_no) + '</strong> (ADM: ' + _esc(txn.student_adm_no) + ')<br>'
       + 'Due: <strong>' + LibraryDB.formatDate(txn.due_date) + '</strong>'
       + (days > 0 ? '<br><span style="color:var(--coral-dark)">⏰ ' + days + ' days overdue — Fine: ₹' + fine + '</span>' : '')
       + '</div>';
@@ -472,7 +478,7 @@ function _initReturnPage() {
       showToast(res.fine > 0 ? 'Fine of ₹' + res.fine + ' added.' : 'Book returned!', res.fine > 0 ? 'warning' : 'success');
     } else {
       box.classList.add('error');
-      box.innerHTML = '<div class="result-title">❌ ' + res.msg + '</div>';
+      box.innerHTML = '<div class="result-title">❌ ' + _esc(res.msg) + '</div>';
       showToast(res.msg, 'error');
     }
   });
@@ -615,8 +621,8 @@ function _performSearch(q) {
     html += '<div class="section-title" style="margin-top:0">📚 Books (' + books.length + ')</div><div class="search-results-list">'
       + books.map(function(b) {
           return '<div class="search-result-item"><div class="sr-left"><h4>' + _esc(b.document) + '</h4>'
-            + '<p><span class="td-id">' + b.access_no + '</span> · ' + _esc(b.author) + ' · ' + _esc(b.publisher||'') + '</p></div>'
-            + '<div><span class="status-dot ' + (dotMap[b.status]||'') + '"></span><span class="text-sm text-muted">' + b.status + '</span></div></div>';
+            + '<p><span class="td-id">' + _esc(b.access_no) + '</span> · ' + _esc(b.author) + ' · ' + _esc(b.publisher||'') + '</p></div>'
+            + '<div><span class="status-dot ' + (dotMap[b.status]||'') + '"></span><span class="text-sm text-muted">' + _esc(b.status) + '</span></div></div>';
         }).join('') + '</div>';
   }
   if (students.length) {
@@ -624,7 +630,7 @@ function _performSearch(q) {
       + students.map(function(s) {
           var active = LibraryDB.getActiveTransactions().filter(function(t){ return t.student_adm_no === s.adm_no; });
           return '<div class="search-result-item"><div class="sr-left"><h4>' + _esc(s.name) + '</h4>'
-            + '<p><span class="td-id">' + s.adm_no + '</span> · Class ' + s.class + s.section + ' · Roll ' + s.roll_no + '</p></div>'
+            + '<p><span class="td-id">' + _esc(s.adm_no) + '</span> · Class ' + _esc(s.class) + _esc(s.section) + ' · Roll ' + _esc(s.roll_no) + '</p></div>'
             + '<div class="text-sm text-muted">' + (active.length ? active.length + ' book(s) issued' : 'No active issues') + '</div></div>';
         }).join('') + '</div>';
   }
@@ -659,12 +665,12 @@ function _renderRecords() {
     var isOverdue = txn.status === 'Active' && LibraryDB.calcLateDays(txn.due_date) > 0;
     return '<tr' + (isOverdue ? ' class="row-overdue"' : '') + '>'
       + '<td class="td-id">' + txn.transaction_id.slice(-8) + '</td>'
-      + '<td>' + _esc(book ? book.document : txn.book_access_no) + '<br><span class="td-id">' + txn.book_access_no + '</span></td>'
+      + '<td>' + _esc(book ? book.document : txn.book_access_no) + '<br><span class="td-id">' + _esc(txn.book_access_no) + '</span></td>'
       + '<td>' + _esc(b.name) + '<br><span class="td-id">' + _esc(b.sub) + '</span></td>'
       + '<td>' + LibraryDB.formatDate(txn.issue_date)  + '</td>'
       + '<td>' + _dueDateCell(txn) + '</td>'
       + '<td>' + (txn.return_date ? LibraryDB.formatDate(txn.return_date) : '—') + '</td>'
-      + '<td>' + (badges[txn.status] || '<span class="badge badge-gray">' + txn.status + '</span>')
+      + '<td>' + (badges[txn.status] || '<span class="badge badge-gray">' + _esc(txn.status) + '</span>')
       + (txn.fine > 0 ? ' <span class="fine-amount">₹' + txn.fine + '</span>' : '') + '</td></tr>';
   }).join('');
 }
@@ -719,7 +725,7 @@ function _renderStudents() {
       + '<td><strong>' + _esc(s.name) + '</strong>' + (s.email ? '<br><span class="td-id">' + _esc(s.email) + '</span>' : '') + '</td>'
       + '<td>Class ' + _esc(s.class) + ' ' + _esc(s.section) + '</td>'
       + '<td>' + _esc(s.roll_no) + '</td>'
-      + '<td><span class="group-badge ' + (groupCls[group]||'regular') + '">' + group + '</span></td>'
+      + '<td><span class="group-badge ' + (groupCls[group]||'regular') + '">' + _esc(group) + '</span></td>'
       + '<td>' + (active.length  ? '<span class="badge badge-blue">'  + active.length  + ' issued</span>'  : '<span class="badge badge-gray">None</span>') + '</td>'
       + '<td>' + (overdue.length ? '<span class="badge badge-coral">' + overdue.length + ' overdue</span>' : '—') + '</td>'
       + '<td><button class="btn btn-ghost btn-sm" data-edit-student="' + _esc(s.adm_no) + '">Edit</button> <button class="btn btn-ghost btn-sm" data-delete-student="' + _esc(s.adm_no) + '">Delete</button></td></tr>';
@@ -747,6 +753,7 @@ function _confirmStudentDeletion(student) {
     detail.textContent = student.name + ' (' + student.adm_no + ') will be removed from this librarian roster. Past loan history remains.' + (student.cloud_synced ? ' Remove their access in Admin first to prevent the record returning during cloud sync.' : '');
     var actions = document.createElement('div'); actions.className = 'modal-actions';
     var cancel = document.createElement('button'); cancel.className = 'btn btn-ghost'; cancel.textContent = 'Keep record';
+    cancel.dataset.dialogCancel = '';
     var remove = document.createElement('button'); remove.className = 'btn btn-primary'; remove.textContent = 'Delete record';
     function done(ok) { overlay.remove(); resolve(ok); }
     cancel.addEventListener('click', function() { done(false); });
@@ -1151,7 +1158,7 @@ window.approveRequest = async function(requestId, access_no, adm_no) {
   var book = LibraryDB.getBook(access_no);
   if (!book) { showToast('Book not found in local catalogue.', 'error'); return; }
   if (book.status !== 'Available') {
-    showToast('Cannot issue — book is currently "' + book.status + '".', 'error');
+    showToast('Cannot issue — book is currently "' + _esc(book.status) + '".', 'error');
     return;
   }
   var issueRes = LibraryDB.issueBook(adm_no, access_no);
@@ -1272,7 +1279,7 @@ function _loadCurrentlyIssued() {
       : (days > 0 ? '<span class="overdue-chip">+' + days + 'd</span>' : '<span class="text-sm text-muted">Due ' + LibraryDB.formatDate(t.due_date) + '</span>');
     return '<div style="padding:8px 0;border-bottom:1px solid var(--cream-dark);display:flex;justify-content:space-between;align-items:center">'
       + '<div><strong style="font-size:13px">' + _esc(b ? b.document : t.book_access_no) + '</strong><br>'
-      + '<span style="font-size:11px;color:var(--text-muted)">' + t.book_access_no + ' · ' + _esc(borrower.name) + '</span></div>'
+      + '<span style="font-size:11px;color:var(--text-muted)">' + _esc(t.book_access_no) + ' · ' + _esc(borrower.name) + '</span></div>'
       + rightSide
       + '</div>';
   }).join('');

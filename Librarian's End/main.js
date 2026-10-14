@@ -67,7 +67,7 @@ function createWindow() {
       allowRunningInsecureContent: false,
     },
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
-    backgroundColor: '#FAF7F2',
+    backgroundColor: '#f7f8fb',
     show: false,
     icon: path.join(__dirname, 'assets', 'icon.png'),
   });

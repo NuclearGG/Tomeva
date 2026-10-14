@@ -5,6 +5,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
+require('./prepare-interface.cjs').prepareInterface();
 const stage = path.join(root, '.legacy-build');
 const apps = [
   ['Control Center', 'tomeva-control-center'],

@@ -85,6 +85,11 @@ const STAFF_DOMAIN = webConfig.staffDomain.trim().toLowerCase();
 document.querySelectorAll('[data-institution-name]').forEach(element => {
   element.textContent = webConfig.institutionName || element.getAttribute('data-institution-fallback') || 'your institution’s';
 });
+window.TomevaAppearance.load(firebaseConfig.projectId, { institutionName:webConfig.institutionName });
+onSnapshot(doc(db, 'libraries', LIBRARY_ID, 'public', 'appearance'), { includeMetadataChanges:true }, snapshot => {
+  try { window.TomevaAppearance.receive(firebaseConfig.projectId, snapshot, { institutionName:webConfig.institutionName }); }
+  catch (error) { console.warn('[Appearance]', error.message); }
+}, error => console.warn('[Appearance] Keeping cached appearance:', error.code));
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(registrations => {
     for (const registration of registrations) {
@@ -294,7 +299,7 @@ onAuthStateChanged(auth, async (user) => {
     if (stateSignedOut)  stateSignedOut.style.display  = name === "signedout"  ? "block" : "none";
     if (stateProfile)    stateProfile.style.display    = name === "profile"    ? "block" : "none";
     if (stateUnverified) stateUnverified.style.display = name === "unverified" ? "block" : "none";
-    if (gateOuter)  gateOuter.style.display  = name === "verified" ? "none"  : "flex";
+    if (gateOuter)  gateOuter.style.display  = name === "verified" ? "none"  : "grid";
     if (content)    content.style.display    = name === "verified" ? "block" : "none";
   }
   window._showGateState = showGateState;
@@ -525,33 +530,27 @@ function renderResults() {
 
 function bookCard(b) {
   const avail = b.availability === "available";
-  const icons = ["📘","📗","📙","📕","📒","📔"];
-  const icon  = icons[hashStr(b.book_id || b.title) % icons.length];
-  const footerText = avail ? "✅ Available now" : `📤 ${b.status === "Issued" ? "Currently issued out" : b.status}`;
   return `<div class="book-card ${b.availability}">
     <div class="book-card-top">
-      <div class="book-icon">${icon}</div>
+      <span class="slip-id">${escHtml(b.book_id)}</span>
       <div class="availability-badge ${b.availability}"><div class="badge-dot"></div>${avail ? "Available" : "Not Available"}</div>
     </div>
     <div>
       <div class="book-title">${escHtml(b.title || b.book_id)}</div>
-      ${b.author ? `<div class="book-author">✍️ ${escHtml(b.author)}</div>` : ""}
+      ${b.author ? `<div class="book-author">${escHtml(b.author)}</div>` : ""}
     </div>
-    <div class="book-id">${escHtml(b.book_id)}</div>
-    <div class="book-card-footer">${footerText}</div>
-    <button class="request-btn" data-book-id="${escHtml(b.book_id)}" data-book-title="${escHtml(b.title || b.book_id)}">📩 Request This Book</button>
+    ${b.publisher ? `<div class="book-card-footer">${escHtml(b.publisher)}</div>` : ''}
+    <button class="request-btn" aria-label="Request ${escHtml(b.title || b.book_id)}" data-book-id="${escHtml(b.book_id)}" data-book-title="${escHtml(b.title || b.book_id)}"><span class="t-icon" data-icon="tray" aria-hidden="true"></span> Request a copy</button>
   </div>`;
 }
 
 function bookListItem(b, q) {
   const avail = b.availability === "available";
-  const icons = ["📘","📗","📙","📕","📒","📔"];
-  const icon  = icons[hashStr(b.book_id || b.title) % icons.length];
   return `<div class="book-list-item ${b.availability}">
-    <div class="bli-icon">${icon}</div>
+    <div class="bli-icon"><span class="t-icon" data-icon="book-open" aria-hidden="true"></span></div>
     <div class="bli-info">
       <div class="bli-title">${highlight(b.title || b.book_id, q)}</div>
-      <div class="bli-meta">${b.author ? `<span>✍️ ${highlight(b.author, q)}</span><span class="sep">·</span>` : ""}<span class="book-id">${highlight(b.book_id, q)}</span></div>
+      <div class="bli-meta">${b.author ? `<span>${highlight(b.author, q)}</span><span class="sep">·</span>` : ""}<span class="book-id">${highlight(b.book_id, q)}</span></div>
     </div>
     <div class="bli-right">
       <div class="availability-badge ${b.availability}"><div class="badge-dot"></div>${avail ? "Available" : b.status === "Issued" ? "Issued Out" : b.status}</div>

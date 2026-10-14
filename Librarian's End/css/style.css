@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,300&family=DM+Sans:wght@300;400;500;600&display=swap');
 
 :root {
   --cream: #FAF7F2;
@@ -38,7 +37,7 @@
 
 html, body {
   height: 100%;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-ui);
   background: var(--cream);
   color: var(--text);
   overflow: hidden;
@@ -190,7 +189,7 @@ body.workstation-is-locked > :not(#workstation-lock-screen):not(script) {
 }
 
 .page-title-area h2 {
-  font-family: 'Fraunces', serif;
+  font-family: var(--font-display);
   font-size: 26px;
   font-weight: 700;
   color: var(--text);
@@ -228,7 +227,7 @@ body.workstation-is-locked > :not(#workstation-lock-screen):not(script) {
 .search-bar input {
   border: none;
   outline: none;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-ui);
   font-size: 14px;
   color: var(--text);
   background: transparent;
@@ -271,7 +270,7 @@ body.workstation-is-locked > :not(#workstation-lock-screen):not(script) {
 }
 
 .card-title {
-  font-family: 'Fraunces', serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 17px;
   color: var(--text);
@@ -311,7 +310,7 @@ body.workstation-is-locked > :not(#workstation-lock-screen):not(script) {
 .stat-icon { font-size: 26px; }
 
 .stat-value {
-  font-family: 'Fraunces', serif;
+  font-family: var(--font-display);
   font-size: 36px;
   font-weight: 700;
   line-height: 1;
@@ -345,7 +344,7 @@ body.workstation-is-locked > :not(#workstation-lock-screen):not(script) {
   padding: 11px 14px;
   border: 1.5px solid var(--cream-dark);
   border-radius: 10px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-ui);
   font-size: 14px;
   color: var(--text);
   background: var(--cream);
@@ -376,7 +375,7 @@ body.workstation-is-locked > :not(#workstation-lock-screen):not(script) {
   gap: 8px;
   padding: 11px 22px;
   border-radius: var(--btn-radius);
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-ui);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -508,7 +507,7 @@ table tbody tr:last-child { border-bottom: none; }
 .action-card-icon { font-size: 36px; margin-bottom: 14px; display: block; }
 
 .action-card h3 {
-  font-family: 'Fraunces', serif;
+  font-family: var(--font-display);
   font-size: 19px;
   font-weight: 700;
   margin-bottom: 6px;
@@ -553,7 +552,7 @@ table tbody tr:last-child { border-bottom: none; }
 .result-box.warning { background: var(--yellow); border: 1.5px solid var(--yellow-mid); }
 
 .result-box .result-title {
-  font-family: 'Fraunces', serif;
+  font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
 }
@@ -600,7 +599,7 @@ table tbody tr:last-child { border-bottom: none; }
 }
 
 .empty-state .empty-icon { font-size: 48px; margin-bottom: 14px; display: block; }
-.empty-state h4 { font-family: 'Fraunces', serif; font-size: 18px; color: var(--text); margin-bottom: 6px; }
+.empty-state h4 { font-family: var(--font-display); font-size: 18px; color: var(--text); margin-bottom: 6px; }
 .empty-state p { font-size: 13px; }
 
 /* ── TOAST NOTIFICATION ── */
@@ -643,6 +642,7 @@ table tbody tr:last-child { border-bottom: none; }
   justify-content: center;
   z-index: 1000;
   backdrop-filter: blur(4px);
+  padding: 24px 12px;
 }
 
 .modal-overlay.show { display: flex; animation: fadeIn 0.2s ease; }
@@ -653,12 +653,15 @@ table tbody tr:last-child { border-bottom: none; }
   padding: 32px;
   width: 480px;
   max-width: 95vw;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   box-shadow: 0 24px 80px rgba(44,36,22,0.2);
   animation: modalIn 0.3s cubic-bezier(.34,1.56,.64,1);
 }
 
 .modal-title {
-  font-family: 'Fraunces', serif;
+  font-family: var(--font-display);
   font-size: 22px;
   font-weight: 700;
   margin-bottom: 6px;
@@ -667,6 +670,10 @@ table tbody tr:last-child { border-bottom: none; }
 .modal-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; }
 
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+.btn:focus-visible, .nav-item:focus-visible { outline: 3px solid var(--blue-dark, #315f94); outline-offset: 3px; }
+.institution-connection { width: min(620px, 100%); }
+.institution-connection form { display: grid; gap: 12px; }
+.institution-connection .modal-sub { line-height: 1.6; margin-bottom: 18px; }
 .student-match-panel { border: 1px solid #a7c7b4; background: #f2f8f3; border-radius: 12px; padding: 16px; margin: 18px 0; color: #173f35; }
 .student-match-panel[hidden] { display: none; }
 .student-match-panel p { margin: 8px 0 0; line-height: 1.5; }
@@ -674,7 +681,7 @@ table tbody tr:last-child { border-bottom: none; }
 
 /* ── SECTION TITLE ── */
 .section-title {
-  font-family: 'Fraunces', serif;
+  font-family: var(--font-display);
   font-size: 15px;
   font-weight: 700;
   color: var(--text);
@@ -741,7 +748,7 @@ table tbody tr:last-child { border-bottom: none; }
 
 /* ── FINE AMOUNT ── */
 .fine-amount {
-  font-family: 'Fraunces', serif;
+  font-family: var(--font-display);
   font-size: 15px;
   font-weight: 700;
   color: var(--coral-dark);
@@ -891,7 +898,7 @@ table tbody tr:last-child { border-bottom: none; }
 
 .sync-badge::before { content: '●'; font-size: 9px; }
 
-.sync-idle    { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.55); }
+.sync-idle, .sync-unconfigured { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.75); }
 .sync-syncing { background: rgba(200,222,255,0.18); color: #9EC8FF; animation: syncPulse 1s infinite; }
 .sync-success { background: rgba(56,200,120,0.18); color: #5FD99A; }
 .sync-error   { background: rgba(255,100,80,0.18);  color: #FF8070; }
@@ -912,7 +919,7 @@ table tbody tr:last-child { border-bottom: none; }
   font-weight: 600;
   padding: 7px 10px;
   cursor: pointer;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-ui);
   transition: all var(--transition);
   text-align: center;
   width: 100%;
@@ -953,7 +960,7 @@ table tbody tr:last-child { border-bottom: none; }
 }
 
 .sync-info-card .sic-value {
-  font-family: 'Fraunces', serif;
+  font-family: var(--font-display);
   font-size: 18px;
   font-weight: 700;
   color: var(--text);
@@ -1172,7 +1179,7 @@ table tbody tr:last-child { border-bottom: none; }
 }
 
 .request-book-title {
-  font-family: 'Fraunces', serif;
+  font-family: var(--font-display);
   font-size: 15.5px;
   font-weight: 700;
   color: var(--text);
@@ -1259,7 +1266,7 @@ table tbody tr:last-child { border-bottom: none; }
   border: none;
   background: transparent;
   border-radius: 10px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-ui);
   font-size: 14px;
   font-weight: 600;
   color: var(--text-muted);

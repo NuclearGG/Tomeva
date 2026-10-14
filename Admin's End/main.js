@@ -40,7 +40,7 @@ function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 640,
-    backgroundColor: '#FAF7F2',
+    backgroundColor: '#f7f8fb',
     title: 'Tomeva Admin — Library Dashboard',
     icon: path.join(__dirname, 'assets', 'icon.png'),
     webPreferences: {

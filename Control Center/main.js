@@ -26,6 +26,17 @@ async function distribute(action) {
   finally { provisioning = null; send('distribution:progress', { state: 'idle' }); }
 }
 const configStore = createConfigStore(app.getPath('userData'));
+const { OAuthFlow } = require(app.isPackaged ? './integration/oauth-flow.cjs' : '../desktop-integration/oauth-flow.cjs');
+const appearanceAuth = new OAuthFlow({
+  getLoginUrl: () => {
+    const value = configStore.read();
+    if (!value) return null;
+    const base = value.webUrl || `https://${value.firebase.projectId}.web.app/`;
+    return new URL('admin-sign-in/', base.endsWith('/') ? base : new URL('.', base)).href;
+  },
+  openExternal: url => shell.openExternal(url),
+  notify: result => send('appearance:oauth', result),
+});
 const recovery = require('./recovery').createRecovery({ userData: app.getPath('userData'), store: configStore, dialog, getWindow: () => window, version: app.getVersion() });
 
 function send(channel, payload) { if (window && !window.isDestroyed()) window.webContents.send(channel, payload); }
@@ -50,16 +61,17 @@ function createWindow() {
   window.loadFile(path.join(__dirname, 'ui', 'index.html'));
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', event => event.preventDefault());
-  window.on('closed', () => { window = null; });
+  window.on('closed', () => { appearanceAuth.stop(); window = null; });
 }
 const fromWindow = event => window && event.sender === window.webContents
   && event.senderFrame === window.webContents.mainFrame
   && event.senderFrame?.url.split('#')[0] === pathToFileURL(path.join(__dirname, 'ui', 'index.html')).href;
 function handle(name, fn) { ipcMain.handle(name, (event, ...args) => { if (!fromWindow(event)) throw new Error('Untrusted window.'); return fn(...args); }); }
 handle('config:read', () => configStore.read());
-handle('config:save', value => configStore.save(value));
+handle('config:save', value => { const saved = configStore.save(value); appearanceAuth.stop(); return saved; });
+handle('appearance:sign-in', () => appearanceAuth.start());
 handle('recovery:status', () => recovery.status());
-handle('recovery:run', (action, password) => recovery.run(action, password));
+handle('recovery:run', (action, password) => { if (action === 'restore') appearanceAuth.stop(); return recovery.run(action, password); });
 handle('app:version', () => app.getVersion());
 handle('updates:status', () => updater?.getStatus() || { state: 'idle', version: app.getVersion() });
 handle('updates:desktop-releases', () => checkDesktopReleases());

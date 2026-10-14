@@ -24,6 +24,7 @@
   'use strict';
 
   let _institutionConfigured = false;
+  let _appearanceUnsub = null;
 
   const SYNC_INTERVAL_MS = 60 * 60 * 1000;
   const LIBRARY_ID       = 'main';
@@ -57,9 +58,10 @@
       return false;
     }
     try {
+      let provisioned = null;
       if (!firebase.apps.length) {
-        const provisioned = await window.electronAPI?.getInstitution?.();
-        if (!provisioned?.firebase) { _setStatus('idle', 'Import institution setup from the File menu'); return false; }
+        provisioned = await window.electronAPI?.getInstitution?.();
+        if (!provisioned?.firebase) { _setStatus('unconfigured'); return false; }
         _institutionConfigured = true;
         const projectLabel = document.getElementById('sync-project-id');
         if (projectLabel) projectLabel.textContent = provisioned.firebase.projectId;
@@ -68,6 +70,9 @@
       }
       _db = firebase.firestore();
       _auth = firebase.auth();
+      if (!_appearanceUnsub && window.TomevaAppearance) {
+        _appearanceUnsub = window.TomevaAppearance.bindCompat(_db, firebase.app().options.projectId, { institutionName:provisioned?.institutionName });
+      }
       return true;
     } catch (e) {
       console.error('[Sync] Firebase init error:', e);
@@ -202,7 +207,7 @@
 
   function _setStatus(status, detail) {
     _syncStatus = status;
-    const labels = { idle:'Sync Ready', syncing:'Syncing…', success:'Synced', error:'Sync Error', offline:'Offline' };
+    const labels = { idle:'Sync Ready', syncing:'Syncing…', success:'Synced', error:'Sync Error', offline:'Offline', unconfigured:'Working locally — cloud not connected' };
     const text = detail ? `${labels[status]||status} — ${detail}` : (labels[status]||status);
     ['sync-status-badge', 'sync-status-badge-settings'].forEach(id => {
       const el = document.getElementById(id);
@@ -424,7 +429,11 @@
     // Ensure dual auth is initialized
     const authOk = await _initDualAuth();
     if (!authOk) {
-      if (!navigator.onLine) {
+      if (!_institutionConfigured) {
+        _setStatus('unconfigured');
+        if (isManual) { _toast('Local circulation is available. Connect your institution to enable cloud sync.'); if (typeof showInstitutionConnection === 'function') showInstitutionConnection(); }
+        return { ok: false, reason: 'unconfigured' };
+      } else if (!navigator.onLine) {
         _setStatus('offline');
         if (isManual) _toast('No internet — will sync when back online.', 'warning');
       } else {

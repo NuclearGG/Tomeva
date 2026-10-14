@@ -24,6 +24,11 @@ function decodeBackup(raw, allowLegacy = false) {
     if (typeof expected !== 'string' || checksum(payload) !== expected) throw new Error('Backup checksum mismatch.');
   }
   const text = (v, max, required = false) => typeof v === 'string' && v.length <= max && (!required || !!v.trim()) && !/[\u0000-\u001f\u007f]/.test(v);
+  const date = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+  function fields(row, limits) {
+    for (const [key, max] of Object.entries(limits)) if (row[key] != null && !text(row[key], max)) throw new Error('Invalid ' + key + ' field.');
+  }
   const keys = { books: 'access_no', students: 'adm_no', transactions: 'transaction_id', finePayments: 'payment_id' };
   for (const [table, key] of Object.entries(keys)) {
     if (!Array.isArray(data[table]) || data[table].length > 200000) throw new Error(table + ' must be a bounded array.');
@@ -36,18 +41,30 @@ function decodeBackup(raw, allowLegacy = false) {
       if (Buffer.byteLength(JSON.stringify(row)) > 16384) throw new Error('Oversized ' + table + ' row.');
     }
   }
-  for (const b of data.books) if (!text(b.document, 200, true) || !BOOK_STATUSES.has(b.status) || (b.author != null && !text(b.author, 100))) throw new Error('Invalid book title, author, or status.');
-  for (const s of data.students) if (!text(s.name, 100, true) || (s.email != null && !text(s.email, 320))) throw new Error('Invalid student name or email.');
+  for (const b of data.books) {
+    if (!text(b.access_no, 50, true) || /[<>"'`\\]/.test(b.access_no) || !text(b.document, 200, true) || !BOOK_STATUSES.has(b.status)) throw new Error('Invalid book identifier, title, or status.');
+    fields(b, { author: 100, publisher: 100, cost: 20, pages: 10 });
+  }
+  for (const s of data.students) {
+    if (!text(s.adm_no, 40, true) || !text(s.name, 100, true)) throw new Error('Invalid student identifier or name.');
+    fields(s, { email: 320, class: 20, section: 10, roll_no: 20 });
+    if (s.group != null && !['Regular', 'Literary Club', 'Editorial Board'].includes(s.group)) throw new Error('Invalid student group.');
+  }
   const books = new Map(data.books.map(b => [b.access_no, b]));
   const students = new Set(data.students.map(s => s.adm_no));
   const transactions = new Map(data.transactions.map(t => [t.transaction_id, t]));
   const active = new Set();
   for (const t of data.transactions) {
+    fields(t, { student_adm_no: 40, teacher_name: 100, teacher_email: 320, restoration_note: 2000, damage_note: 2000 });
+    for (const field of ['issue_date', 'due_date', 'return_date']) if (t[field] != null && !date(t[field])) throw new Error('Invalid transaction date.');
+    if (t.borrower_type != null && !['student', 'teacher', 'system'].includes(t.borrower_type)) throw new Error('Invalid borrower type.');
+    if (t.is_teacher === true && t.borrower_type != null && t.borrower_type !== 'teacher') throw new Error('Conflicting borrower type.');
     if (!TXN_STATUSES.has(t.status) || !text(t.book_access_no, 50, true) || (t.fine != null && (!Number.isFinite(t.fine) || t.fine < 0))) throw new Error('Invalid transaction status, book, or fine.');
     if (t.status === 'Active') {
       if (active.has(t.book_access_no) || books.get(t.book_access_no)?.status !== 'Issued') throw new Error('Active loan has a duplicate or inconsistent book.');
-      if (!t.is_teacher && t.borrower_type !== 'teacher' && !students.has(t.student_adm_no)) throw new Error('Active loan references a missing student.');
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(t.issue_date || '') || (t.borrower_type !== 'teacher' && !/^\d{4}-\d{2}-\d{2}$/.test(t.due_date || ''))) throw new Error('Invalid active loan dates.');
+      const teacher = t.borrower_type === 'teacher' || (t.borrower_type == null && t.is_teacher === true);
+      if (!teacher && !students.has(t.student_adm_no)) throw new Error('Active loan references a missing student.');
+      if (!date(t.issue_date) || (!teacher && !date(t.due_date))) throw new Error('Invalid active loan dates.');
       active.add(t.book_access_no);
     }
   }

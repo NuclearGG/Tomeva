@@ -7,7 +7,7 @@ const button = document.getElementById('sign-in');
 const status = document.getElementById('status');
 const config = window.TOMEVA_WEB_CONFIG;
 if (!config?.firebase || !state || !/^[A-Za-z0-9_-]{43}$/.test(state)) {
-  status.textContent = 'Open this page from Admin after deploying your institution setup bundle.';
+  status.textContent = 'Open this page from Tomeva Admin or Control Center after deploying your institution setup bundle.';
 } else {
   const app = initializeApp(config.firebase);
   const auth = initializeAuth(app, { persistence: inMemoryPersistence, popupRedirectResolver: browserPopupRedirectResolver });

@@ -1,7 +1,7 @@
 {
   "name": "tomeva",
   "productName": "Tomeva",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Offline-first library management system for school libraries",
   "main": "main.js",
   "scripts": {
@@ -17,8 +17,15 @@
     "test:kiosk": "node --test test/kiosk-auth.test.cjs",
     "test:kiosk:rules": "node --test test/kiosk-rules-rest.test.cjs",
     "test:sync": "node --test test/roster-sync.test.cjs test/privacy-sync.test.cjs",
-    "test:security": "node --test test/workstation-access.test.cjs test/backup.test.cjs test/activity-log.test.cjs test/cloud-shards.test.cjs ../desktop-integration/test/release-verification.test.cjs",
-    "test:rules:emulator": "firebase emulators:exec --only firestore --project demo-tomeva \"npm run test:rules && npm run test:kiosk:rules\""
+    "test:security": "node --test test/workstation-access.test.cjs test/backup.test.cjs test/calendar.test.cjs test/activity-log.test.cjs test/cloud-shards.test.cjs ../desktop-integration/test/release-verification.test.cjs",
+    "test:rules:emulator": "firebase emulators:exec --only firestore --project demo-tomeva \"npm run test:rules && npm run test:kiosk:rules\"",
+    "prestart": "node ../scripts/prepare-interface.cjs",
+    "predev": "node ../scripts/prepare-interface.cjs",
+    "pretest:desktop": "node ../scripts/prepare-interface.cjs",
+    "prebuild:win": "node ../scripts/prepare-interface.cjs",
+    "prebuild:mac": "node ../scripts/prepare-interface.cjs",
+    "prebuild:linux": "node ../scripts/prepare-interface.cjs",
+    "review:interface": "electron ../scripts/review-interface.cjs"
   },
   "keywords": [
     "library",

@@ -12,7 +12,7 @@ Tomeva combines an offline desktop circulation app, an online administration das
 
 | Application | Who uses it | Purpose |
 | --- | --- | --- |
-| **Control Center** | Institution setup person | Configure Firebase, generate installation packages and rules, export the student site, manage recovery kits. |
+| **Control Center** | Institution setup person | Configure Firebase, publish institution appearance, generate installation packages and rules, export the student site, manage recovery kits. |
 | **Librarian** | Library desk staff | Manage books, students, loans, returns, fines, backups, and a local workstation PIN. Daily circulation works offline. |
 | **Admin** | Authorized institution staff | Manage student access, provision/revoke kiosks, view synchronized information, and approve updates. Requires internet. |
 | **Student Portal** | Students and teachers | Browse availability and submit requests through the institution's website. Cloud features require internet. |
@@ -55,6 +55,8 @@ The Student Portal browser session expires after 10 hours. Each account can subm
 Cloud Functions are not required. Firebase service quotas apply. The Firebase CLI is needed only if you choose CLI deployment; generated rules can be published through Firebase Console.
 
 ### Updates and recovery
+
+Version 1.0.9 adds **Control Center → Appearance**: optional brand colours, surface tone, typography, spacing, corners, library display name, Student Portal heading and an institution notice. Install the updated apps, deploy the updated Student Portal and publish the institution's generated Firestore rules once. Afterwards, the supported appearance settings sync through Firebase without new package downloads. Offline apps keep their last received appearance. See [live appearance and rollout](documentation/LIVE_APPEARANCE.md).
 
 - CC checks GitHub Releases for its own updates. Admin and Librarian download their approved versions from the same repository and follow the exact version, rollout time, and approved/paused policy set by staff in Admin.
 - Installation preserves existing configuration. Use **Import institution setup** to intentionally change it.

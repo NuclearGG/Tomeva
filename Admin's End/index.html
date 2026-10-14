@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com; img-src 'self' data:; base-uri 'self'; form-action 'self'; frame-src 'self' https://*.firebaseapp.com;">
   <title>Tomeva Admin — Library Dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
       --cream:#FAF7F2; --cream-dark:#F0EBE1;
@@ -23,17 +20,17 @@
       --transition:0.22s cubic-bezier(.4,0,.2,1);
     }
     *{box-sizing:border-box;margin:0;padding:0;}
-    html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);overflow:hidden;}
+    html,body{height:100%;font-family:var(--font-ui);background:var(--cream);color:var(--text);overflow:hidden;}
     .app-shell{display:flex;height:100vh;width:100vw;overflow:hidden;}
 
     /* ── SIDEBAR ── */
     .sidebar{width:240px;min-width:240px;background:#2C2416;display:flex;flex-direction:column;padding:28px 0 24px;z-index:10;}
     .sidebar-logo{padding:0 28px 28px;border-bottom:1px solid rgba(255,255,255,0.08);}
     .sidebar-logo .logo-icon{font-size:28px;margin-bottom:8px;display:block;}
-    .sidebar-logo h1{font-family:'Fraunces',serif;font-weight:700;font-size:18px;color:var(--cream);line-height:1.2;}
+    .sidebar-logo h1{font-family:var(--font-display);font-weight:700;font-size:18px;color:var(--cream);line-height:1.2;}
     .admin-chip{display:inline-flex;align-items:center;gap:5px;margin-top:6px;background:var(--purple-dark);color:white;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:3px 10px;border-radius:20px;}
     .sidebar-nav{flex:1;min-height:0;overflow-y:auto;padding:20px 14px;display:flex;flex-direction:column;gap:4px;}
-    .nav-item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;cursor:pointer;transition:background var(--transition),color var(--transition);color:rgba(255,255,255,0.55);font-size:14px;font-weight:500;border:none;background:transparent;width:100%;text-align:left;font-family:'DM Sans',sans-serif;letter-spacing:0.01em;}
+    .nav-item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;cursor:pointer;transition:background var(--transition),color var(--transition);color:rgba(255,255,255,0.55);font-size:14px;font-weight:500;border:none;background:transparent;width:100%;text-align:left;font-family:var(--font-ui);letter-spacing:0.01em;}
     .nav-item .nav-icon{font-size:17px;width:22px;text-align:center;}
     .nav-item:hover{background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.85);}
     .nav-item.active{background:rgba(255,255,255,0.13);color:#fff;font-weight:600;}
@@ -51,13 +48,13 @@
     /* ── MAIN ── */
     .main-content{flex:1;display:flex;flex-direction:column;overflow:hidden;}
     .topbar{padding:20px 36px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-    .page-title-area h2{font-family:'Fraunces',serif;font-size:26px;font-weight:700;}
+    .page-title-area h2{font-family:var(--font-display);font-size:26px;font-weight:700;}
     .page-title-area p{font-size:13px;color:var(--text-muted);margin-top:3px;}
     .topbar-right{display:flex;align-items:center;gap:12px;}
     .online-indicator{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--green-dark);background:var(--green);border:1.5px solid var(--green-mid);padding:8px 14px;border-radius:10px;}
     .online-dot{width:8px;height:8px;border-radius:50%;background:var(--green-dark);animation:syncPulse 2s infinite;}
     .offline-indicator{color:var(--text-muted);background:var(--cream-dark);border-color:var(--cream-dark);}
-    .refresh-btn{display:flex;align-items:center;gap:8px;padding:9px 16px;background:var(--text);color:white;border:none;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all var(--transition);}
+    .refresh-btn{display:flex;align-items:center;gap:8px;padding:9px 16px;background:var(--text);color:white;border:none;border-radius:12px;font-family:var(--font-ui);font-size:13px;font-weight:600;cursor:pointer;transition:all var(--transition);}
     .refresh-btn:hover{background:#3D3225;}
     .page-body{flex:1;overflow-y:auto;padding:24px 36px 36px;}
     .page-body::-webkit-scrollbar{width:6px;}
@@ -69,7 +66,7 @@
     .card{background:white;border-radius:var(--card-radius);padding:24px;box-shadow:var(--shadow);border:1.5px solid rgba(44,36,22,0.05);transition:box-shadow var(--transition);}
     .card:hover{box-shadow:var(--shadow-hover);}
     .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
-    .card-title{font-family:'Fraunces',serif;font-weight:700;font-size:17px;color:var(--text);}
+    .card-title{font-family:var(--font-display);font-weight:700;font-size:17px;color:var(--text);}
     .card-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px;}
 
     /* ── STAT CARDS ── */
@@ -82,7 +79,7 @@
     .stat-card.coral{background:var(--coral);border-color:var(--coral-mid);}
     .stat-card.purple{background:var(--purple);border-color:var(--purple-mid);}
     .stat-icon{font-size:26px;}
-    .stat-value{font-family:'Fraunces',serif;font-size:36px;font-weight:700;line-height:1;}
+    .stat-value{font-family:var(--font-display);font-size:36px;font-weight:700;line-height:1;}
     .stat-card.blue .stat-value{color:var(--blue-dark);}
     .stat-card.green .stat-value{color:var(--green-dark);}
     .stat-card.yellow .stat-value{color:var(--yellow-dark);}
@@ -128,10 +125,10 @@
     /* ── EMPTY STATE ── */
     .empty-state{text-align:center;padding:48px 24px;color:var(--text-muted);}
     .empty-state .empty-icon{font-size:48px;margin-bottom:14px;display:block;}
-    .empty-state h4{font-family:'Fraunces',serif;font-size:18px;color:var(--text);margin-bottom:6px;}
+    .empty-state h4{font-family:var(--font-display);font-size:18px;color:var(--text);margin-bottom:6px;}
 
     /* ── BUTTONS ── */
-    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;border-radius:var(--btn-radius);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all var(--transition);white-space:nowrap;}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;border-radius:var(--btn-radius);font-family:var(--font-ui);font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all var(--transition);white-space:nowrap;}
     .btn:active{transform:scale(0.97);}
     .btn:disabled{cursor:not-allowed;opacity:.55;transform:none;}
     .btn-primary{background:var(--text);color:white;}
@@ -144,7 +141,7 @@
     /* ── FORMS ── */
     .form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
     .form-group label{font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;}
-    .form-group input,.form-group select,.form-group textarea{padding:11px 14px;border:1.5px solid var(--cream-dark);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:var(--cream);outline:none;transition:border var(--transition),box-shadow var(--transition);}
+    .form-group input,.form-group select,.form-group textarea{padding:11px 14px;border:1.5px solid var(--cream-dark);border-radius:10px;font-family:var(--font-ui);font-size:14px;color:var(--text);background:var(--cream);outline:none;transition:border var(--transition),box-shadow var(--transition);}
     .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--blue-dark);background:white;box-shadow:0 0 0 3px rgba(74,124,199,0.1);}
     .form-group textarea{resize:vertical;min-height:90px;}
 
@@ -152,25 +149,25 @@
     .updates-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;background:linear-gradient(135deg,#fff 0%,var(--purple) 145%);}
     .updates-hero-copy{max-width:720px;}
     .updates-eyebrow{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--purple-dark);margin-bottom:8px;}
-    .updates-hero h2{font-family:'Fraunces',serif;font-size:28px;margin-bottom:8px;}
+    .updates-hero h2{font-family:var(--font-display);font-size:28px;margin-bottom:8px;}
     .updates-hero p{font-size:14px;line-height:1.65;color:var(--text-muted);}
     .updates-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.75fr);gap:20px;align-items:start;}
     .updates-stack{display:flex;flex-direction:column;gap:20px;min-width:0;}
     .updates-section-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;}
-    .updates-section-head h3{font-family:'Fraunces',serif;font-size:19px;}
+    .updates-section-head h3{font-family:var(--font-display);font-size:19px;}
     .updates-section-head p{font-size:12px;color:var(--text-muted);margin-top:3px;}
     .release-grid,.approval-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
     .release-card,.approval-card{border:1.5px solid var(--cream-dark);border-radius:16px;padding:17px;background:var(--cream);min-width:0;}
     .release-card-head,.approval-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
     .release-app{display:flex;align-items:center;gap:9px;font-weight:700;}
     .release-app-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:white;border:1px solid var(--cream-dark);font-size:17px;}
-    .release-version{font-family:'Fraunces',serif;font-size:24px;font-weight:700;margin-bottom:6px;overflow-wrap:anywhere;}
+    .release-version{font-family:var(--font-display);font-size:24px;font-weight:700;margin-bottom:6px;overflow-wrap:anywhere;}
     .release-notes{font-size:12px;line-height:1.55;color:var(--text-muted);white-space:pre-wrap;max-height:76px;overflow:auto;margin-bottom:14px;}
     .release-meta{font-size:11px;color:var(--text-light);margin-bottom:12px;}
     .release-card .btn{width:100%;}
     .approval-card.is-approved{border-color:var(--green-mid);background:rgba(200,238,216,.35);}
     .approval-card.is-paused{border-color:var(--yellow-mid);background:rgba(255,240,192,.38);}
-    .approval-version{font-family:'Fraunces',serif;font-size:21px;font-weight:700;margin:8px 0 5px;}
+    .approval-version{font-family:var(--font-display);font-size:21px;font-weight:700;margin:8px 0 5px;}
     .approval-time{font-size:12px;color:var(--text-muted);line-height:1.5;min-height:36px;}
     .approval-card .btn{margin-top:13px;width:100%;}
     .approval-empty{grid-column:1/-1;padding:28px;border:1.5px dashed var(--cream-dark);border-radius:14px;text-align:center;color:var(--text-muted);font-size:13px;}
@@ -192,7 +189,7 @@
     .modal-overlay{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(44,36,22,.48);backdrop-filter:blur(3px);}
     .modal-overlay.show{display:flex;}
     .modal-overlay .modal{box-sizing:border-box;width:min(100%,560px);max-height:calc(100dvh - 48px);overflow-y:auto;margin:0;padding:28px;background:var(--cream);color:var(--text);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.25);}
-    .modal h3,.modal-title{font-family:'Fraunces',serif;font-size:22px;margin:0 0 12px;}
+    .modal h3,.modal-title{font-family:var(--font-display);font-size:22px;margin:0 0 12px;}
     .modal p{font-size:14px;line-height:1.6;margin:0 0 20px;color:var(--text-muted);}
     .modal .form-group input{box-sizing:border-box;width:100%;min-width:0;}
     .modal-actions{display:flex;justify-content:flex-end;gap:10px;}
@@ -201,7 +198,7 @@
     /* ── SEARCH BAR ── */
     .search-bar{display:flex;align-items:center;gap:10px;background:white;border:1.5px solid var(--cream-dark);border-radius:12px;padding:9px 16px;}
     .search-bar:focus-within{border-color:var(--blue-dark);box-shadow:0 0 0 3px rgba(74,124,199,0.12);}
-    .search-bar input{border:none;outline:none;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:transparent;width:200px;}
+    .search-bar input{border:none;outline:none;font-family:var(--font-ui);font-size:14px;color:var(--text);background:transparent;width:200px;}
 
     /* ── TOAST ── */
     #toast-container{position:fixed;bottom:28px;right:28px;display:flex;flex-direction:column;gap:10px;z-index:9999;}
@@ -357,7 +354,7 @@
     }
 
     .donut-center-val {
-      font-family: 'Fraunces', serif;
+      font-family: var(--font-display);
       font-size: 28px;
       font-weight: 700;
       color: var(--text);
@@ -392,7 +389,7 @@
     }
 
     .legend-label { flex: 1; color: var(--text-muted); font-weight: 500; }
-    .legend-val   { font-weight: 700; color: var(--text); font-family: 'Fraunces', serif; font-size: 15px; }
+    .legend-val   { font-weight: 700; color: var(--text); font-family: var(--font-display); font-size: 15px; }
 
     /* Sparkline bars */
     .spark-bar-chart {
@@ -456,7 +453,7 @@
 
     /* Fine amount display */
     .fine-amount-big {
-      font-family: 'Fraunces', serif;
+      font-family: var(--font-display);
       font-size: 16px;
       font-weight: 700;
       color: var(--yellow-dark);
@@ -485,7 +482,7 @@
     .request-body{flex:1;min-width:0;}
     .request-top-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;}
     .priority-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;background:var(--purple);color:var(--purple-dark);padding:3px 9px;border-radius:20px;}
-    .request-book-title{font-family:'Fraunces',serif;font-size:15px;font-weight:700;color:var(--text);}
+    .request-book-title{font-family:var(--font-display);font-size:15px;font-weight:700;color:var(--text);}
     .request-meta{font-size:12px;color:var(--text-muted);margin-top:3px;}
     .request-note{font-size:12px;color:var(--text-muted);margin-top:6px;font-style:italic;background:var(--cream);padding:6px 10px;border-radius:8px;}
     .request-time{font-size:11px;color:var(--text-light);margin-top:6px;}
@@ -494,8 +491,10 @@
     .suspend-active-banner{background:var(--coral);border:2px solid var(--coral-mid);border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:12px;color:var(--coral-dark);font-weight:600;font-size:13.5px;}
     .suspend-inactive-banner{background:var(--green);border:2px solid var(--green-mid);border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:12px;color:var(--green-dark);font-weight:600;font-size:13.5px;}
   </style>
+<link rel="stylesheet" href="assets/interface/workspace.css">
+<link rel="stylesheet" href="assets/interface/appearance.css"><script src="assets/interface/appearance.js"></script><script defer src="assets/interface/workspace.js"></script>
 </head>
-<body>
+<body class="t-workspace-admin">
 <div class="app-shell">
 
   <!-- ══ SIDEBAR ══ -->
@@ -653,8 +652,8 @@
       <div id="page-overdue" class="page-view">
         <div class="card" style="background:var(--coral);border-color:var(--coral-mid);display:flex;align-items:center;justify-content:space-between;padding:22px 28px">
           <div><div style="font-size:13px;color:var(--coral-dark);font-weight:600;text-transform:uppercase;letter-spacing:0.05em">Overdue Books</div>
-          <div style="font-family:'Fraunces',serif;font-size:38px;font-weight:700;color:var(--coral-dark)" id="overdue-total">0</div></div>
-          <span style="font-size:48px">⏰</span>
+          <div style="font-family:var(--font-display);font-size:38px;font-weight:700;color:var(--coral-dark)" id="overdue-total">0</div></div>
+          <span class="workspace-symbol" style="font-size:48px">⏰</span>
         </div>
         <div class="list-card">
           <div class="list-card-header"><div><div class="card-title">All Overdue Books</div><div class="card-subtitle">Sorted by days overdue</div></div></div>
@@ -668,11 +667,11 @@
         <div class="grid-2">
           <div class="card" style="background:var(--yellow);border-color:var(--yellow-mid)">
             <div style="font-size:13px;color:var(--yellow-dark);font-weight:600;text-transform:uppercase;letter-spacing:0.05em">Total Pending</div>
-            <div style="font-family:'Fraunces',serif;font-size:38px;font-weight:700;color:var(--yellow-dark)" id="fines-total-amt">₹0</div>
+            <div style="font-family:var(--font-display);font-size:38px;font-weight:700;color:var(--yellow-dark)" id="fines-total-amt">₹0</div>
           </div>
           <div class="card" style="background:var(--yellow);border-color:var(--yellow-mid)">
             <div style="font-size:13px;color:var(--yellow-dark);font-weight:600;text-transform:uppercase;letter-spacing:0.05em">Students with Fines</div>
-            <div style="font-family:'Fraunces',serif;font-size:38px;font-weight:700;color:var(--yellow-dark)" id="fines-total-count">0</div>
+            <div style="font-family:var(--font-display);font-size:38px;font-weight:700;color:var(--yellow-dark)" id="fines-total-count">0</div>
           </div>
         </div>
         <div class="list-card">
@@ -696,9 +695,9 @@
         <div class="card" style="background:var(--purple); border-color:var(--purple-mid); display:flex; align-items:center; justify-content:space-between; padding:22px 28px">
           <div>
             <div style="font-size:13px; color:var(--purple-dark); font-weight:600; text-transform:uppercase; letter-spacing:0.05em">Pending Requests</div>
-            <div style="font-family:'Fraunces',serif; font-size:38px; font-weight:700; color:var(--purple-dark)" id="admin-requests-pending-count">0</div>
+            <div style="font-family:var(--font-display); font-size:38px; font-weight:700; color:var(--purple-dark)" id="admin-requests-pending-count">0</div>
           </div>
-          <span style="font-size:48px">📩</span>
+          <span class="workspace-symbol" style="font-size:48px">📩</span>
         </div>
         <div class="list-card">
           <div class="list-card-header">
@@ -747,7 +746,7 @@
 
         <!-- Auth gate: staff can manage this page -->
         <div id="access-gate-signedout" class="card" style="text-align:center; padding:48px 32px">
-          <span style="font-size:44px; display:block; margin-bottom:14px">🔐</span>
+          <span class="workspace-symbol" style="font-size:44px; display:block; margin-bottom:14px">🔐</span>
           <div class="card-title" style="margin-bottom:8px">Staff Sign-In Required</div>
           <div class="card-subtitle" style="margin-bottom:24px">Sign in with your verified <strong data-staff-domain>institution staff</strong> Google account to manage which students can submit book requests.</div>
           <button class="btn btn-primary" data-handler-click="h3" style="margin:0 auto">
@@ -758,7 +757,7 @@
 
         <!-- Signed in but wrong domain -->
         <div id="access-gate-denied" class="card" style="text-align:center; padding:48px 32px; display:none">
-          <span style="font-size:44px; display:block; margin-bottom:14px">🚫</span>
+          <span class="workspace-symbol" style="font-size:44px; display:block; margin-bottom:14px">🚫</span>
           <div class="card-title" style="margin-bottom:8px">Access Denied</div>
           <div class="card-subtitle" style="margin-bottom:24px">Signed in as <strong id="access-denied-email"></strong> — a verified <strong data-staff-domain>institution staff</strong> Google account is required to manage student access.</div>
           <button class="btn btn-ghost" data-handler-click="h4" style="margin:0 auto">Sign out</button>

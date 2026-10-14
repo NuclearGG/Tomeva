@@ -1,6 +1,6 @@
 {
   "name": "tomeva-control-center",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Institution-owned setup, deployment and update center for Tomeva",
   "private": true,
   "license": "MIT",
@@ -52,7 +52,8 @@
         "from": "../desktop-integration",
         "to": "integration",
         "filter": [
-          "release-*.cjs"
+          "release-*.cjs",
+          "oauth-flow.cjs"
         ]
       },
       "web-distribution.js",

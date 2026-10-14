@@ -1,5 +1,16 @@
 'use strict';
 const { createLibraryService } = require('./library-service');
+// Native restore and direct status changes must not be reachable through IPC.
+const RENDERER_METHODS = new Set([
+  'getRosterSyncCursor', 'setRosterSyncCursor', 'getCloudSnapshotHistory', 'recordCloudSnapshot', 'forgetCloudSnapshot',
+  'getSettings', 'saveSettings', 'getBooks', 'getBook', 'searchBooks', 'addBook', 'importBooks',
+  'getStudents', 'getStudent', 'getStudentByAdmNo', 'searchStudents', 'addStudent', 'updateStudent', 'deleteStudent',
+  'upsertStudentFromCloud', 'updateStudentGroup', 'importStudents', 'studentDisplayName', 'bookDisplayTitle',
+  'getTransactions', 'issueBook', 'issueBookToTeacher', 'returnBook', 'getActiveTxnForBook', 'getActiveTransactions',
+  'getOverdueTransactions', 'getReturnedToday', 'getPendingFines', 'markFinePaid', 'getFinePayments',
+  'getTotalCollected', 'getCollectedToday', 'reportDamage', 'restoreBook', 'undoLastTransaction', 'exportData',
+  'calcLateDays', 'formatDate', 'hasBooks', 'hasStudents', 'isEmpty',
+]);
 
 function registerDatabaseIpc(ipcMain, store, isTrusted, appendLog, isLocked = () => false) {
   let service;
@@ -19,7 +30,7 @@ function registerDatabaseIpc(ipcMain, store, isTrusted, appendLog, isLocked = ()
   handle('db:call', (method, args) => {
     if (!service) throw new Error('Database migration has not completed.');
     if (isLocked()) throw new Error('Workstation is locked.');
-    if (!Object.hasOwn(service, method) || typeof service[method] !== 'function' || !Array.isArray(args)) {
+    if (!RENDERER_METHODS.has(method) || !Object.hasOwn(service, method) || typeof service[method] !== 'function' || !Array.isArray(args)) {
       throw new Error('Unsupported database operation.');
     }
     return service[method](...args);

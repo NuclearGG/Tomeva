@@ -15,6 +15,12 @@ release/
 Admin's End/app.bundle.js
 Student Search/app.bundle.js
 Control Center/web-template/app.bundle.js
+/Control Center/ui/renderer.js
+/Admin's End/assets/interface/
+/Librarian's End/assets/interface/
+/Control Center/assets/interface/
+/Student Search/assets/interface/
+/Control Center/web-template/assets/interface/
 *.exe
 *.blockmap
 *.AppImage
@@ -55,6 +61,8 @@ serviceAccount*.json
 credentials*.json
 secrets*.json
 institution.json
+institution-*.backup.json
+institution.json.tmp
 *.tomeva
 
 # OS/editor files
