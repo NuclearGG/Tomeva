@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow">
+<meta name="description" content="Tomeva 1.0.10 architecture: the local circulation desk, institution Firebase, application permissions, distribution and recovery.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests">
+<link rel="canonical" href="https://nucleargg.github.io/Tomeva/architecture.html">
+<link rel="icon" href="favicon.svg"><link rel="stylesheet" href="architecture.css">
+<title>System architecture · Tomeva</title>
+</head>
+<body>
+<a class="skip" href="#overview">Skip to architecture</a>
+<aside class="rail">
+<a class="brand" href="https://nucleargg.github.io/Tomeva/"><img src="favicon.svg" width="28" height="28" alt="">Tomeva</a>
+<p class="rail-label">SYSTEM REFERENCE</p>
+<nav aria-label="Architecture sections">
+<a href="#overview"><span>00</span> System map</a>
+<a href="#librarian"><span>01</span> Circulation desk</a>
+<a href="#admin"><span>02</span> Administration</a>
+<a href="#student"><span>03</span> Student Portal</a>
+<a href="#control"><span>04</span> Control Center</a>
+<a href="#recovery"><span>05</span> Recovery</a>
+<a href="#rollout"><span>06</span> Deployment notes</a>
+</nav>
+<div class="rail-foot"><span class="edition">v1.0.10</span><p>One institution.<br>One circulation authority.</p><a href="https://github.com/NuclearGG/Tomeva">View source ↗</a></div>
+</aside>
+<main>
+<header id="overview">
+<div class="eyebrow">ARCHITECTURE / RELEASE 1.0.10</div>
+<h1>Where every library<br>record belongs.</h1>
+<p class="intro">Four applications, one institution-owned system. Circulation begins at the local desk; Firebase connects administrators and readers.</p>
+<div class="revision"><span>Updated 16 October 2026</span><span>Source reference · deployment may differ</span></div>
+</header>
+<figure class="system-map" aria-labelledby="map-title">
+<figcaption id="map-title"><span class="eyebrow">00 / SYSTEM MAP</span><strong>The desk owns circulation. The cloud connects it.</strong></figcaption>
+<div class="map-grid">
+<div class="desk node"><span class="node-label">LOCAL WORKSTATION</span><h2>Librarian</h2><p>Issue · return · fines · inventory</p><div class="store"><strong>SQLite / WAL</strong><span>Authoritative circulation records</span></div><span class="tag">Works offline</span></div>
+<div class="bridge"><span aria-hidden="true">→</span><strong>Approved sync</strong><small>Up to 50 rows per shard<br>Sequential writes</small><span aria-hidden="true">←</span><small>Student requests</small></div>
+<div class="cloud node"><span class="node-label">INSTITUTION FIREBASE</span><h2>Shared records</h2><div class="cloud-split"><div><strong>Catalogue &amp; appearance</strong><p>Public-facing library data</p></div><div><strong>Protected records</strong><p>Circulation · access · requests<br>Audit · update approvals</p></div></div><p class="caption">Firebase Auth identifies accounts.<br>Firestore rules enforce their scope.</p></div>
+<div class="readers"><div class="slip"><span class="node-label">STAFF / ONLINE</span><h3>Admin</h3><p>Roster, access, approvals<br>Audited administrative writes</p><span class="direction">↔ Institution Firebase</span></div><div class="slip"><span class="node-label">BROWSER / HTTPS</span><h3>Student Portal</h3><p>Catalogue, own requests<br>and account controls</p><span class="direction">↔ Institution Firebase</span></div></div>
+</div>
+<div class="map-bottom"><strong>Control Center</strong><span>Configures the institution, distributes apps and publishes appearance settings.</span><a href="#control">Follow setup flow ↓</a></div>
+</figure>
+<div class="operating-note"><span class="stamp">OPERATING RULE</span><p><strong>One authoritative circulation desk per library.</strong> Admin and the portal can serve many devices. Independent Librarian databases do not merge.</p></div>
+<section id="librarian">
+<div class="section-heading"><span class="section-no">01</span><div><p class="eyebrow">LIBRARIAN / ELECTRON</p><h2>A local ledger, with controlled cloud access.</h2></div></div>
+<p class="section-intro">Daily circulation stays on the workstation. A PIN unlocks the desk; a library-bound kiosk account enables protected synchronization.</p>
+<ol class="pipeline"><li><span>01 / INTERACTION</span><strong>Sandboxed renderer</strong><p>Books, borrowers, loans and returns.</p></li><li><span>02 / TRUST BOUNDARY</span><strong>Preload → allowed IPC</strong><p>Trusted frame, unlock checks and bounded inputs.</p></li><li><span>03 / BUSINESS RULES</span><strong>Library service</strong><p>Transactional changes and relationship validation.</p></li><li><span>04 / PERSISTENCE</span><strong>SQLite + durable outbox</strong><p>WAL, schema migrations, FTS5 and local audit.</p></li></ol>
+<div class="detail-columns"><div><h3>Circulation integrity</h3><ul><li>Accession identifiers use canonical case matching.</li><li>One active loan per copy. Imports preserve active loans and borrowers.</li><li>Damage handling closes an active loan before changing availability.</li><li>App-level relationship checks preserve archived history; the JSON record tables do not use relational foreign keys.</li></ul></div><div><h3>Snapshot synchronization</h3><ul><li>Public <code>catalog_shards</code> stay separate from protected <code>circulation_shards</code>.</li><li>Stages shards before publishing the manifest; batches are sent sequentially.</li><li>Kiosk credentials are protected by the operating system and scoped to the project and workstation.</li><li>Snapshot publication is last-writer-wins; it cannot reconcile two independent desks.</li></ul></div></div>
+<div class="ledger"><div><strong>3</strong><span>SQLite user_version</span></div><div><strong>25</strong><span>Rows per local results window</span></div><div><strong>50</strong><span>Maximum rows per sync shard</span></div></div>
+</section>
+<section id="admin">
+<div class="section-heading"><span class="section-no">02</span><div><p class="eyebrow">ADMIN / ELECTRON</p><h2>Every privileged change has an owner.</h2></div></div>
+<div class="authorization"><span class="stamp">ACCESS CHAIN</span><p>Verified Google sign-in <span>→</span> Configured staff domain <span>→</span> Enabled staff grant</p><small>Library administration additionally requires an enabled UID-based administrator grant.</small></div>
+<div class="detail-columns"><div><h3>Authority comes from records</h3><p><code>staff_accounts/{email}</code> grants staff access. <code>kiosk_admins/{uid}</code> binds a library administrator to the library. A matching email domain alone does not grant administrative access.</p><p>Administrators manage admission rosters, student access, kiosk provisioning and update approvals. They read synchronized circulation; they do not write directly to the desk’s SQLite database.</p></div><div><h3>Writes leave a recoverable trail</h3><p>A protected mutation writes the target, an immutable <code>admin_audit</code> event and its audit head in one transaction. Actor, time and before/after values are recorded.</p><p>Recovery checks the current record and admission claim before restoring a deletion. It cannot overwrite a newer record or take another student’s claim.</p></div></div>
+<div class="slip inset"><span class="node-label">BOUNDED READING</span><h3>25 records at a time</h3><p>Directory queries use server cursors. Snapshot browsing caches at most four shards in memory; the cache clears when the viewer closes or the user signs out.</p></div>
+</section>
+<section id="student">
+<div class="section-heading"><span class="section-no">03</span><div><p class="eyebrow">STUDENT PORTAL / INSTITUTION-HOSTED WEBSITE</p><h2>A request is a workflow, not a loan.</h2></div></div>
+<p class="section-intro">Readers browse the catalogue and submit their own requests. The desk makes circulation decisions. Private circulation snapshots are not exposed to portal accounts.</p>
+<figure class="request-map"><figcaption class="eyebrow">REQUEST STATE MACHINE</figcaption><div class="states"><strong>Pending</strong><span>→</span><strong>Approved</strong><span>→</span><strong class="terminal">Issued</strong></div><p>Pending → Issued or Declined · Approved → Declined · Owner may cancel Pending</p><p class="caption">Issued, Declined and Cancelled are terminal. Decisions validate the actor, server time and bounded decision note.</p></figure>
+<div class="detail-columns"><div><h3>Identity and limits</h3><p>Firebase Google sign-in, student authorization or an explicit staff grant, and a 10-hour portal session. Each UID can submit 100 book requests per 10-hour window.</p><p>The request and quota increment are atomic and enforced by Firestore rules. This limits request submissions, not all site visits or catalogue reads.</p></div><div><h3>Account removal</h3><p>The student requests deletion. Authorized staff remove the protected student access/profile records and mark completion; the student can then delete their own Firebase Auth account.</p><p>Circulation history and retained archives follow the institution’s retention policy.</p></div></div>
+</section>
+<section id="control">
+<div class="section-heading"><span class="section-no">04</span><div><p class="eyebrow">CONTROL CENTER / ELECTRON</p><h2>Set up once. Keep the institution in control.</h2></div></div>
+<ol class="pipeline three"><li><span>01 / CONFIGURE</span><strong>Institution settings</strong><p>Firebase project, staff domain and portal URL.</p></li><li><span>02 / VERIFY &amp; EXPORT</span><strong>GitHub Release packages</strong><p>Download, check SHA-256 and size, then generate configured handoff folders.</p></li><li><span>03 / DEPLOY</span><strong>Apps, rules and portal</strong><p>Install desktop apps and publish matching Firebase rules and the institution site.</p></li></ol>
+<div class="detail-columns"><div><h3>Live appearance, without new packages</h3><p>Authorized administrators publish revisioned settings to <code>libraries/main/public/appearance</code>. Connected apps listen for changes and retain the last settings for offline use.</p><div class="properties"><span>Optional brand colours</span><span>Surface style</span><span>Type style</span><span>Spacing</span><span>Corners</span><span>Library heading</span><span>Notice</span></div></div><div><h3>Deliberate updates</h3><p>Control Center downloads separate applications; they are not embedded in its installer. Its own stable updates require an operator action, verification and a recovery checkpoint.</p><p>Admin and Librarian updates also follow the institution’s approval policy. A project or domain switch clears the previous institution’s session scope.</p></div></div>
+</section>
+<section id="recovery">
+<div class="section-heading"><span class="section-no">05</span><div><p class="eyebrow">RECOVERY / TWO SEPARATE RESPONSIBILITIES</p><h2>Bring back the setup. Then the ledger.</h2></div></div>
+<div class="recovery-grid"><article class="slip"><span class="node-label">INSTITUTION CONFIGURATION</span><h3>Encrypted Recovery Kit</h3><p>Restores the setup configuration used by Control Center. Keep the Kit password separately from the Kit.</p><strong class="caption">Does not contain circulation records.</strong></article><article class="slip"><span class="node-label">CIRCULATION DATA</span><h3>Librarian backup + checkpoint</h3><p>Checksummed exports validate the active loan graph before restore. Native SQLite checkpoints support rollback and migration recovery.</p><strong class="caption">Store circulation backups apart from Kits.</strong></article></div>
+<p class="footnote">For a desk transfer, stop writes on the old desk, restore and verify the new desk, then activate its kiosk credentials. Operating-system-bound credentials require reactivation on another computer.</p>
+</section>
+<section id="rollout">
+<div class="section-heading"><span class="section-no">06</span><div><p class="eyebrow">DEPLOYMENT / READ BEFORE ROLLOUT</p><h2>What this architecture assumes.</h2></div></div>
+<dl class="constraints"><div><dt>Institution ownership</dt><dd>Each institution owns its Firebase project, account grants, data and portal hosting. The public Tomeva project site is separate from the Student Portal.</dd></div><div><dt>Matching rules and clients</dt><dd>Generated rules need explicit deployment. This page describes the v1.0.10 source; it does not certify the rules currently deployed in an institution’s Firebase project.</dd></div><div><dt>Unsigned pilot releases</dt><dd>Release signing is intentionally deferred. SHA-256 detects changed downloads against the manifest; it does not independently authenticate the publisher. Existing trust-key support allows future signature enforcement.</dd></div><div><dt>Scale and compatibility</dt><dd>Pagination and FTS bound browsing work. Snapshot construction still uses memory for the full data set. Legacy Windows builds use the unsupported Electron 22 runtime.</dd></div></dl>
+</section>
+<footer><div><strong>Tomeva / system reference</strong><p>Release 1.0.10 · 16 October 2026</p></div><a href="https://github.com/NuclearGG/Tomeva/blob/main/documentation/LIBRA_DOCUMENTATION.md">Technical notes ↗</a><a href="https://github.com/NuclearGG/Tomeva/blob/main/documentation/SINGLE_DESK_CIRCULATION.md">Desk transfer guide ↗</a></footer>
+</main>
+</body></html>

@@ -6,7 +6,7 @@ Tomeva combines an offline desktop circulation app, an online administration das
 
 [Download Control Center](https://github.com/NuclearGG/Tomeva/releases/latest) · [User guide](#for-users) · [Developer guide](#for-developers) · [Installation packages](packages/)
 
-[Visual architecture](documentation/architecture.html) shows the current four-app data flow.
+[Visual architecture](https://nucleargg.github.io/Tomeva/architecture.html) shows the current four-app data flow.
 
 ## Applications
 
