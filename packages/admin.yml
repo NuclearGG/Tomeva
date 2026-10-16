@@ -1,8 +1,8 @@
-version: 1.0.9
+version: 1.0.10
 files:
-  - url: tomeva-admin-1.0.9-win-x64.exe
-    sha512: h5Lz4xYeJgmgRaqtI8/Ius4+ypQ0kaKtBGtFviJ29ndpfuGYanHXThnrZs2zXObcsabVPVZtt2YLXOw3q2ZsKw==
-    size: 104867169
-path: tomeva-admin-1.0.9-win-x64.exe
-sha512: h5Lz4xYeJgmgRaqtI8/Ius4+ypQ0kaKtBGtFviJ29ndpfuGYanHXThnrZs2zXObcsabVPVZtt2YLXOw3q2ZsKw==
-releaseDate: '2026-10-14T07:29:58.951Z'
+  - url: tomeva-admin-1.0.10-win-x64.exe
+    sha512: UOZwrVDD/AIV2nCB6PhtQN0Wkq4Jml3NMe5/oImRIuut7v/zykCz1QDOGdxzypy6IxFlJtMmDVAFmapPeBHhbw==
+    size: 104871848
+path: tomeva-admin-1.0.10-win-x64.exe
+sha512: UOZwrVDD/AIV2nCB6PhtQN0Wkq4Jml3NMe5/oImRIuut7v/zykCz1QDOGdxzypy6IxFlJtMmDVAFmapPeBHhbw==
+releaseDate: '2026-10-16T06:23:56.392Z'
