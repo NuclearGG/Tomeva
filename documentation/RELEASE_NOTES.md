@@ -1,47 +1,41 @@
-# Tomeva 1.0.9
+# Tomeva 1.0.10
 
 ## Downloads
 
-Choose `tomeva-control-center-1.0.9-win-x64.exe` for Windows 10/11 x64 or `tomeva-control-center-1.0.9-win7-x64.exe` for Windows 7/8/8.1 x64. Control Center downloads the matching Admin and Librarian installers. The Student Portal is `tomeva-student-1.0.9.zip`.
+Start with `tomeva-control-center-1.0.10-win-x64.exe` for Windows 10/11 x64. The legacy Windows 7/8/8.1 line is `tomeva-control-center-1.0.10-win7-x64.exe`. Control Center downloads the corresponding Admin and Librarian installers. The Student Portal is `tomeva-student-1.0.10.zip`; dependency inventories are in `tomeva-1.0.10-sbom.zip`.
 
-## Institution appearance, managed from Control Center
+## Security and circulation
 
-- Toggle institution brand colours and choose a readable accent colour.
-- Choose cool white or warm paper surfaces, Manrope/system/editorial typography, comfortable or compact spacing, and soft or crisp corners.
-- Set a library display name, Student Portal heading and a public institution notice.
-- Preview locally, publish through the institution's existing Firebase project, or restore Tomeva defaults.
-- Connected apps receive changes live; offline apps keep their last received appearance. After this one-time client and rules rollout, these settings require no package downloads or Hosting redeployments.
-- Only verified, explicitly granted institution administrators may publish. Versioned properties, bounded plain text, colour contrast checks and revision transactions protect the shared appearance.
+- Enforce request transitions and truthful actor/server-time decision metadata; issued requests cannot return to Pending.
+- Protect student access/profile deletion with staff authorization and atomic, immutable recovery events. Admin can inspect recent changes and restore deleted records safely. Students use an account-removal request reviewed by staff.
+- Resolve accession numbers case-insensitively, including Unicode; preserve canonical references through imports; reject omitted active loans/borrowers and duplicate active copies. Damage/restoration requires closing the active loan first.
+- Escape portal statuses and validate Admin monetary values. Tighten CSP, IPC argument/rate limits and native backup destinations.
+- Bind OS-encrypted kiosk credentials to the institution project and workstation. **Previously stored unscoped kiosk credentials require reactivation.**
 
-## Four connected workspaces
+## Recovery, settings and performance
 
-Librarian, Admin, Control Center and Student Portal share a circulation-slip and catalogue identity, locally bundled fonts/icons, consistent controls and responsive layouts. The librarian desk prioritizes issue/return; Admin prioritizes collection state and actionable exceptions; Control Center guides institution setup; students get a search-focused catalogue with mobile improvements. Keyboard navigation and dialog focus handling are improved.
+- Persist Control Center Google sessions with accurate grant/access explanations and an access recheck action.
+- Harden Recovery Kit creation, export, cache validation, verification and restore against accidental overwrites and damaged files. A real Kit + circulation restore drill passed in isolated profiles.
+- Add backed-up, transactional SQLite `user_version` migrations, rollback/downgrade protection, FTS5 and query-plan regression baselines.
+- Upload catalogue snapshot records sequentially in sets of at most 50. Admin loads 25 records per page, bounds its temporary cache and clears it when the view closes. Student/access/roster directories use server cursors; local desk lists use bounded pages.
+- Add rotating structured diagnostics with allowlisted fields, contribution/security policies, dependency/license inventories and a written app-level database-integrity decision.
 
-## Security and usability fixes
+## Required coordinated rollout
 
-- Restrict renderer database IPC to explicitly allowed methods and restore missing student edit/delete bridge methods.
-- Escape record fields and errors when rendering HTML; simplify duplicate circulation handlers.
-- Validate backup fields, calendar dates and record relationships before restore.
-- Use local calendar dates for circulation and fine calculations, including daylight-saving boundaries.
-- Preserve canonical admission numbers when issuing books and normalize imported catalogue records.
-- Show an honest working-locally state when cloud setup is absent.
+**Install the 1.0.10 clients and deploy the matching Student Portal and institution-generated Firestore rules in a maintenance window.** Earlier clients omit required audit/decision metadata and cannot continue privileged cloud writes under the new rules. Keep administrative/cloud writes paused until all clients and rules match; close old sessions and recheck Google grants. Installing this release does not automatically deploy rules or change institution data.
 
-## One-time deployment
+Before live use, verify separate Recovery Kit/circulation backups, reconcile any legacy duplicate accession numbers or active loans, and test request/cancel/approve/issue, audited deletion/restore and kiosk revocation with synthetic accounts. Use one authoritative circulation desk; snapshot sync does not merge concurrent desks.
 
-Install the new desktop apps, deploy the new Student Portal and publish the institution-generated Firestore rules. Use the existing verified staff and enabled `kiosk_admins/{uid}` grant to publish appearance in Control Center. The existing hosted `admin-sign-in/` helper is used for Google sign-in. See [live appearance rollout](https://github.com/NuclearGG/Tomeva/blob/v1.0.9/documentation/LIVE_APPEARANCE.md).
+See [rollout and known risks](https://github.com/NuclearGG/Tomeva/blob/v1.0.10/documentation/KNOWN_RISKS.md), [database integrity](https://github.com/NuclearGG/Tomeva/blob/v1.0.10/documentation/DATABASE_INTEGRITY.md), and [query-plan baselines](https://github.com/NuclearGG/Tomeva/blob/v1.0.10/documentation/QUERY_PLAN_BASELINES.md).
 
-No live institution configuration is changed by installing this release. Local circulation remains available independently of appearance connectivity.
+## Trust and platform status
 
-## Signing and platform status
+This remains an **unsigned pilot release**. Signing is intentionally deferred and no publisher key/certificate was generated. GitHub HTTPS checksums detect changed package bytes; publisher authenticity requires an existing configured trust key. Control Center uses explicit download/install, verifies the installer again, and requires a recovery checkpoint before updating.
 
-This is an **unsigned pilot release**. Release signing remains intentionally deferred; no publisher key has been generated. Downloads verify checksums from trusted GitHub HTTPS endpoints. Configuring an existing publisher key enables mandatory signature verification for future signed releases.
+Windows 10/11 is the maintained line. Legacy builds use unsupported Electron 22; physical Windows 7/8/8.1 acceptance remains an operator check. Large-library hardware/quota benchmarks and institutional retention decisions remain deployment requirements.
 
-Windows 10/11 x64 is the maintained installer line. Windows 7/8/8.1 compatibility builds use Electron 22, which no longer receives security fixes. Physical legacy-machine acceptance and live institution deployment remain external checks.
+## Verification and repository hygiene
 
-## Repository hygiene
+136 application/native tests and 202 Firestore emulator/REST tests, desktop smoke and recovery checks, source/package comparisons and release checksums are release gates. See [release verification](https://github.com/NuclearGG/Tomeva/blob/v1.0.10/documentation/RELEASE_VERIFICATION.md) for the completed evidence and limits.
 
-All application versions are 1.0.9. Generated renderer bundles, shared asset copies, test screenshots, local tools, databases, configuration backups and credentials are ignored. Canonical interface sources and their font/icon licenses are tracked. Release packages remain managed by Git LFS.
-
-## Verification
-
-87 application tests, 130 Firestore rules tests, 12 REST authorization tests, source and packaged desktop smoke checks, 63 rendered views, both Windows build lines, 369 packaged source/asset comparisons and all 19 release asset checksums passed. See [release verification](https://github.com/NuclearGG/Tomeva/blob/v1.0.9/documentation/RELEASE_VERIFICATION.md).
+`.gitignore` now also excludes SQLite3 databases and WAL files, schema/migration/update checkpoints, encrypted kiosk credentials, diagnostic JSON lines and private installed-profile QA notes. Release packages remain in Git LFS. Published older installers are preserved.

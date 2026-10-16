@@ -12,7 +12,7 @@ beforeEach(async () => {
     await ctx.firestore().doc('kiosk_admins/supervisor').set({ enabled: true, libraryId: 'main' });
   });
 });
-const user = (email, verified = true) => env.authenticatedContext(email, { email, email_verified: verified }).firestore();
+const user = (email, verified = true) => env.authenticatedContext(email, { email, email_verified: verified, firebase: { sign_in_provider: 'google.com' } }).firestore();
 const seed = async (name, data) => env.withSecurityRulesDisabled(context => context.firestore().doc(name).set(data));
 
 test('request details can be read by the owner and staff, not other students or anonymous users', async () => {
@@ -57,7 +57,7 @@ const firebase = require('firebase/compat/app');
 require('firebase/compat/firestore');
 test('only verified Google institution staff authorize bounded public update policies', async () => {
   const name = 'libraries/main/update_approvals/admin';
-  const staff = env.authenticatedContext('supervisor', { email: 'supervisor@staff.example', email_verified: true, firebase: { sign_in_provider: 'google.com' } }).firestore();
+  const staff = require('./audit-helper.cjs').audited(env.authenticatedContext('supervisor', { email: 'supervisor@staff.example', email_verified: true, firebase: { sign_in_provider: 'google.com' } }).firestore(), 'supervisor', 'supervisor@staff.example');
   const value = { version: '1.2.0', policy: 'approved', notBefore: new Date(), updatedAt: firebase.default.firestore.FieldValue.serverTimestamp() };
   await assertSucceeds(staff.doc(name).set(value));
   await assertSucceeds(env.unauthenticatedContext().firestore().doc(name).get());

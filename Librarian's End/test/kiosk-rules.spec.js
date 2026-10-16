@@ -6,7 +6,7 @@ const appearance = require('../../desktop-integration/interface/appearance.js');
 let env;
 const email = 'kiosk-' + 'a'.repeat(32) + '@kiosk.tomeva.invalid';
 const context = (uid, claims = {}) => env.authenticatedContext(uid, claims).firestore();
-const admin = () => context('admin', { email: 'owner@staff.example', email_verified: true, firebase: { sign_in_provider: 'google.com' } });
+const admin = () => require('./audit-helper.cjs').audited(context('admin', { email: 'owner@staff.example', email_verified: true, firebase: { sign_in_provider: 'google.com' } }), 'admin', 'owner@staff.example');
 const kiosk = (extra = {}) => context('desk', { email, firebase: { sign_in_provider: 'password' }, ...extra });
 const metadata = (extra = {}) => ({
   email, label: 'Main desk', libraryId: 'main', active: true,
@@ -112,7 +112,7 @@ test('revocation blocks the same signed-in kiosk from circulation and request de
   const circulation = signedIn.doc('libraries/main/restricted/circulation');
   const request = signedIn.doc('libraries/main/book_requests/request');
   await assertSucceeds(circulation.set({ stats: {}, generation: 'test-generation', shard_count: 0, sync_version: 7, last_synced: serverTimestamp(), last_synced_iso: new Date().toISOString() }));
-  await assertSucceeds(request.update({ status: 'Approved' }));
+  await assertSucceeds(request.update({ status: 'Approved', decision_note: '', decided_at: serverTimestamp(), decided_at_iso: new Date().toISOString(), decided_by: 'desk' }));
   await assertSucceeds(admin().doc('kiosk_accounts/desk').update({ active: false, revokedBy: 'admin', revokedAt: serverTimestamp() }));
   await assertFails(circulation.set({ loans: [] }));
   await assertFails(request.update({ status: 'Issued' }));

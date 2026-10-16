@@ -21,6 +21,7 @@ async function main() {
     return;
   }
   const version = require('../package.json').version;
+  require('./release-preflight.cjs').assertPublishable(root);
   execFileSync(process.execPath, [path.join(root, 'scripts/check-packages.cjs')], { cwd: root, stdio: 'pipe' });
   const tag = 'v' + version;
   const isReleaseAsset = name => [

@@ -11,6 +11,8 @@ const LibraryDB = (() => {
     }]
   ));
   api.VALID_GROUPS = ['Regular', 'Literary Club', 'Editorial Board'];
+  api.pageRows = (name, options) => window.electronAPI.db.pageRows(name, options);
+  api.fineSummary = () => window.electronAPI.db.fineSummary();
   for (const method of ['getRosterSyncCursor', 'setRosterSyncCursor']) {
     api[method] = (...args) => {
       if (!ready) throw new Error('Library database is not ready.');

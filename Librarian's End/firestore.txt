@@ -33,6 +33,7 @@ service cloud.firestore {
     // ── Helper: is the caller signed in with a VERIFIED @staff.example account? ──
     function isStaff() {
       return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
         && request.auth.token.email != null
         && request.auth.token.email_verified == true
         && request.auth.token.email.matches('(?i).*@staff\\.example$')
@@ -71,8 +72,39 @@ service cloud.firestore {
         && request.auth.token.email is string
         && request.auth.token.email_verified == true;
     }
+    function validRequestDecision() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decision_note', 'decided_at', 'decided_at_iso', 'decided_by'])
+        && request.resource.data.keys().hasAll(['decision_note', 'decided_at', 'decided_at_iso', 'decided_by'])
+        && request.resource.data.decision_note is string && request.resource.data.decision_note.size() <= 300
+        && request.resource.data.decided_at == request.time
+        && request.resource.data.decided_at_iso is string && request.resource.data.decided_at_iso.size() <= 40
+        && request.resource.data.decided_at_iso.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9][.][0-9]{3}Z$')
+        && request.resource.data.decided_by == request.auth.uid;
+    }
     function admissionKey(value) {
       return 'adm-' + value.trim().lower().replace('%', '%25').replace('/', '%2f');
+    }
+    function auditedChange(kind, documentId, operation) {
+      let head = getAfter(/databases/$(database)/documents/libraries/main/audit_heads/$(kind + '--' + documentId)).data;
+      let event = getAfter(/databases/$(database)/documents/libraries/main/admin_audit/$(head.eventId)).data;
+      let target = kind == 'kiosk_accounts' ? /databases/$(database)/documents/kiosk_accounts/$(documentId) : /databases/$(database)/documents/libraries/main/$(kind)/$(documentId);
+      return isStaff() && head.at == request.time && event.at == request.time
+        && event.actorUid == request.auth.uid && event.actorEmail == request.auth.token.email
+        && event.kind == kind && event.documentId == documentId
+        && event.target == (kind == 'kiosk_accounts' ? 'kiosk_accounts/' + documentId : 'libraries/main/' + kind + '/' + documentId)
+        && event.before == (exists(target) ? get(target).data : {})
+        && ((operation == 'DELETE' && event.operation == 'DELETE' && event.after == {})
+          || (operation == 'WRITE' && event.operation in ['SET', 'UPDATE'] && event.after == request.resource.data));
+    }
+    function validAuditEvent() {
+      let value = request.resource.data;
+      let target = value.kind == 'kiosk_accounts'
+        ? /databases/$(database)/documents/kiosk_accounts/$(value.documentId)
+        : /databases/$(database)/documents/libraries/main/$(value.kind)/$(value.documentId);
+      return value.target == (value.kind == 'kiosk_accounts' ? 'kiosk_accounts/' + value.documentId : 'libraries/main/' + value.kind + '/' + value.documentId)
+        && value.before == (exists(target) ? get(target).data : {})
+        && ((value.operation == 'DELETE' && exists(target) && !existsAfter(target) && value.after == {})
+          || (value.operation in ['SET', 'UPDATE'] && existsAfter(target) && getAfter(target).data == value.after));
     }
 
     // Approved writers must keep aggregate documents free of borrower data.
@@ -129,11 +161,80 @@ service cloud.firestore {
     }
 
     match /libraries/{libraryId} {
+      match /admin_audit/{eventId} {
+        allow read: if isStaff();
+        allow create: if libraryId == 'main' && isStaff()
+          && request.resource.data.keys().hasOnly(['actorUid', 'actorEmail', 'target', 'kind', 'documentId', 'operation', 'at', 'before', 'after'])
+          && request.resource.data.actorUid == request.auth.uid && request.resource.data.actorEmail == request.auth.token.email
+          && request.resource.data.at == request.time
+          && request.resource.data.operation in ['SET', 'UPDATE', 'DELETE']
+          && request.resource.data.target is string && request.resource.data.target.size() <= 1000
+          && request.resource.data.kind is string && request.resource.data.kind.size() <= 100
+          && request.resource.data.documentId is string && request.resource.data.documentId.size() <= 320
+          && request.resource.data.before is map && request.resource.data.after is map
+          && validAuditEvent();
+        allow update, delete: if false;
+      }
+      match /audit_heads/{headId} {
+        allow read: if isStaff();
+        allow create, update: if libraryId == 'main' && isStaff()
+          && request.resource.data.keys().hasOnly(['eventId', 'at'])
+          && request.resource.data.eventId is string && request.resource.data.eventId.size() <= 80
+          && request.resource.data.at == request.time;
+        allow delete: if false;
+      }
+      match /account_deletion_requests/{email} {
+        allow get: if isStaff() || (isVerifiedStudent() && request.auth.token.email.lower() == email);
+        allow list: if isStaff();
+        allow create: if isVerifiedStudent() && request.auth.token.email.lower() == email
+          && request.resource.data.keys().hasOnly(['email', 'requesterUid', 'status', 'requestedAt'])
+          && request.resource.data.email == email && request.resource.data.requesterUid == request.auth.uid
+          && request.resource.data.status == 'Pending' && request.resource.data.requestedAt == request.time;
+        allow update: if (isVerifiedStudent() && request.auth.token.email.lower() == email
+          && resource.data.status == 'Completed'
+          && request.resource.data.keys().hasOnly(['email', 'requesterUid', 'status', 'requestedAt'])
+          && request.resource.data.email == email && request.resource.data.requesterUid == request.auth.uid
+          && request.resource.data.status == 'Pending' && request.resource.data.requestedAt == request.time)
+          || (isStaff() && auditedChange('account_deletion_requests', email, 'WRITE')
+          && resource.data.status == 'Pending' && request.resource.data.status == 'Completed'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'completedAt', 'completedBy'])
+          && request.resource.data.completedAt == request.time && request.resource.data.completedBy == request.auth.uid
+          && !existsAfter(/databases/$(database)/documents/libraries/$(libraryId)/authorized_students/$(email))
+          && !existsAfter(/databases/$(database)/documents/libraries/$(libraryId)/student_logins/$(email)));
+        allow delete: if false;
+      }
+
+      // Public presentation data only. Publishing uses the existing institution
+      // administrator grant; neither a student nor a kiosk may change identity.
+      match /public/appearance {
+        allow get: if libraryId == 'main';
+        allow list, delete: if false;
+        allow create, update: if isKioskAdmin(libraryId)
+          && auditedChange('public', 'appearance', 'WRITE')
+          && request.resource.data.keys().hasAll(['schemaVersion', 'brandEnabled', 'accentColor', 'surfaceTone', 'typography', 'density', 'corners', 'displayName', 'portalHeading', 'notice', 'revision', 'updatedAt', 'updatedBy'])
+          && request.resource.data.keys().hasOnly(['schemaVersion', 'brandEnabled', 'accentColor', 'surfaceTone', 'typography', 'density', 'corners', 'displayName', 'portalHeading', 'notice', 'revision', 'updatedAt', 'updatedBy'])
+          && request.resource.data.schemaVersion == 1
+          && request.resource.data.brandEnabled is bool
+          && request.resource.data.accentColor is string && request.resource.data.accentColor.matches('^#[0-9a-fA-F]{6}$')
+          && request.resource.data.surfaceTone in ['catalogue', 'warm']
+          && request.resource.data.typography in ['manrope', 'system', 'editorial']
+          && request.resource.data.density in ['comfortable', 'compact']
+          && request.resource.data.corners in ['soft', 'crisp']
+          && request.resource.data.displayName is string && request.resource.data.displayName.size() <= 120
+          && request.resource.data.portalHeading is string && request.resource.data.portalHeading.size() <= 100
+          && request.resource.data.notice is string && request.resource.data.notice.size() <= 280
+          && request.resource.data.revision is int && request.resource.data.revision >= 1
+          && ((!exists(/databases/$(database)/documents/libraries/$(libraryId)/public/appearance) && request.resource.data.revision == 1)
+            || (exists(/databases/$(database)/documents/libraries/$(libraryId)/public/appearance) && request.resource.data.revision == resource.data.revision + 1))
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.updatedBy == request.auth.uid;
+      }
 
       // Release versions and schedules are public; institution staff authorize rollout.
       match /update_approvals/{component} {
         allow read: if true;
         allow create, update: if isKioskAdmin(libraryId)
+          && auditedChange('update_approvals', component, 'WRITE')
           && component in ['admin', 'librarian']
           && request.resource.data.keys().hasOnly(['version', 'policy', 'notBefore', 'updatedAt'])
           && request.resource.data.keys().hasAll(['version', 'policy', 'notBefore', 'updatedAt'])
@@ -143,7 +244,7 @@ service cloud.firestore {
           && request.resource.data.policy in ['approved', 'paused']
           && request.resource.data.notBefore is timestamp
           && request.resource.data.updatedAt == request.time;
-        allow delete: if isKioskAdmin(libraryId);
+        allow delete: if isKioskAdmin(libraryId) && auditedChange('update_approvals', component, 'DELETE');
       }
 
       // ── PUBLIC CATALOG (students browse availability without auth) ────
@@ -200,6 +301,7 @@ service cloud.firestore {
         // Kiosk explicitly EXCLUDED — physical desk cannot suspend issuance remotely
         // Anonymous auth EXCLUDED
         allow create, update: if isStaff()
+          && auditedChange('meta', 'control', 'WRITE')
           && request.resource.data.keys().hasAll([
             'issuance_suspended', 'suspend_reason',
             'updated_at', 'updated_by'
@@ -218,6 +320,7 @@ service cloud.firestore {
       match /admission_roster/{entryId} {
         allow read: if isStaff();
         allow create, update: if isStaff()
+          && auditedChange('admission_roster', entryId, 'WRITE')
           && request.resource.data.keys().hasOnly(['adm_no', 'name', 'email', 'class', 'section', 'group', 'added_by', 'added_at', 'updated_at'])
           && request.resource.data.keys().hasAll(['adm_no', 'name', 'email', 'class', 'section', 'group', 'added_by', 'added_at', 'updated_at'])
           && request.resource.data.adm_no is string
@@ -230,7 +333,7 @@ service cloud.firestore {
           && request.resource.data.added_by is string && request.resource.data.added_by.size() <= 320
           && request.resource.data.added_at is timestamp
           && request.resource.data.updated_at is timestamp;
-        allow delete: if isStaff();
+        allow delete: if libraryId == 'main' && auditedChange('admission_roster', entryId, 'DELETE');
       }
 
       // ── AUTHORIZED STUDENTS (staff-managed access + group list) ──
@@ -239,6 +342,7 @@ service cloud.firestore {
         allow list: if isStaffOrKiosk(libraryId);
 
         allow create, update: if isStaff()
+          && auditedChange('authorized_students', studentEmail, 'WRITE')
           && request.resource.data.keys().hasAll(['email', 'name', 'group', 'added_by', 'added_at'])
           && request.resource.data.email is string
           && request.resource.data.email == studentEmail
@@ -247,7 +351,7 @@ service cloud.firestore {
           && request.resource.data.name.size() <= 100
           && request.resource.data.group in ['Regular', 'Literary Club', 'Editorial Board'];
 
-        allow delete: if isStaff() || (isVerifiedStudent() && request.auth.token.email == studentEmail);
+        allow delete: if libraryId == 'main' && auditedChange('authorized_students', studentEmail, 'DELETE');
       }
 
 
@@ -256,8 +360,8 @@ service cloud.firestore {
         allow get: if isStaffOrKiosk(libraryId) || (isVerifiedStudent() && request.auth.token.email == studentEmail);
         allow list: if isStaffOrKiosk(libraryId);
 
-        allow create, update: if isVerifiedStudent()
-          && request.auth.token.email == studentEmail
+        allow create, update: if ((isVerifiedStudent() && request.auth.token.email == studentEmail)
+            || (isStaff() && auditedChange('student_logins', studentEmail, 'WRITE')))
           && request.resource.data.keys().hasAll(['email', 'name', 'class', 'section', 'adm_no', 'first_login_at', 'last_login_at'])
           && request.resource.data.keys().hasOnly(['email', 'name', 'class', 'section', 'adm_no', 'first_login_at', 'last_login_at'])
           && request.resource.data.email == studentEmail
@@ -274,7 +378,7 @@ service cloud.firestore {
           && (!exists(/databases/$(database)/documents/libraries/$(libraryId)/student_logins/$(studentEmail))
             || request.resource.data.adm_no == resource.data.adm_no);
 
-        allow delete: if isStaff() || (isVerifiedStudent() && request.auth.token.email == studentEmail);
+        allow delete: if libraryId == 'main' && auditedChange('student_logins', studentEmail, 'DELETE');
       }
 
       // Atomic admission reservations replace student collection enumeration.
@@ -292,11 +396,11 @@ service cloud.firestore {
           && admissionKey(request.resource.data.adm_no) == claimKey
           && (!exists(/databases/$(database)/documents/libraries/$(libraryId)/adm_claims/$(claimKey))
             || resource.data.email == request.resource.data.email)
-          && (isStaff() || (isVerifiedStudent()
+          && ((isStaff() && auditedChange('adm_claims', claimKey, 'WRITE')) || (isVerifiedStudent()
             && request.resource.data.email == request.auth.token.email
             && admissionKey(getAfter(/databases/$(database)/documents/libraries/$(libraryId)/student_logins/$(request.auth.token.email)).data.adm_no) == claimKey));
         // Staff release reservations after resolving profile/roster ownership.
-        allow delete: if isStaff();
+        allow delete: if libraryId == 'main' && auditedChange('adm_claims', claimKey, 'DELETE');
       }
 
 
@@ -413,6 +517,8 @@ service cloud.firestore {
 
         // Students create requests (validated against their authorized_students record)
         allow create: if isVerifiedStudent()
+          && (!exists(/databases/$(database)/documents/libraries/$(libraryId)/account_deletion_requests/$(request.auth.token.email.lower()))
+            || get(/databases/$(database)/documents/libraries/$(libraryId)/account_deletion_requests/$(request.auth.token.email.lower())).data.status != 'Pending')
           && request.resource.data.keys().hasAll([
             'adm_no', 'student_name', 'class', 'section', 'group',
             'book_access_no', 'book_title', 'priority',
@@ -461,18 +567,16 @@ service cloud.firestore {
         // - Anonymous CANNOT update (prevents student self-approval via signInAnonymously)
         allow update: if
           // Case A: Staff or Kiosk — full status transitions
-          (isStaffOrKiosk(libraryId)
-            && request.resource.data.diff(resource.data).affectedKeys()
-                .hasOnly(['status', 'decision_note', 'decided_at', 'decided_at_iso'])
-            && request.resource.data.status in ['Pending', 'Approved', 'Declined', 'Issued'])
+          (isStaffOrKiosk(libraryId) && validRequestDecision()
+            && ((resource.data.status == 'Pending' && request.resource.data.status in ['Approved', 'Declined', 'Issued'])
+              || (resource.data.status == 'Approved' && request.resource.data.status in ['Issued', 'Declined'])))
           ||
           // Case B: Student requester — ONLY cancel own pending request
           (isVerifiedStudent()
             && request.auth.token.email == resource.data.requester_email
             && resource.data.status == 'Pending'
             && request.resource.data.status == 'Cancelled'
-            && request.resource.data.diff(resource.data).affectedKeys()
-                .hasOnly(['status', 'decision_note', 'decided_at', 'decided_at_iso']));
+            && validRequestDecision());
 
         // Delete: Staff only
         allow delete: if isStaff();
@@ -495,9 +599,10 @@ service cloud.firestore {
     // Metadata only: never store passwords or password hashes here.
     match /kiosk_accounts/{uid} {
       allow get: if request.auth != null &&
-        (request.auth.uid == uid || isKioskAdmin(resource.data.libraryId));
+        (request.auth.uid == uid || (isKioskAdmin('main') && (!exists(/databases/$(database)/documents/kiosk_accounts/$(uid)) || resource.data.libraryId == 'main')));
       allow list: if isKioskAdmin(resource.data.libraryId);
       allow create: if isKioskAdmin(request.resource.data.libraryId)
+        && auditedChange('kiosk_accounts', uid, 'WRITE')
         && request.resource.data.keys().hasAll(['email', 'label', 'libraryId', 'active', 'createdBy', 'createdAt', 'revokedBy', 'revokedAt'])
         && request.resource.data.keys().hasOnly(['email', 'label', 'libraryId', 'active', 'createdBy', 'createdAt', 'revokedBy', 'revokedAt'])
         && request.resource.data.email is string
@@ -509,6 +614,7 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.revokedBy == null && request.resource.data.revokedAt == null;
       allow update: if isKioskAdmin(resource.data.libraryId)
+        && auditedChange('kiosk_accounts', uid, 'WRITE')
         && resource.data.active == true
         && request.resource.data.active == false
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active', 'revokedBy', 'revokedAt'])

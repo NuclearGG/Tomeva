@@ -11,7 +11,7 @@ if (['test', 'desktop', 'win', 'linux'].includes(action)) {
 }
 const jobs = {
   install: apps.map(folder => [folder, ['ci']]),
-  test: [['Control Center', ['test']], ["Admin's End", ['run', 'test:oauth']], ["Admin's End", ['run', 'test:staff']], ["Admin's End", ['run', 'test:roster']], ["Admin's End", ['run', 'test:releases']], ["Librarian's End", ['run', 'test:sqlite']], ["Librarian's End", ['run', 'test:kiosk']], ["Librarian's End", ['run', 'test:sync']], ["Librarian's End", ['run', 'test:security']]],
+  test: [['Control Center', ['test']], ["Admin's End", ['run', 'test:oauth']], ["Admin's End", ['run', 'test:staff']], ["Admin's End", ['run', 'test:roster']], ["Admin's End", ['run', 'test:catalogue']], ["Admin's End", ['run', 'test:releases']], ["Librarian's End", ['run', 'test:sqlite']], ["Librarian's End", ['run', 'test:kiosk']], ["Librarian's End", ['run', 'test:sync']], ["Librarian's End", ['run', 'test:security']]],
   desktop: apps.map(folder => [folder, ['run', 'test:desktop']]),
   win: apps.map(folder => [folder, ['run', 'build:win', '--', '--publish', 'never']]),
   linux: apps.map(folder => [folder, ['run', 'build:linux', '--', '--publish', 'never']]),

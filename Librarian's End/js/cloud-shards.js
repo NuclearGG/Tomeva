@@ -11,7 +11,7 @@
     for (const key of keys) for (const row of payload[key] || []) {
       // A conservative UTF-8 bound keeps every document far below 1 MiB.
       if (JSON.stringify(row).length * 3 > 16000) throw new Error('Oversized cloud row.');
-      if (count >= 200 || JSON.stringify(page).length * 3 > 300000) flush();
+      if (count >= 50 || JSON.stringify(page).length * 3 > 300000) flush();
       page[key].push(row); count++;
     }
     flush();

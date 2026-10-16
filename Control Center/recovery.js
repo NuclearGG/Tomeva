@@ -10,8 +10,37 @@ const fingerprint = config => crypto.createHash('sha256').update(JSON.stringify(
 function passwordCheck(password) {
   if (typeof password !== 'string' || password.length < 12 || password.length > 1024) throw new Error('Use a recovery password of 12–1024 characters.');
 }
+const digest = text => crypto.createHash('sha256').update(text).digest('hex');
+function parseKit(text) {
+  if (typeof text !== 'string' || Buffer.byteLength(text) > 65536) throw new Error('Recovery file is too large.');
+  let value;
+  try { value = JSON.parse(text); } catch { throw new Error('This is not a readable Tomeva Recovery Kit. Select the original .tomeva file.'); }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid recovery metadata.');
+  const { ciphertext, tag, ...header } = value;
+  if (header.format !== 'tomeva-recovery' || header.version !== 1 || header.kdf !== 'scrypt' || header.cipher !== 'aes-256-gcm' || header.N !== params.N || header.r !== params.r || header.p !== params.p) throw new Error('Unsupported recovery format or KDF parameters.');
+  for (const [encoded, length] of [[header.salt, 16], [header.iv, 12], [tag, 16], [ciphertext, null]]) {
+    if (typeof encoded !== 'string' || !encoded.length || Buffer.from(encoded, 'base64').toString('base64') !== encoded || (length && Buffer.from(encoded, 'base64').length !== length)) throw new Error('Invalid recovery metadata.');
+  }
+  return { ciphertext, tag, header };
+}
+// Keep the previous destination intact if writing fails, including a full disk.
+async function atomicWrite(filename, text) {
+  const temporary = filename + '.' + crypto.randomUUID() + '.tmp';
+  let handle;
+  try {
+    handle = await fs.open(temporary, 'wx', 0o600);
+    await handle.writeFile(text);
+    await handle.sync();
+    await handle.close(); handle = null;
+    await fs.rename(temporary, filename);
+  } finally {
+    if (handle) await handle.close();
+    await fs.unlink(temporary).catch(error => { if (error.code !== 'ENOENT') throw error; });
+  }
+}
 async function encrypt(config, password) {
   passwordCheck(password);
+  if (!password.trim()) throw new Error('Use a recovery password containing more than spaces.');
   const header = { format: 'tomeva-recovery', version: 1, kdf: 'scrypt', ...params, salt: crypto.randomBytes(16).toString('base64'), cipher: 'aes-256-gcm', iv: crypto.randomBytes(12).toString('base64') };
   const key = await scrypt(password, Buffer.from(header.salt, 'base64'), 32, { ...params, maxmem: 256 * 1024 * 1024 });
   try {
@@ -24,13 +53,7 @@ async function encrypt(config, password) {
 }
 async function decrypt(text, password) {
   passwordCheck(password);
-  if (typeof text !== 'string' || Buffer.byteLength(text) > 65536) throw new Error('Recovery file is too large.');
-  const value = JSON.parse(text);
-  const { ciphertext, tag, ...header } = value;
-  if (header.format !== 'tomeva-recovery' || header.version !== 1 || header.kdf !== 'scrypt' || header.cipher !== 'aes-256-gcm' || header.N !== params.N || header.r !== params.r || header.p !== params.p) throw new Error('Unsupported recovery format or KDF parameters.');
-  for (const [encoded, length] of [[header.salt, 16], [header.iv, 12], [tag, 16]]) {
-    if (typeof encoded !== 'string' || Buffer.from(encoded, 'base64').length !== length) throw new Error('Invalid recovery metadata.');
-  }
+  const { ciphertext, tag, header } = parseKit(text);
   const key = await scrypt(password, Buffer.from(header.salt, 'base64'), 32, { ...params, maxmem: 256 * 1024 * 1024 });
   try {
     const decipher = crypto.createDecipheriv(header.cipher, key, Buffer.from(header.iv, 'base64'));
@@ -50,10 +73,40 @@ function createRecovery({ userData, store, dialog, getWindow, version }) {
   const metaFile = path.join(userData, 'recovery-metadata.json');
   let busy = false;
   async function status() {
-    let meta = null;
-    try { meta = JSON.parse(await fs.readFile(metaFile, 'utf8')); } catch (e) { if (e.code !== 'ENOENT') throw e; }
-    const config = store.read();
-    return { ...meta, exists: !!meta, stale: !!meta && (!config || meta.fingerprint !== fingerprint(config) || meta.schemaVersion !== 1) };
+    let config;
+    try { config = store.read(); }
+    catch { return { exists: false, stale: true, issue: 'Local settings are damaged or unsupported. Restore a Recovery Kit or enter the existing Firebase settings.' }; }
+    let text;
+    try {
+      if ((await fs.stat(cached)).size > 65536) throw new Error('Oversized cache');
+      text = await fs.readFile(cached, 'utf8');
+    } catch (error) {
+      return { exists: false, stale: true, issue: error.code === 'ENOENT' ? 'No local kit is available. Create a kit or restore an external copy.' : 'The local kit cannot be read. Create a new kit or restore an external copy.' };
+    }
+    try {
+      parseKit(text);
+      const meta = JSON.parse(await fs.readFile(metaFile, 'utf8'));
+      if (!meta || meta.schemaVersion !== 1 || meta.formatVersion !== 1 || !Number.isFinite(Date.parse(meta.createdAt)) || !/^[a-f0-9]{64}$/.test(meta.fingerprint) || (meta.digest && meta.digest !== digest(text))) throw new Error('Damaged metadata');
+      const stale = !config || meta.fingerprint !== fingerprint(config);
+      return { createdAt: meta.createdAt, formatVersion: 1, exists: true, stale, ...(stale ? { issue: 'Settings have changed. Create an updated kit before exporting a copy.' } : {}) };
+    } catch {
+      return { exists: true, stale: true, issue: 'The cached kit or its metadata is damaged or missing. Create a new kit or restore an external copy.' };
+    }
+  }
+  async function exportPath(filename) {
+    if (typeof filename !== 'string' || !filename) throw new Error('Choose a recovery file destination.');
+    const root = await fs.realpath(userData);
+    // Resolve the nearest existing parent too, so directory links cannot bypass the guard.
+    let parent = path.dirname(path.resolve(filename));
+    while (true) {
+      try { parent = await fs.realpath(parent); break; }
+      catch (error) { if (error.code !== 'ENOENT' || path.dirname(parent) === parent) throw error; parent = path.dirname(parent); }
+    }
+    const relative = path.relative(root, parent);
+    if (!relative || (!relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative))) throw new Error('Save your kit outside the Control Center profile folder to protect local settings and checkpoints.');
+    if (path.extname(filename).toLowerCase() !== '.tomeva') throw new Error('Save the Recovery Kit with a .tomeva extension.');
+    try { if ((await fs.lstat(filename)).isSymbolicLink()) throw new Error('Choose a regular file destination, not a link.'); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
   }
   async function checkpoint() {
     const directory = path.join(userData, 'checkpoints', `${Date.now()}-${crypto.randomUUID()}`);
@@ -72,20 +125,30 @@ function createRecovery({ userData, store, dialog, getWindow, version }) {
       if (action === 'create' || action === 'copy') {
         const config = store.read();
         if (!config) throw new Error('Save your project settings first.');
+        if (action === 'create') {
+          passwordCheck(password);
+          if (!password.trim()) throw new Error('Use a recovery password containing more than spaces.');
+        } else {
+          const current = await status();
+          if (!current.exists || current.stale) throw new Error(current.issue + ' Create a new kit before exporting.');
+        }
         const selection = await dialog.showSaveDialog(getWindow(), { defaultPath: `${config.firebase.projectId}-Recovery.tomeva`, filters: [{ name: 'Tomeva Recovery Kit', extensions: ['tomeva'] }] });
         if (selection.canceled) return { cancelled: true };
+        await exportPath(selection.filePath);
         const text = action === 'copy' ? await fs.readFile(cached, 'utf8') : JSON.stringify(await encrypt(config, password));
-        await fs.writeFile(selection.filePath, text, { mode: 0o600 });
+        await atomicWrite(selection.filePath, text);
         if (action === 'create') {
-          await fs.writeFile(cached + '.tmp', text, { mode: 0o600 });
-          await fs.rename(cached + '.tmp', cached);
-          await fs.writeFile(metaFile, JSON.stringify({ createdAt: new Date().toISOString(), formatVersion: 1, schemaVersion: 1, fingerprint: fingerprint(config) }), { mode: 0o600 });
+          try {
+            await atomicWrite(cached, text);
+            await atomicWrite(metaFile, JSON.stringify({ createdAt: new Date().toISOString(), formatVersion: 1, schemaVersion: 1, fingerprint: fingerprint(config), digest: digest(text) }));
+          } catch { return { path: selection.filePath, warning: 'The exported kit was saved, but the local recovery cache could not be updated. Keep the exported file and verify it before relying on it.' }; }
         }
         return { path: selection.filePath };
       }
       if (!['verify', 'restore'].includes(action)) throw new Error('Unknown recovery action.');
       const selection = await dialog.showOpenDialog(getWindow(), { properties: ['openFile'], filters: [{ name: 'Tomeva Recovery Kit', extensions: ['tomeva'] }] });
       if (selection.canceled) return { cancelled: true };
+      if (!selection.filePaths?.[0]) throw new Error('Select a Tomeva Recovery Kit.');
       if ((await fs.stat(selection.filePaths[0])).size > 65536) throw new Error('Recovery file is too large.');
       const payload = await decrypt(await fs.readFile(selection.filePaths[0], 'utf8'), password);
       if (action === 'restore') {

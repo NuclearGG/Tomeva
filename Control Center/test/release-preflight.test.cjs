@@ -1,0 +1,32 @@
+const { test } = require('node:test'); const assert = require('node:assert/strict');
+const { assessRelease } = require('../../scripts/release-preflight.cjs');
+const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), crypto = require('node:crypto');
+const { execFileSync } = require('node:child_process');
+const valid = { dirty: false, versions: ['1.1.0', '1.1.0', '1.1.0'], head: 'commit', tagCommit: 'commit', sbomCommit: 'commit', requireSigning: false, trustedKeys: 0 };
+test('publication refuses dirty source, version drift, stale tags and stale SBOMs', () => {
+  assert.equal(assessRelease(valid), true);
+  for (const patch of [{ dirty: true }, { versions: ['1.1.0', '1.0.9'] }, { tagCommit: 'old' }, { sbomCommit: 'old' }, { sbomDirty: true }, { requireSigning: true }]) assert.throws(() => assessRelease({ ...valid, ...patch }));
+  assert.equal(assessRelease({ ...valid, requireSigning: true, trustedKeys: 1 }), true);
+});
+test('publication accepts an artifact-only commit after the source tag but rejects later source changes', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'tomeva-release-gate-'));
+  t.after(() => fs.rmSync(directory, {recursive:true,force:true}));
+  const git = args => execFileSync('git',args,{cwd:directory,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+  const write = (name, value) => { const file=path.join(directory,name); fs.mkdirSync(path.dirname(file),{recursive:true}); fs.writeFileSync(file,value); };
+  git(['init','--quiet']); git(['config','user.name','Release gate fixture']); git(['config','user.email','fixture@example.invalid']);
+  write('.gitignore','/release-artifacts/\n');
+  for (const folder of ['', 'Control Center', "Admin's End", "Librarian's End"]) write(path.join(folder,'package.json'),JSON.stringify({version:'1.0.10'}));
+  git(['add','.']); git(['commit','--quiet','-m','Source fixture']); const source=git(['rev-parse','HEAD']); git(['tag','v1.0.10']);
+  const hash = value => crypto.createHash('sha256').update(value).digest('hex');
+  const sbom='{}', archive='synthetic archive fixture', name='tomeva-1.0.10-sbom.zip';
+  write('release-artifacts/sbom/admin.cdx.json',sbom);
+  write('release-artifacts/sbom/provenance.json',JSON.stringify({sourceCommit:source,sourceDirty:false,artifacts:[{filename:'admin.cdx.json',sha256:hash(sbom)}]}));
+  write('release-artifacts/sbom-archive.json',JSON.stringify({sourceCommit:source,filename:name,sha256:hash(archive)}));
+  write('packages/'+name,archive); write('packages/SHA256SUMS',hash(archive)+'  '+name+'\n');
+  const {assertPublishable}=require('../../scripts/release-preflight.cjs');
+  assert.equal(assertPublishable(directory),true);
+  git(['add','packages']); git(['commit','--quiet','-m','Artifact fixture']);
+  assert.equal(assertPublishable(directory),true);
+  write('source.js','changed source'); git(['add','source.js']); git(['commit','--quiet','-m','Changed source fixture']);
+  assert.throws(()=>assertPublishable(directory),/tag must point/);
+});

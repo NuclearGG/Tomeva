@@ -52,7 +52,7 @@ function createNativeUpdater({ getUpdater, getWindow, beforeInstall = async () =
     if (answer.response !== 1) return;
     try {
       await approved();
-      if (!signedManifest || !verifiedFiles.length) throw new Error('No publisher-verified installer is ready.');
+      if (!signedManifest || !verifiedFiles.length) throw new Error('No checksum-verified installer is ready.');
       for (const file of verifiedFiles) await verification.verifyFile(file.path, file.name, signedManifest);
       await beforeInstall();
       updater.quitAndInstall(false, true);

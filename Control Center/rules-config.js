@@ -7,9 +7,7 @@ function institutionRules(source, staffDomain) {
   const placeholder = 'staff\\\\.example';
   if (!source.includes(placeholder)) throw new Error('Firestore rules template is not compatible with this exporter.');
   return source.replaceAll(placeholder, staffDomain.replace(/\./g, '\\\\.'))
-    .replaceAll('staff.example', staffDomain)
-    .replace("libraryId == 'main'\n        && request.auth.token.firebase.sign_in_provider == 'google.com'",
-      "libraryId == 'main'\n        && isStaff()");
+    .replaceAll('staff.example', staffDomain);
 }
 
 module.exports = { institutionRules };

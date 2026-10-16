@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com; img-src 'self' data:; base-uri 'self'; form-action 'self'; frame-src 'self' https://*.firebaseapp.com;">
+  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests; default-src 'self'; object-src 'none'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com; img-src 'self' data:; base-uri 'self'; form-action 'self'; frame-src 'self' https://*.firebaseapp.com;">
   <title>Tomeva — Book Search</title>
   <link rel="icon" href="assets/icon.ico" sizes="any">
   <link rel="icon" href="assets/icon.png" type="image/png" sizes="32x32">
@@ -1258,7 +1258,7 @@
         <input id="fpg-profile-admno" type="text" maxlength="40" placeholder="e.g. ADM001">
       </div>
       <button class="req-submit-btn" id="fpg-profile-submit" data-handler-click="h3">Continue</button>
-      <button class="account-delete-link" type="button" data-handler-click="h4">Delete my Tomeva account</button>
+      <button class="account-delete-link" type="button" data-handler-click="h4">Account removal</button>
     </div>
 
     <div id="fpg-state-unverified" style="display:none">
@@ -1269,7 +1269,7 @@
         Ask your librarian or the school admin office to add your email address in <strong>Student Access</strong> and assign your group. You'll be able to see book availability as soon as you're added.
       </div>
       <button class="google-signin-btn" style="margin-top:24px" data-handler-click="h5">Sign out</button>
-      <button class="account-delete-link" type="button" data-handler-click="h4">Delete my Tomeva account</button>
+      <button class="account-delete-link" type="button" data-handler-click="h4">Account removal</button>
     </div>
 
   </div>
@@ -1339,7 +1339,7 @@
     <button class="my-requests-btn" data-handler-click="h11">My requests</button>
     <button class="my-requests-btn" data-handler-click="h12">Messages</button>
     <button class="my-requests-btn" id="push-button" type="button" style="display:none">Enable alerts</button>
-    <button class="my-requests-btn" id="account-delete-button" type="button" style="display:none" data-handler-click="h4">Delete account</button>
+    <button class="my-requests-btn" id="account-delete-button" type="button" style="display:none" data-handler-click="h4">Account removal</button>
     <div id="push-status" role="status" style="font-size:12px;margin-top:8px"></div>
   </div>
 

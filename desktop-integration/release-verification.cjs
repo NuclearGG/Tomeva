@@ -64,4 +64,5 @@ async function verifyFile(filename, publishedName, manifest) {
   for await (const chunk of fs.createReadStream(filename)) digest.update(chunk);
   if (digest.digest('hex') !== expected) throw new Error('Downloaded package does not match the release checksum.');
 }
-module.exports = { verifyManifest, loadManifest, verifyFile };
+const trustPolicy = () => ({ mode: keys.length ? 'signed' : 'unsigned-pilot', publisherAuthenticated: keys.length > 0 });
+module.exports = { verifyManifest, loadManifest, verifyFile, trustPolicy };

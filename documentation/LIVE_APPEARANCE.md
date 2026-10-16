@@ -35,7 +35,9 @@ Uses the existing Cloud Firestore project and its realtime snapshot listeners, r
 
 The document contains the versioned presentation fields above plus `revision`, server `updatedAt` and `updatedBy`. Public readers receive only this presentation data. Firestore rules require the existing active staff account, verified institution Google identity and enabled institution administrator grant for writes. Students, anonymous users and registered kiosks cannot publish. Deletes are denied; restore defaults publishes a new revision.
 
-Control Center publishes with a transaction against the loaded revision. A concurrent change requires loading the published version before editing again. Sign-in credentials stay in memory and use the same state-checked browser callback as Admin’s End. Changing institution configuration ends that sign-in context.
+Control Center publishes with a transaction against the loaded revision. A concurrent change requires loading the published version before editing again. Google sign-in uses the same state-checked browser callback as Admin’s End. Control Center remembers its Firebase session locally on this computer across restarts and reconnects. Explicit sign-out clears the saved session and cancels a pending browser sign-in. Switching Firebase project, authentication settings, library or staff domain signs out of the previous institution. Editing a display name or site URL keeps the session. Restored sessions still require the current administrator grants before publishing.
+
+Verify persistence with `npm --prefix "Control Center" run test:session:emulator` (requires Firebase CLI). This uses demo accounts and isolated profiles across three Electron processes; it checks reconnect, full restart, explicit sign-out and institution switching without accessing production accounts.
 
 ## Offline and failure behaviour
 

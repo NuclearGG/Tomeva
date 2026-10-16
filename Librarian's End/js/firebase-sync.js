@@ -305,6 +305,8 @@
     const books        = LibraryDB.getBooks();
     const txns         = LibraryDB.getTransactions();
     const students     = LibraryDB.getStudents();
+    const bookById = new Map(books.map(book => [book.access_no, book]));
+    const studentById = new Map(students.map(student => [student.adm_no, student]));
     const settings     = LibraryDB.getSettings();
     const overdue      = LibraryDB.getOverdueTransactions();
     const finesPending = LibraryDB.getPendingFines();
@@ -359,8 +361,8 @@
 
     // ── RESTRICTED CIRCULATION (contains PII) ──
     const overdueList = overdue.map(txn => {
-      const book    = LibraryDB.getBook(txn.book_access_no);
-      const student = LibraryDB.getStudent(txn.student_adm_no);
+      const book    = bookById.get(txn.book_access_no);
+      const student = studentById.get(txn.student_adm_no);
       const days    = LibraryDB.calcLateDays(txn.due_date);
       return {
         book_id: txn.book_access_no, book_title: book ? book.document : txn.book_access_no,
@@ -372,8 +374,8 @@
     });
 
     const issuedCirculationList = txns.filter(t => t.status === 'Active').map(txn => {
-      const book    = LibraryDB.getBook(txn.book_access_no);
-      const student = LibraryDB.getStudent(txn.student_adm_no);
+      const book    = bookById.get(txn.book_access_no);
+      const student = studentById.get(txn.student_adm_no);
       return {
         book_id: txn.book_access_no, book_title: book ? book.document : txn.book_access_no,
         student_id: txn.student_adm_no, student_name: student ? student.name : txn.student_adm_no,
@@ -384,8 +386,8 @@
     });
 
     const finesList = finesPending.map(txn => {
-      const book    = LibraryDB.getBook(txn.book_access_no);
-      const student = LibraryDB.getStudent(txn.student_adm_no);
+      const book    = bookById.get(txn.book_access_no);
+      const student = studentById.get(txn.student_adm_no);
       return {
         book_id: txn.book_access_no, book_title: book ? book.document : txn.book_access_no,
         student_id: txn.student_adm_no, student_name: student ? student.name : txn.student_adm_no,
@@ -399,7 +401,7 @@
       .sort((a, b) => new Date(b.paid_at) - new Date(a.paid_at))
       .slice(0, 10)
       .map(p => {
-        const student = LibraryDB.getStudent(p.student_adm_no);
+        const student = studentById.get(p.student_adm_no);
         return {
           student_name: student ? student.name : p.student_adm_no,
           amount: p.amount,
@@ -479,13 +481,14 @@
         ...publicSnapshot.shards.map(page => ({ ref: library.collection('catalog_shards').doc(`${generation}-${page.index}`), page })),
         ...privateSnapshot.shards.map(page => ({ ref: library.collection('circulation_shards').doc(`${generation}-${page.index}`), page })),
       ];
-      let stage = _db.batch(), stagedCount = 0, stagedBytes = 0;
+      let stage = _db.batch(), stagedCount = 0, stagedBytes = 0, stagedRows = 0;
       for (const { ref, page } of writes) {
         const bytes = JSON.stringify(page).length * 3 + 1024;
-        if (stagedCount >= 400 || stagedBytes + bytes > 6 * 1024 * 1024) {
-          await stage.commit(); stage = _db.batch(); stagedCount = 0; stagedBytes = 0;
+        const rows = Object.values(page).reduce((sum, value) => sum + (Array.isArray(value) ? value.length : 0), 0);
+        if (stagedCount && (stagedRows + rows > 50 || stagedCount >= 50 || stagedBytes + bytes > 6 * 1024 * 1024)) {
+          await stage.commit(); stage = _db.batch(); stagedCount = 0; stagedBytes = 0; stagedRows = 0;
         }
-        stage.set(ref, page); stagedCount++; stagedBytes += bytes;
+        stage.set(ref, page); stagedCount++; stagedBytes += bytes; stagedRows += rows;
       }
       if (stagedCount) await stage.commit();
 
@@ -736,6 +739,7 @@
         decision_note:  decisionNote || '',
         decided_at:     firebase.firestore.FieldValue.serverTimestamp(),
         decided_at_iso: new Date().toISOString(),
+        decided_by: _auth.currentUser.uid,
       });
       return { ok: true };
     } catch (err) {

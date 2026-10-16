@@ -19,6 +19,10 @@ Tomeva combines an offline desktop circulation app, an online administration das
 
 ## For users
 
+### One circulation desk per library
+
+Use one authoritative Librarian workstation for issuing, returning, collecting fines, and uploading catalogue snapshots. Admin and Student Portal may be used on many devices. Independent Librarian databases do not merge: concurrent circulation on two desks can overwrite the cloud snapshot and diverge locally. Follow the [desk transfer and recovery procedure](documentation/SINGLE_DESK_CIRCULATION.md) before moving circulation to another computer.
+
 ### Download only Control Center
 
 Open the [latest release](https://github.com/NuclearGG/Tomeva/releases/latest). Download **`tomeva-control-center-X.Y.Z-win-x64.exe`** for Windows 10/11, or **`tomeva-control-center-X.Y.Z-win7-x64.exe`** for a Windows 7/8.1 legacy computer. You do not need source code, Node.js, npm, Git, or separate manual downloads of Admin and Librarian.
@@ -171,3 +175,11 @@ Run relevant checks, rebuild affected packages, update checksums, and include so
 ## License
 
 [MIT](LICENSE).
+
+## Project policies
+
+[Contributing](CONTRIBUTING.md) · [Security reporting](SECURITY.md) · [Third-party notices](THIRD_PARTY_NOTICES.md) · [Known risks and rollout gates](documentation/KNOWN_RISKS.md).
+
+[Database integrity and migrations](documentation/DATABASE_INTEGRITY.md) · [Query-plan baselines](documentation/QUERY_PLAN_BASELINES.md).
+
+Version **1.0.10** includes circulation integrity, audited recovery, bounded data views and schema migrations. Read the [release notes](documentation/RELEASE_NOTES.md) before updating: clients, Student Portal and institution-generated rules require a coordinated rollout.

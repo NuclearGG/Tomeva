@@ -134,7 +134,7 @@ async function showRecovery() {
   const status = await bridge.recoveryStatus();
   byId('recovery-status').textContent = !status.exists ? 'Create a Recovery Kit to protect your setup' : status.stale ? 'Your Recovery Kit should be updated' : 'Recovery Kit is current';
   byId('overview-recovery').textContent = byId('recovery-status').textContent;
-  byId('recovery-detail').textContent = status.exists ? `Created ${new Date(status.createdAt).toLocaleString()} · Format ${status.formatVersion}` : 'Save project settings, then create an encrypted kit.';
+  byId('recovery-detail').textContent = status.issue || (status.exists ? `Created ${new Date(status.createdAt).toLocaleString()} · Format ${status.formatVersion}` : 'Save project settings, then create an encrypted kit.');
 }
 document.querySelectorAll('[data-recovery]').forEach(button => button.addEventListener('click', async () => {
   const action = button.dataset.recovery;
@@ -147,6 +147,7 @@ document.querySelectorAll('[data-recovery]').forEach(button => button.addEventLi
     if (!result.cancelled) {
       if (action === 'restore') { config = await bridge.getConfig(); fillForm(config); showConfig(); }
       await showRecovery();
+      if (result.warning) { notice(result.warning, 'error'); return; }
       notice(result.valid ? `Recovery Kit valid: integrity, encryption, institution settings and format verified for ${result.projectId}.${action === 'restore' ? ' Local setup restored.' : ' Current setup was not changed.'}` : `Encrypted Recovery Kit saved to ${result.path}`, 'success');
     }
   } catch (error) { notice(error.message, 'error'); }

@@ -6,7 +6,7 @@ const crypto = { randomUUID };
 const { encodeBackup, decodeBackup, BOOK_STATUSES } = require('./backup');
 const { localDate, lateDays: _lateCalendarDays, formatDate } = require('./calendar');
 
-function createLibraryService(store, appendLog = () => {}) {
+function createLibraryService(store, appendLog = () => {}, diagnostics = () => {}) {
   const { books: _books, students: _students, transactions: _txns, finePayments: _finePayments, settings: _settings } = store.collections;
   let _actionHistory = _settings.findOne({})?.undo_history || [];
   let _pendingLogs = [];
@@ -44,7 +44,7 @@ function createLibraryService(store, appendLog = () => {}) {
       _pendingLogs.push(`[${ts}] ${action.padEnd(10, ' ')}| ${details}`);
     } catch (e) {
       // Never let logging failures affect the actual transaction.
-      console.warn('[ActivityLog]', e.message);
+      diagnostics('warn', 'audit.enqueue.failed', { code: e.code || 'AUDIT_ENQUEUE_FAILED' });
     }
   }
 
@@ -59,7 +59,8 @@ function createLibraryService(store, appendLog = () => {}) {
   }
 
   function _normalizeAccessNo(value) {
-    return String(value || '').trim();
+    const text = String(value || '').trim();
+    return store.bookIdentity(text);
   }
 
   function _validateAccessNo(value) {
@@ -154,13 +155,7 @@ function createLibraryService(store, appendLog = () => {}) {
   }
 
   function searchBooks(q) {
-    q = q.toLowerCase();
-    return _stripAll(_books.where(b =>
-      (b.access_no  || '').toLowerCase().includes(q) ||
-      (b.document   || '').toLowerCase().includes(q) ||
-      (b.author     || '').toLowerCase().includes(q) ||
-      (b.publisher  || '').toLowerCase().includes(q)
-    ));
+    return store.pageRows('books', { query: q, pageSize: 25 }).rows;
   }
 
   function addBook(b) {
@@ -184,6 +179,8 @@ function createLibraryService(store, appendLog = () => {}) {
     access_no = _normalizeAccessNo(access_no);
     const b = _books.findOne({ access_no });
     if (!b) return false;
+    const active = _txns.findOne({ book_access_no: access_no, status: 'Active' });
+    if ((active && status !== 'Issued') || (!active && status === 'Issued')) return false;
     b.status = status;
     _books.update(b);
 
@@ -192,8 +189,7 @@ function createLibraryService(store, appendLog = () => {}) {
 
   function importBooks(jsonStr) {
     try {
-      let raw = JSON.parse(jsonStr);
-      if (!Array.isArray(raw)) raw = [raw];
+      const raw = require('../js/import-policy').parse(jsonStr);
       if (raw.length === 0) return { ok: false, msg: 'File is empty.' };
 
       if (raw.some(book => !book || typeof book !== 'object' || Array.isArray(book)))
@@ -204,9 +200,9 @@ function createLibraryService(store, appendLog = () => {}) {
       }
 
       const activeAccessNos = new Set(
-        _txns.find({ status: 'Active' }).map(t => t.book_access_no)
+        _txns.find({ status: 'Active' }).map(t => String(t.book_access_no || '').trim().toLowerCase())
       );
-      const previousStatuses = new Map(_books.find().map(book => [book.access_no, book.status]));
+      const previousBooks = new Map(_books.find().map(book => [book.access_no.toLowerCase(), book]));
 
       // Validate all entries first
       const errors = [];
@@ -217,7 +213,7 @@ function createLibraryService(store, appendLog = () => {}) {
         const key = access_no.toLowerCase();
         if (seenAccessNos.has(key)) errors.push(`Row ${idx + 1}: Duplicate access_no`);
         seenAccessNos.add(key);
-        importedAccessNos.add(access_no);
+        importedAccessNos.add(key);
         const document = (b.document || b.title || '').trim();
         if (!access_no) errors.push(`Row ${idx + 1}: Missing access_no/book_id`);
         if (!document) errors.push(`Row ${idx + 1}: Missing document/title`);
@@ -235,8 +231,10 @@ function createLibraryService(store, appendLog = () => {}) {
       _books.clear({ removeIndices: false });
 
       raw.forEach(b => {
-        const access_no = (b.access_no || b.book_id || '').toString().trim();
-        const existing_status = activeAccessNos.has(access_no) ? 'Issued' : 'Available';
+        const supplied = (b.access_no || b.book_id || '').toString().trim();
+        const key = supplied.toLowerCase();
+        const previous = previousBooks.get(key);
+        const access_no = previous?.access_no || supplied;
         _books.insert({
           access_no,
           document:  (b.document  || b.title   || '').trim().slice(0, 200),
@@ -244,10 +242,19 @@ function createLibraryService(store, appendLog = () => {}) {
           publisher: (b.publisher || '').trim().slice(0, 100),
           cost:      (b.cost      || '').toString().trim().slice(0, 20),
           pages:     (b.pages     || '').toString().trim().slice(0, 10),
-          status:    activeAccessNos.has(access_no) ? 'Issued' : (previousStatuses.get(access_no) || existing_status),
+          status: activeAccessNos.has(key) ? 'Issued' : (previous?.status && previous.status !== 'Issued' ? previous.status : 'Available'),
         });
       });
-
+      // Repair legacy case aliases in loan history as part of the same import
+      // transaction. Backup/reference validation then sees canonical book IDs.
+      const canonicalAccessNos = new Map(_books.find().map(book => [book.access_no.toLowerCase(), book.access_no]));
+      for (const transaction of _txns.find()) {
+        const canonical = canonicalAccessNos.get(String(transaction.book_access_no || '').trim().toLowerCase());
+        if (canonical && transaction.book_access_no !== canonical) {
+          transaction.book_access_no = canonical;
+          _txns.update(transaction);
+        }
+      }
   
       return { ok: true, count: raw.length };
     } catch (e) {
@@ -269,14 +276,7 @@ function createLibraryService(store, appendLog = () => {}) {
   }
 
   function searchStudents(q) {
-    q = q.toLowerCase();
-    return _stripAll(_students.where(s =>
-      (s.adm_no   || '').toLowerCase().includes(q) ||
-      (s.name     || '').toLowerCase().includes(q) ||
-      (s.class    || '').toLowerCase().includes(q) ||
-      (s.section  || '').toLowerCase().includes(q) ||
-      (s.roll_no  || '').toLowerCase().includes(q)
-    ));
+    return store.pageRows('students', { query: q, pageSize: 25 }).rows;
   }
 
   function addStudent(s) {
@@ -402,8 +402,7 @@ function createLibraryService(store, appendLog = () => {}) {
 
   function importStudents(jsonStr) {
     try {
-      let raw = JSON.parse(jsonStr);
-      if (!Array.isArray(raw)) raw = [raw];
+      const raw = require('../js/import-policy').parse(jsonStr);
       if (raw.length === 0) return { ok: false, msg: 'File is empty.' };
 
       const first = raw[0];
@@ -414,6 +413,7 @@ function createLibraryService(store, appendLog = () => {}) {
       // Validate all entries first
       const errors = [];
       const seenAdmissionNumbers = new Set();
+      const previousAdmissions = new Map(_students.find().map(student => [student.adm_no.toLowerCase(), student.adm_no]));
       raw.forEach((s, idx) => {
         const adm_no = (s.adm_no || s.admission_no || s.admno || '').toString().trim();
         const name = (s.name || s.student_name || '').trim();
@@ -428,6 +428,10 @@ function createLibraryService(store, appendLog = () => {}) {
         if (s.section && s.section.toString().trim().length > 10) errors.push(`Row ${idx + 1}: section too long (max 10 chars)`);
         if (s.roll_no && s.roll_no.toString().trim().length > 20) errors.push(`Row ${idx + 1}: roll_no too long (max 20 chars)`);
       });
+      for (const loan of _txns.find({ status: 'Active' })) {
+        if (loan.borrower_type === 'teacher' || (loan.borrower_type == null && loan.is_teacher === true)) continue;
+        if (!seenAdmissionNumbers.has(String(loan.student_adm_no || '').toLowerCase())) errors.push(`Active borrower ${loan.student_adm_no} is missing from the import`);
+      }
       if (errors.length) return { ok: false, msg: 'Validation errors: ' + errors.join('; ') };
 
       _students.clear({ removeIndices: false });
@@ -435,7 +439,7 @@ function createLibraryService(store, appendLog = () => {}) {
       raw.forEach(s => {
         const rawGroup = (s.group || s.club || 'Regular').toString().trim();
         _students.insert({
-          adm_no:  (s.adm_no  || s.admission_no || s.admno || '').toString().trim().slice(0, 40),
+          adm_no:  previousAdmissions.get((s.adm_no || s.admission_no || s.admno || '').toString().trim().toLowerCase()) || (s.adm_no || s.admission_no || s.admno || '').toString().trim().slice(0, 40),
           name:    (s.name    || s.student_name || '').trim().slice(0, 100),
           class:   (s.class   || s.std          || '').toString().trim().slice(0, 20),
           section: (s.section || s.div          || '').trim().slice(0, 10),
@@ -470,7 +474,7 @@ function createLibraryService(store, appendLog = () => {}) {
 
     const book = getBook(access_no);
     if (!book)   return { ok: false, msg: `Book Access No "${access_no}" not found.` };
-    if (book.status !== 'Available')
+    if (book.status !== 'Available' || _txns.findOne({ book_access_no: access_no, status: 'Active' }))
       return { ok: false, msg: `Book is currently "${book.status}" and cannot be issued.` };
 
     const settings = getSettings();
@@ -527,7 +531,7 @@ function createLibraryService(store, appendLog = () => {}) {
 
     const book = getBook(access_no);
     if (!book) return { ok: false, msg: `Book Access No "${access_no}" not found.` };
-    if (book.status !== 'Available')
+    if (book.status !== 'Available' || _txns.findOne({ book_access_no: access_no, status: 'Active' }))
       return { ok: false, msg: `Book is currently "${book.status}" and cannot be issued.` };
 
     const today = new Date();
@@ -571,7 +575,6 @@ function createLibraryService(store, appendLog = () => {}) {
 
     const book = getBook(access_no);
     if (!book)                      return { ok: false, msg: `Book Access No "${access_no}" not found.` };
-    if (book.status === 'Available') return { ok: false, msg: 'This book has not been issued.' };
 
     const txnDoc = _txns.findOne({ book_access_no: access_no, status: 'Active' });
     if (!txnDoc) return { ok: false, msg: 'No active transaction found for this book.' };
@@ -592,7 +595,7 @@ function createLibraryService(store, appendLog = () => {}) {
     txnDoc.fine        = fine;
     txnDoc.status      = fine > 0 ? 'FinePending' : 'Returned';
     _txns.update(txnDoc);
-    updateBookStatus(access_no, 'Available');
+    updateBookStatus(access_no, ['Damaged', 'Under Repair', 'Lost'].includes(book.status) ? book.status : 'Available');
 
 
     // Record action for undo history
@@ -627,7 +630,7 @@ function createLibraryService(store, appendLog = () => {}) {
   }
 
   function getActiveTxnForBook(access_no) {
-    return _stripMeta(_txns.findOne({ book_access_no: access_no, status: 'Active' }));
+    return _stripMeta(_txns.findOne({ book_access_no: _normalizeAccessNo(access_no), status: 'Active' }));
   }
 
   function getActiveTransactions() {
@@ -637,7 +640,7 @@ function createLibraryService(store, appendLog = () => {}) {
   function getOverdueTransactions() {
     const todayStr = localDate();
     // Teacher loans (due_date null) can never be overdue.
-    return _stripAll(_txns.where(t => t.status === 'Active' && !!t.due_date && t.due_date < todayStr));
+    return store.overdue(todayStr);
   }
 
   function getReturnedToday() {
@@ -711,6 +714,7 @@ function createLibraryService(store, appendLog = () => {}) {
 
     const book = getBook(access_no);
     if (!book) return { ok: false, msg: 'Book not found.' };
+    if (_txns.findOne({ book_access_no: access_no, status: 'Active' })) return { ok: false, msg: 'Return or close the active loan before recording damage. The book remains issued.' };
     const statusMap = { 'Minor Damage':'Damaged', 'Repair Needed':'Under Repair', 'Unusable':'Lost' };
     const newStatus = statusMap[severity] || 'Damaged';
     const prevStatus = book.status;
@@ -749,6 +753,7 @@ function createLibraryService(store, appendLog = () => {}) {
 
     const book = getBook(access_no);
     if (!book) return { ok: false, msg: 'Book not found.' };
+    if (_txns.findOne({ book_access_no: access_no, status: 'Active' })) return { ok: false, msg: 'Close the active loan before restoring this copy.' };
     const restorable = ['Damaged','Under Repair','Lost'];
     if (!restorable.includes(book.status))
       return { ok: false, msg: `Book is "${book.status}" — only Damaged, Under Repair, or Lost can be restored.` };
@@ -817,6 +822,7 @@ function createLibraryService(store, appendLog = () => {}) {
       case 'return': {
         const returned = _txns.findOne({ transaction_id: action.transaction_id });
         if (!returned) return { ok: false, msg: 'Transaction not found.' };
+        if (action.previous_book_status !== 'Issued') return { ok: false, msg: 'This legacy loan had an inconsistent copy status. Keep it closed and review the copy manually.' };
         returned.status = action.previous_txn_status;
         returned.fine = action.previous_txn_fine;
         returned.return_date = action.previous_txn_return_date;
@@ -968,6 +974,7 @@ function createLibraryService(store, appendLog = () => {}) {
      PUBLIC API
    ══════════════════════════════ */
   const api = {
+    pageRows: (name, options) => store.pageRows(name, options), fineSummary: () => store.fineSummary(),
 
     getSettings, saveSettings, getRosterSyncCursor, setRosterSyncCursor,
     getCloudSnapshotHistory, recordCloudSnapshot, forgetCloudSnapshot,
@@ -1023,11 +1030,12 @@ function createLibraryService(store, appendLog = () => {}) {
             appendLog(event.line, event);
             store.database.prepare('UPDATE audit_events SET exported = 1 WHERE id = ?').run(event.id);
           }
-        } catch (error) { console.warn('[ActivityLog] Export deferred:', error.message); }
+        } catch (error) { diagnostics('warn', 'audit.export.deferred', { code: error.code || 'AUDIT_EXPORT_DEFERRED' }); }
         return result;
       } catch (error) {
         _actionHistory = historyBefore;
         if (Object.hasOwn(error, 'operationResult')) return error.operationResult;
+        diagnostics('error', 'database.mutation.rolled_back', { method: name, code: error.code || 'MUTATION_FAILED' });
         if (name === 'updateBookStatus' || name === 'markFinePaid') return false;
         return { ok: false, msg: 'Database change was rolled back: ' + error.message };
       } finally { _pendingLogs = []; }

@@ -1,6 +1,8 @@
 import { initializeApp, deleteApp } from 'firebase/app';
 import { initializeAuth, inMemoryPersistence, createUserWithEmailAndPassword, deleteUser, onAuthStateChanged } from 'firebase/auth';
 import { doc, collection, query, where, onSnapshot, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import * as firestoreSdk from 'firebase/firestore';
+import { createAuditedFirestore } from '../desktop-integration/admin-audit.mjs';
 
 // A separate, memory-only Auth instance preserves the administrator's session.
 export async function createCredential({ app, db, auth, libraryId, label, staffDomain }) {
@@ -9,6 +11,8 @@ export async function createCredential({ app, db, auth, libraryId, label, staffD
     throw new Error('Sign in with Google in the Admin panel to manage kiosk credentials.');
   }
   if (!admin.emailVerified || !admin.email?.toLowerCase().endsWith('@' + staffDomain)) throw new Error('An authorized institution administrator is required.');
+  const identity = await admin.getIdTokenResult();
+  if (identity.claims.firebase?.sign_in_provider !== 'google.com') throw new Error('Use a current Google sign-in, not a linked password session.');
   const [staff, grant] = await Promise.all([getDoc(doc(db, 'staff_accounts', admin.email.toLowerCase())), getDoc(doc(db, 'kiosk_admins', admin.uid))]);
   if (!staff.exists() || staff.data().active !== true || !grant.exists() || grant.data().enabled !== true || grant.data().libraryId !== libraryId) throw new Error('An enabled institution administrator grant is required.');
   const randomHex = size => Array.from(crypto.getRandomValues(new Uint8Array(size)), n => n.toString(16).padStart(2, '0')).join('');
@@ -20,7 +24,7 @@ export async function createCredential({ app, db, auth, libraryId, label, staffD
     const kioskAuth = initializeAuth(secondary, { persistence: inMemoryPersistence });
     ({ user } = await createUserWithEmailAndPassword(kioskAuth, email, password));
     if (auth.currentUser?.uid !== admin.uid) throw new Error('Administrator changed. Sign in and try again.');
-    await setDoc(doc(db, 'kiosk_accounts', user.uid), {
+    await createAuditedFirestore({ db, actor: () => auth.currentUser, sdk: firestoreSdk }).setDoc(doc(db, 'kiosk_accounts', user.uid), {
       email, label, libraryId, active: true,
       createdBy: admin.uid, createdAt: serverTimestamp(),
       revokedBy: null, revokedAt: null,
@@ -77,7 +81,7 @@ export function setupKioskManagement({ app, db, auth, libraryId, staffDomain, sh
         if (!(await showConfirm(`Revoke ${record.label}? This credential will no longer approve, decline, or issue cloud requests.`))) return;
         button.disabled = true;
         try {
-          await updateDoc(doc(db, 'kiosk_accounts', record.uid), {
+          await createAuditedFirestore({ db, actor: () => auth.currentUser, sdk: firestoreSdk }).updateDoc(doc(db, 'kiosk_accounts', record.uid), {
             active: false, revokedBy: auth.currentUser.uid, revokedAt: serverTimestamp(),
           });
           clearSecret();
@@ -139,9 +143,9 @@ export function setupKioskManagement({ app, db, auth, libraryId, staffDomain, sh
     allowed = !!(user?.emailVerified && user.email?.toLowerCase().endsWith('@' + staffDomain) && libraryId === 'main' && user.providerData?.some(provider => provider.providerId === 'google.com'));
     if (allowed) {
       try {
-        const [staff, grant] = await Promise.all([getDoc(doc(db, 'staff_accounts', user.email.toLowerCase())), getDoc(doc(db, 'kiosk_admins', user.uid))]);
+        const [staff, grant, identity] = await Promise.all([firestoreSdk.getDocFromServer(doc(db, 'staff_accounts', user.email.toLowerCase())), firestoreSdk.getDocFromServer(doc(db, 'kiosk_admins', user.uid)), user.getIdTokenResult()]);
         if (auth.currentUser?.uid !== user.uid) return;
-        allowed = staff.exists() && staff.data().active === true && grant.exists() && grant.data().enabled === true && grant.data().libraryId === libraryId;
+        allowed = identity.claims.firebase?.sign_in_provider === 'google.com' && staff.exists() && staff.data().active === true && grant.exists() && grant.data().enabled === true && grant.data().libraryId === libraryId;
       } catch (error) { allowed = false; }
     }
     render();

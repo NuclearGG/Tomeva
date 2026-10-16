@@ -191,20 +191,25 @@ window.doSignOut = async function() {
 
 window.deleteMyTomevaAccount = function() {
   if (!_currentUser || _userRole === 'staff') return;
-  showConfirm('Delete your Tomeva account and library access? Your past book requests remain in the library records. Your Google account is unaffected.', async ok => {
+  showConfirm('Request removal of your Tomeva library profile and access? A library administrator reviews the request. Circulation records and restricted recovery/audit copies follow the institution’s retention policy. After removal, use this option again to delete your Tomeva sign-in account. Your Google account is unaffected.', async ok => {
     if (!ok || !_currentUser?.email) return;
     const user = _currentUser;
     const email = user.email.toLowerCase();
     try {
-      const batch = writeBatch(db);
-      batch.delete(doc(db, 'libraries', LIBRARY_ID, 'student_logins', email));
-      batch.delete(doc(db, 'libraries', LIBRARY_ID, 'authorized_students', email));
-      await batch.commit();
-      await deleteUser(user);
+      const ref = doc(db, 'libraries', LIBRARY_ID, 'account_deletion_requests', email);
+      const existing = await getDoc(ref);
+      const completed = existing.exists() && existing.data().status === 'Completed';
+      const activeRecords = completed ? await Promise.all(['authorized_students', 'student_logins'].map(kind => getDoc(doc(db, 'libraries', LIBRARY_ID, kind, email)))) : [];
+      if (completed && activeRecords.every(snapshot => !snapshot.exists())) {
+        await deleteUser(user);
+        showAlert('Your Tomeva sign-in account has been deleted. Your Google account is unaffected.');
+      } else if (!existing.exists() || completed) {
+        await setDoc(ref, { email, requesterUid: user.uid, status: 'Pending', requestedAt: serverTimestamp() });
+        showAlert('Removal requested. New book requests are paused until the library administrator processes it.');
+      } else showAlert('Your library removal request is awaiting review. Contact the library administrator for progress.');
       sessionStorage.removeItem('libra_request_form');
-      showAlert('Your Tomeva account and library access have been deleted.');
     } catch (error) {
-      showAlert(error.code === 'auth/requires-recent-login' ? 'Your library access was removed. Sign out and sign in again, then choose Delete my Tomeva account to finish deleting your sign-in account.' : 'Could not delete the account: ' + error.message);
+      showAlert(error.code === 'auth/requires-recent-login' ? 'Sign out and sign in again, then use Account removal to finish deleting your Tomeva sign-in account.' : 'Could not process account removal: ' + error.message);
     }
   });
 };
@@ -530,10 +535,11 @@ function renderResults() {
 
 function bookCard(b) {
   const avail = b.availability === "available";
-  return `<div class="book-card ${b.availability}">
+  const availability = avail ? 'available' : 'unavailable';
+  return `<div class="book-card ${availability}">
     <div class="book-card-top">
       <span class="slip-id">${escHtml(b.book_id)}</span>
-      <div class="availability-badge ${b.availability}"><div class="badge-dot"></div>${avail ? "Available" : "Not Available"}</div>
+      <div class="availability-badge ${availability}"><div class="badge-dot"></div>${avail ? "Available" : "Not Available"}</div>
     </div>
     <div>
       <div class="book-title">${escHtml(b.title || b.book_id)}</div>
@@ -546,14 +552,15 @@ function bookCard(b) {
 
 function bookListItem(b, q) {
   const avail = b.availability === "available";
-  return `<div class="book-list-item ${b.availability}">
+  const availability = avail ? 'available' : 'unavailable';
+  return `<div class="book-list-item ${availability}">
     <div class="bli-icon"><span class="t-icon" data-icon="book-open" aria-hidden="true"></span></div>
     <div class="bli-info">
       <div class="bli-title">${highlight(b.title || b.book_id, q)}</div>
       <div class="bli-meta">${b.author ? `<span>${highlight(b.author, q)}</span><span class="sep">·</span>` : ""}<span class="book-id">${highlight(b.book_id, q)}</span></div>
     </div>
     <div class="bli-right">
-      <div class="availability-badge ${b.availability}"><div class="badge-dot"></div>${avail ? "Available" : b.status === "Issued" ? "Issued Out" : b.status}</div>
+      <div class="availability-badge ${availability}"><div class="badge-dot"></div>${avail ? "Available" : b.status === "Issued" ? "Issued Out" : escHtml(b.status || 'Unavailable')}</div>
       <button class="request-btn request-btn-sm" data-book-id="${escHtml(b.book_id)}" data-book-title="${escHtml(b.title || b.book_id)}">📩 Request</button>
     </div>
   </div>`;
@@ -715,6 +722,7 @@ window.cancelMyRequest = async function(requestId, bookTitle) {
       decision_note: "Cancelled by student",
       decided_at: serverTimestamp(),
       decided_at_iso: new Date().toISOString(),
+      decided_by: _currentUser.uid,
     });
     // Refresh the modal
     openMyRequestsModal();

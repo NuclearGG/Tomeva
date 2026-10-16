@@ -4,10 +4,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-for (const scenario of [false, true, 'failed-page']) test(scenario === 'failed-page' ? 'a failed page write never publishes the new manifest' : scenario ? 'approved kiosk publishes sanitized catalog and replaces legacy PII' : 'unprovisioned sync defers every cloud write', async () => {
+for (const scenario of [false, true, 'failed-page', 'batched']) test(scenario === 'batched' ? 'catalogue upload commits groups of at most 50 rows before publishing the manifest' : scenario === 'failed-page' ? 'a failed page write never publishes the new manifest' : scenario ? 'approved kiosk publishes sanitized catalog and replaces legacy PII' : 'unprovisioned sync defers every cloud write', async () => {
   const approved = scenario !== false;
   const writes = [];
   const deletions = [];
+  const batches = [];
   const history = [{ projectId: 'demo-school', generation: 'retired-generation', publicCount: 1, privateCount: 2, recordedAt: Date.now() - 25 * 60 * 60 * 1000 }];
   const auth = {
     currentUser: approved ? { uid: 'desk', email: 'kiosk@example.org', isAnonymous: false } : { uid: 'anonymous', isAnonymous: true },
@@ -35,10 +36,11 @@ for (const scenario of [false, true, 'failed-page']) test(scenario === 'failed-p
       };
     },
     batch() {
+      const current = [];
       return {
-        set(ref, payload, options) { writes.push({ path: ref.path, payload, options }); },
+        set(ref, payload, options) { const write = { path: ref.path, payload, options }; writes.push(write); current.push(write); },
         delete(ref) { deletions.push(ref.path); },
-        async commit() { if (scenario === 'failed-page') throw new Error('page write failed'); },
+        async commit() { batches.push(current); if (scenario === 'failed-page') throw new Error('page write failed'); },
       };
     },
   });
@@ -57,7 +59,7 @@ for (const scenario of [false, true, 'failed-page']) test(scenario === 'failed-p
       recordCloudSnapshot: value => { history.push({ ...value, recordedAt: Date.now() }); return { ok: true }; },
       getCloudSnapshotHistory: () => history,
       forgetCloudSnapshot: generation => { const index = history.findIndex(item => item.generation === generation); if (index >= 0) history.splice(index, 1); return { ok: true }; },
-      getBooks: () => [book], getTransactions: () => [transaction],
+      getBooks: () => scenario === 'batched' ? [book, ...Array.from({ length: 122 }, (_, index) => ({ access_no: 'B' + index, document: 'Title ' + index, status: 'Available' }))] : [book], getTransactions: () => [transaction],
       getStudents: () => [{ adm_no: 'A-1', name: 'Private Student' }],
       getRosterSyncCursor: () => 0,
       getSettings: () => ({ fine_per_day: 2 }),
@@ -87,6 +89,17 @@ for (const scenario of [false, true, 'failed-page']) test(scenario === 'failed-p
   }
   assert.equal(result.ok, true);
   assert.equal(result.restrictedSynced, true);
+  if (scenario === 'batched') {
+    const stages = batches.filter(batch => batch.some(write => /shards/.test(write.path)));
+    assert.ok(stages.length >= 3);
+    for (const stage of stages) {
+      const rows = stage.reduce((sum, write) => sum + Object.values(write.payload).reduce((n, value) => n + (Array.isArray(value) ? value.length : 0), 0), 0);
+      assert.ok(rows <= 50);
+    }
+    const publication = batches.findIndex(batch => batch.some(write => /public\/catalog$/.test(write.path)));
+    assert.equal(publication, stages.length);
+    return;
+  }
   assert.deepEqual(deletions, ['libraries/main/catalog_shards/retired-generation-0', 'libraries/main/circulation_shards/retired-generation-0', 'libraries/main/circulation_shards/retired-generation-1']);
   assert.deepEqual(writes.filter(write => !/shards/.test(write.path)).map(write => write.path), [
     'libraries/main/public/catalog', 'libraries/main', 'libraries/main/restricted/circulation',

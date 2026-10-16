@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('controlCenter', {
   getConfig: () => ipcRenderer.invoke('config:read'),
   saveConfig: value => ipcRenderer.invoke('config:save', value),
   signInForAppearance: () => ipcRenderer.invoke('appearance:sign-in'),
+  cancelAppearanceSignIn: () => ipcRenderer.invoke('appearance:cancel-sign-in'),
   onAppearanceOAuth: callback => listen('appearance:oauth', callback),
   getVersion: () => ipcRenderer.invoke('app:version'),
   exportWeb: value => ipcRenderer.invoke('web:export', value),

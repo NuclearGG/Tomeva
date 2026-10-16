@@ -1,6 +1,9 @@
 
 import '../Librarian\'s End/js/cloud-shards.js';
 import admissionKeys from '../desktop-integration/admission-key.cjs';
+import { createSnapshotPager, fetchSnapshotPage } from './snapshot-pages.mjs';
+import { createAuditedFirestore } from '../desktop-integration/admin-audit.mjs';
+import { createDirectoryPager } from './directory-pages.mjs';
 const { admissionKey } = admissionKeys;
 // XSS-safe HTML escaping
 function _esc(str) {
@@ -11,6 +14,12 @@ function _esc(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
     .replace(/`/g, '&#96;');
+}
+// Cloud data is untrusted. Do not coerce strings, objects or non-finite values
+// into financial amounts, and never interpolate a raw amount into HTML.
+function money(value) {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER / 100
+    ? '₹' + value.toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 }) : '—';
 }
 
 const institution = await window.tomevaAdmin?.getInstitution?.();
@@ -37,11 +46,12 @@ if (!institution?.firebase) {
 const { setupKioskManagement } = await import('./kiosk-management.js');
 const { parseRosterFile, rosterImportErrorMessage } = await import('./roster-import.mjs');
 const { initializeApp } = await import("firebase/app");
+const firestoreSdk = await import("firebase/firestore");
 const {
   getFirestore, doc, collection,
-  onSnapshot, Timestamp, addDoc, setDoc, updateDoc, deleteDoc, serverTimestamp,
-  query, orderBy, limit, writeBatch, runTransaction, getDoc, getDocs
-} = await import("firebase/firestore");
+  onSnapshot, Timestamp, serverTimestamp,
+  query, orderBy, limit, where, getDoc, getDocs, getDocFromServer
+} = firestoreSdk;
 const {
   getAuth, GoogleAuthProvider, signOut, onAuthStateChanged, signInWithCredential, signInWithPopup
 } = await import("firebase/auth");
@@ -53,6 +63,7 @@ const firebaseConfig = institution.firebase;
 const app  = initializeApp(firebaseConfig);
 const db   = getFirestore(app);
 const auth = getAuth(app);
+const { addDoc, setDoc, updateDoc, deleteDoc, runTransaction } = createAuditedFirestore({ db, actor: () => auth.currentUser, sdk: firestoreSdk });
 const googleProvider = new GoogleAuthProvider();
 const LIBRARY_ID = "main";
 window.TomevaAppearance.load(firebaseConfig.projectId, { institutionName:institution.institutionName });
@@ -77,6 +88,116 @@ let _allPendingLogins = [];
 let _admissionRoster = [];
 let _pendingRosterRows = [];
 let _staffListeners = [];
+let _auditEntries = [];
+function startAdminAuditListener() {
+  return onSnapshot(query(collection(db, 'libraries', LIBRARY_ID, 'admin_audit'), orderBy('at', 'desc'), limit(50)), snapshot => {
+    _auditEntries = snapshot.docs.map(entry => ({ id: entry.id, ...entry.data() }));
+    const tbody = document.getElementById('admin-audit-tbody');
+    tbody.innerHTML = _auditEntries.map(entry => `<tr><td>${_esc(entry.at?.toDate?.().toLocaleString() || 'Just now')}</td><td>${_esc(entry.actorEmail)}</td><td>${_esc(entry.operation)} · ${_esc(entry.target)}</td><td>${entry.operation === 'DELETE' && ['authorized_students', 'student_logins', 'admission_roster'].includes(entry.kind) ? `<button class="btn btn-ghost btn-sm" data-recover-event="${_esc(entry.id)}">Restore record</button>` : 'Recorded'}</td></tr>`).join('');
+    tbody.querySelectorAll('[data-recover-event]').forEach(button => button.addEventListener('click', async () => {
+      const entry = _auditEntries.find(event => event.id === button.dataset.recoverEvent);
+      if (!entry || !(await showConfirm('Restore this deleted record? Any current record and admission ownership will be preserved.'))) return;
+      button.disabled = true;
+      try {
+        await runTransaction(db, async transaction => {
+          const ref = doc(db, 'libraries', LIBRARY_ID, entry.kind, entry.documentId);
+          if ((await transaction.get(ref)).exists()) throw new Error('A current record already exists. It was not overwritten.');
+          const admission = entry.before.adm_no;
+          if (admission && entry.before.email) {
+            const claimRef = doc(db, 'libraries', LIBRARY_ID, 'adm_claims', admissionKey(admission));
+            const claim = await transaction.get(claimRef);
+            if (claim.exists() && claim.data().email !== entry.before.email) throw new Error('This admission number now belongs to another account.');
+            transaction.set(claimRef, { adm_no: admission, email: entry.before.email });
+          }
+          transaction.set(ref, entry.before);
+        });
+        showToast('Deleted record restored and recovery recorded.', 'success');
+        refreshDirectories();
+      } catch (error) { showToast(error.message, 'error'); button.disabled = false; }
+    }));
+  }, error => { document.getElementById('admin-audit-tbody').textContent = 'Administration history unavailable: ' + error.message; });
+}
+function startDeletionRequestsListener() {
+  return onSnapshot(query(collection(db, 'libraries', LIBRARY_ID, 'account_deletion_requests'), where('status', '==', 'Pending'), limit(25)), snapshot => {
+    const container = document.getElementById('account-deletion-list'); container.replaceChildren();
+    for (const entry of snapshot.docs) {
+      const row = document.createElement('div'); row.className = 'list-card-header';
+      const label = document.createElement('span'); label.textContent = entry.id;
+      const button = document.createElement('button'); button.className = 'btn btn-ghost'; button.textContent = 'Mark completed after removal';
+      button.onclick = async () => {
+        try { await updateDoc(entry.ref, { status: 'Completed', completedAt: serverTimestamp(), completedBy: auth.currentUser.uid }); showToast('Deletion request completed.', 'success'); }
+        catch (error) { showToast('Remove library access and the sign-in profile first. ' + error.message, 'error'); }
+      };
+      row.append(label, button); container.append(row);
+    }
+  }, error => { document.getElementById('account-deletion-list').textContent = error.message; });
+}
+const tableKeys = { available: 'availableList', issued: 'issuedList', damaged: 'damagedList', overdue: 'overdueList', fines: 'finesList' };
+let tableView = null;
+let tableEpoch = 0;
+let searchTimer;
+// Remove the older persistent public catalogue cache from previous builds.
+try { localStorage.removeItem('tomeva-public-catalog-cache'); } catch {}
+function closeTableView() {
+  clearTimeout(searchTimer); tableEpoch++;
+  if (tableView) {
+    tableView.pager.clear();
+    tableView.abort?.abort();
+    document.getElementById(tableView.id + '-tbody')?.replaceChildren();
+    document.getElementById(tableView.id + '-paging')?.remove();
+  }
+  tableView = null;
+}
+window.addEventListener('pagehide', closeTableView);
+function tableRows(id) { return tableView?.id === id ? tableView.rows : []; }
+async function loadTablePage(id, page = 0, search = '') {
+  const restricted = ['issued', 'overdue', 'fines'].includes(id);
+  const manifest = restricted ? _restrictedData : _publicData;
+  if (!manifest || (restricted && !_isStaffVerified)) return;
+  if (tableView?.id !== id || tableView.manifest !== manifest) {
+    closeTableView();
+    const name = restricted ? 'circulation_shards' : 'catalog_shards';
+    const view = { id, manifest, rows: [] };
+    view.pager = createSnapshotPager(async (generation, index) => fetchSnapshotPage({
+      projectId: firebaseConfig.projectId, apiKey: firebaseConfig.apiKey,
+      token: auth.currentUser ? await auth.currentUser.getIdToken() : null,
+      collection: name, generation, index, signal: view.abort.signal,
+    }));
+    tableView = view;
+  }
+  const current = tableView, ticket = ++tableEpoch;
+  current.abort?.abort(); current.abort = new AbortController();
+  current.pager.cancel();
+  current.page = page; current.search = search; current.loading = true;
+  const tbody = document.getElementById(id + '-tbody');
+  tbody.setAttribute('aria-busy', 'true');
+  tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state" role="status">Loading 25 records…</div></td></tr>';
+  let controls = document.getElementById(id + '-paging');
+  if (!controls) { controls = document.createElement('div'); controls.id = id + '-paging'; controls.className = 'list-card-header'; tbody.closest('.list-card').appendChild(controls); }
+  controls.replaceChildren();
+  try {
+    const result = await current.pager.read(manifest, tableKeys[id], page, search);
+    if (ticket !== tableEpoch || current !== tableView) return;
+    current.rows = result.rows; current.loading = false;
+    ({ available: renderAvailable, issued: renderIssued, damaged: renderDamaged, overdue: renderOverdue, fines: renderFines })[id]();
+    if (search && !result.rows.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">No matching records in this catalogue.</div></td></tr>'; }
+    const previous = document.createElement('button'), next = document.createElement('button'), status = document.createElement('span');
+    previous.className = next.className = 'btn btn-ghost btn-sm';
+    previous.textContent = 'Previous 25'; next.textContent = 'Next 25';
+    previous.disabled = page === 0; next.disabled = !result.hasMore;
+    status.setAttribute('role', 'status');
+    status.textContent = result.rows.length ? `Showing ${page * 25 + 1}–${page * 25 + result.rows.length}${search ? ' matching records' : ''}` : (search ? 'No matching records' : 'No records');
+    previous.onclick = () => loadTablePage(id, page - 1, search);
+    next.onclick = () => loadTablePage(id, page + 1, search);
+    controls.replaceChildren(previous, status, next);
+  } catch (error) {
+    if (ticket !== tableEpoch || current !== tableView) return;
+    current.loading = false;
+    tbody.replaceChildren();
+    const row = tbody.insertRow(), cell = row.insertCell(); cell.colSpan = 7; cell.textContent = error.message;
+    const retry = document.createElement('button'); retry.className = 'btn btn-ghost'; retry.textContent = 'Retry'; retry.onclick = () => loadTablePage(id, page, search); controls.replaceChildren(retry);
+  } finally { if (ticket === tableEpoch) tbody.setAttribute('aria-busy', 'false'); }
+}
 
 /* ── TOAST ── */
 function showToast(msg, type="default", dur=3200) {
@@ -258,7 +379,7 @@ function buildStatCards(s) {
   const node = document.getElementById('overview-stats');
   node.className = 'overview-ledger';
   node.innerHTML = '<div class="collection-total"><div class="slip-label"><span class="t-icon" data-icon="books" aria-hidden="true"></span> COLLECTION LEDGER</div><div class="stat-value" id="s-total">'+_esc(s.total_books??0)+'</div><div class="stat-label">Books in your collection</div><p class="ledger-meta">On the shelf, on loan,<br>or awaiting care.</p></div><div class="overview-ledger-items">'
-    + cards.map(c => '<div class="ledger-item" data-tone="'+(c.tone||'neutral')+'"><div class="stat-value" id="'+c.id+'">'+(c.prefix||'')+_esc(c.val??0)+'</div><div class="stat-label">'+c.label+'</div></div>').join('')+'</div>';
+    + cards.map(c => '<div class="ledger-item" data-tone="'+(c.tone||'neutral')+'"><div class="stat-value" id="'+c.id+'">'+(c.prefix ? money(c.val ?? 0) : _esc(c.val??0))+'</div><div class="stat-label">'+c.label+'</div></div>').join('')+'</div>';
 }
 
 function renderOverview() {
@@ -281,16 +402,16 @@ function renderOverview() {
     + '</div></section><section class="card attention-slip"><div class="slip-label"><span class="t-icon" data-icon="tray" aria-hidden="true"></span> FOLLOW THROUGH</div><div class="card-title">Needs your attention</div><div class="attention-rows">'
     + [{page:'overdue',label:'Overdue books',detail:'Copies waiting to come back.',value:s.overdue_count||0},{page:'fines',label:'Pending fines',detail:'Review outstanding collections.',value:s.pending_fines||0},{page:'requests',label:'Book requests',detail:'Borrowing requests for the desk.',value:pendingRequests}].map(row=>'<button class="attention-row" data-workspace-page="'+row.page+'"><span><strong>'+row.label+'</strong><small>'+row.detail+'</small></span><span>'+_esc(row.value)+'<span class="t-icon" data-icon="arrow-right" aria-hidden="true"></span></span></button>').join('')
     + '</div><p class="overview-queue-caption">Latest library sync: '+_esc(updated)+'. Circulation records are managed at the librarian desk.</p></section>';
-  const overdueHTML = overdue.length ? overdue.map(o=>'<div class="collection-state-row"><span class="t-icon" data-icon="clock" aria-hidden="true"></span><div><strong>'+_esc(o.book_title)+'</strong><br><span class="td-id">'+_esc(o.student_name)+' · '+_esc(o.student_class)+'</span></div><span class="overdue-chip">'+_esc(o.days_overdue)+'d</span></div>').join('') : '<div class="empty-state"><span class="empty-icon"><span class="t-icon" data-icon="check-circle" aria-hidden="true"></span></span><h4>No overdue books</h4><p>The collection is returning on time.</p></div>';
-  const finesHTML = fines.length ? fines.map(f=>'<div class="collection-state-row"><span class="t-icon" data-icon="coins" aria-hidden="true"></span><div><strong>'+_esc(f.student_name)+'</strong><br><span class="td-id">'+_esc(f.book_title)+'</span></div><span>₹'+_esc(f.fine_amount)+'</span></div>').join('') : '<div class="empty-state"><span class="empty-icon"><span class="t-icon" data-icon="check-circle" aria-hidden="true"></span></span><h4>No pending fines</h4><p>Outstanding balances will appear here.</p></div>';
-  document.getElementById('bottom-row').innerHTML = '<section class="list-card"><div class="list-card-header"><div><div class="card-title">Overdue reading list</div><div class="card-subtitle">The five longest outstanding loans</div></div><button class="btn btn-ghost btn-sm" data-workspace-page="overdue">View All</button></div><div style="padding:0 24px">'+overdueHTML+'</div></section><section class="list-card"><div class="list-card-header"><div><div class="card-title">Outstanding fines</div><div class="card-subtitle">Highest balances first</div></div><button class="btn btn-ghost btn-sm" data-workspace-page="fines">View All</button></div><div style="padding:0 24px">'+finesHTML+'</div></section>';
+  const overdueHTML = !Array.isArray(_data.overdueList) && s.overdue_count > 0 ? '<p class="overview-queue-caption">Open Overdue Books to load these records, 25 at a time.</p>' : overdue.length ? overdue.map(o=>'<div class="collection-state-row"><span class="t-icon" data-icon="clock" aria-hidden="true"></span><div><strong>'+_esc(o.book_title)+'</strong><br><span class="td-id">'+_esc(o.student_name)+' · '+_esc(o.student_class)+'</span></div><span class="overdue-chip">'+_esc(o.days_overdue)+'d</span></div>').join('') : '<div class="empty-state"><span class="empty-icon"><span class="t-icon" data-icon="check-circle" aria-hidden="true"></span></span><h4>No overdue books</h4><p>The collection is returning on time.</p></div>';
+  const finesHTML = !Array.isArray(_data.finesList) && s.pending_fines > 0 ? '<p class="overview-queue-caption">Open Pending Fines to load these records, 25 at a time.</p>' : fines.length ? fines.map(f=>'<div class="collection-state-row"><span class="t-icon" data-icon="coins" aria-hidden="true"></span><div><strong>'+_esc(f.student_name)+'</strong><br><span class="td-id">'+_esc(f.book_title)+'</span></div><span>'+money(f.fine_amount)+'</span></div>').join('') : '<div class="empty-state"><span class="empty-icon"><span class="t-icon" data-icon="check-circle" aria-hidden="true"></span></span><h4>No pending fines</h4><p>Outstanding balances will appear here.</p></div>';
+  document.getElementById('bottom-row').innerHTML = '<section class="list-card"><div class="list-card-header"><div><div class="card-title">Overdue reading list</div><div class="card-subtitle">Open the list to review outstanding loans</div></div><button class="btn btn-ghost btn-sm" data-workspace-page="overdue">View All</button></div><div style="padding:0 24px">'+overdueHTML+'</div></section><section class="list-card"><div class="list-card-header"><div><div class="card-title">Outstanding fines</div><div class="card-subtitle">Open the list to review outstanding balances</div></div><button class="btn btn-ghost btn-sm" data-workspace-page="fines">View All</button></div><div style="padding:0 24px">'+finesHTML+'</div></section>';
 }
 
 /* ── OTHER PAGE RENDERERS (unchanged logic, no skeleton needed) ── */
 function renderIssued() {
   if (!_data) return;
-  const list = _data.issuedList || [];
-  setText("issued-count-label",`${list.length} books currently issued`);
+  const list = tableRows('issued');
+  setText("issued-count-label",`${_data.stats?.issued || 0} books currently issued · 25 per page`);
   const tbody = document.getElementById("issued-tbody");
   if (!list.length){tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><span class="empty-icon">📤</span><h4>No books issued</h4></div></td></tr>`;return;}
   tbody.innerHTML = list.map(b=>{
@@ -307,8 +428,8 @@ function renderIssued() {
 
 function renderAvailable() {
   if (!_data) return;
-  const list = _data.availableList || [];
-  setText("available-count-label",`${list.length} books on shelf`);
+  const list = tableRows('available');
+  setText("available-count-label",`${_data.stats?.available || 0} books on shelf · 25 per page`);
   const tbody = document.getElementById("available-tbody");
   if (!list.length){tbody.innerHTML=`<tr><td colspan="4"><div class="empty-state"><span class="empty-icon">📗</span><h4>No books available</h4></div></td></tr>`;return;}
   tbody.innerHTML=list.map(b=>`<tr>
@@ -319,8 +440,8 @@ function renderAvailable() {
 
 function renderOverdue() {
   if (!_data) return;
-  const list = (_data.overdueList||[]).slice().sort((a,b)=>b.days_overdue-a.days_overdue);
-  setText("overdue-total",list.length);
+  const list = tableRows('overdue');
+  setText("overdue-total",_data.stats?.overdue_count || 0);
   const tbody=document.getElementById("overdue-tbody");
   if (!list.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><span class="empty-icon">🎉</span><h4>No overdue books!</h4></div></td></tr>`;return;}
   tbody.innerHTML=list.map(o=>`<tr class="row-overdue">
@@ -328,17 +449,17 @@ function renderOverdue() {
     <td>${_esc(o.student_name)}<br><span class="td-id">${_esc(o.student_id)}</span></td>
     <td><span class="badge badge-blue">${_esc(o.student_class)}</span></td>
     <td>${fmtDate(o.due_date)}</td>
-    <td><span class="overdue-chip">⏰ ${o.days_overdue} days</span></td>
-    <td style="color:var(--coral-dark);font-family:var(--font-display);font-size:15px;font-weight:700">₹${o.fine_accrued}</td>
+    <td><span class="overdue-chip">⏰ ${_esc(o.days_overdue)} days</span></td>
+    <td style="color:var(--coral-dark);font-family:var(--font-display);font-size:15px;font-weight:700">${money(o.fine_accrued)}</td>
   </tr>`).join("");
 }
 
 function renderFines() {
   if (!_data) return;
-  const list=(_data.finesList||[]).slice().sort((a,b)=>b.fine_amount-a.fine_amount);
-  const total=list.reduce((s,f)=>s+(f.fine_amount||0),0);
-  setText("fines-total-amt","₹"+total);
-  setText("fines-total-count",list.length);
+  const list=tableRows('fines');
+  const total=_data.stats?.total_fine_amt || 0;
+  setText("fines-total-amt",money(total));
+  setText("fines-total-count",_data.stats?.pending_fines || 0);
   const tbody=document.getElementById("fines-tbody");
   if (!list.length){tbody.innerHTML=`<tr><td colspan="5"><div class="empty-state"><span class="empty-icon">🎊</span><h4>No pending fines</h4></div></td></tr>`;return;}
   tbody.innerHTML=list.map(f=>`<tr>
@@ -346,13 +467,13 @@ function renderFines() {
     <td>${_esc(f.student_name)}<br><span class="td-id">${_esc(f.student_id)}</span></td>
     <td><span class="badge badge-blue">${_esc(f.student_class)}</span></td>
     <td>${fmtDate(f.return_date)}</td>
-    <td style="color:var(--yellow-dark);font-family:var(--font-display);font-size:16px;font-weight:700">₹${f.fine_amount}</td>
+    <td style="color:var(--yellow-dark);font-family:var(--font-display);font-size:16px;font-weight:700">${money(f.fine_amount)}</td>
   </tr>`).join("");
 }
 
 function renderDamaged() {
   if (!_data) return;
-  const list=_data.damagedList||[];
+  const list=tableRows('damaged');
   const tbody=document.getElementById("damaged-tbody");
   if (!list.length){tbody.innerHTML=`<tr><td colspan="4"><div class="empty-state"><span class="empty-icon">📗</span><h4>No damaged books</h4></div></td></tr>`;return;}
   const bm={Damaged:"badge-coral","Under Repair":"badge-yellow",Lost:"badge-gray"};
@@ -437,10 +558,8 @@ function startLibraryListener() {
 }
 
 async function hydrateSnapshot(manifest, name) {
-  return TomevaCloudShards.hydrate(manifest, async generation => {
-    const pages = await getDocs(query(collection(db, 'libraries', LIBRARY_ID, name), where('generation', '==', generation)));
-    return pages.docs.map(page => page.data());
-  }, name === 'circulation_shards');
+  // Keep only summary metadata here. Table views fetch bounded pages on demand.
+  return manifest;
 }
 
 function refreshDashboardData() {
@@ -462,7 +581,12 @@ function startRestrictedListener() {
     if (!_isStaffVerified || _adminCurrentUser?.uid !== uid || version !== readVersion) return;
     _restrictedData = value;
     refreshDashboardData();
-  },(err)=>{console.error("[Admin circulation]",err);setSyncBadge("error","Circulation unavailable");});
+  },(err)=>{
+    console.error("[Admin circulation]",err);
+    if (tableView && ['issued', 'overdue', 'fines'].includes(tableView.id)) closeTableView();
+    _restrictedData = null; refreshDashboardData();
+    setSyncBadge("error","Circulation unavailable");
+  });
 }
 
 function startLibrarianNotifListener() {
@@ -526,6 +650,18 @@ function renderCurrentPage(){
   const active=document.querySelector(".page-view.active");
   if(!active)return;
   const id=active.id.replace("page-","");
+  if (tableKeys[id]) {
+    const manifest = ['issued', 'overdue', 'fines'].includes(id) ? _restrictedData : _publicData;
+    if (!manifest) {
+      closeTableView();
+      const tbody = document.getElementById(id + '-tbody');
+      const row = tbody.insertRow(), cell = row.insertCell(); cell.colSpan = 7;
+      cell.textContent = ['issued', 'overdue', 'fines'].includes(id) && !_isStaffVerified ? 'Sign in as authorized staff to load circulation.' : 'Waiting for the next library sync.';
+      return;
+    }
+    if (tableView?.id !== id || tableView.manifest !== manifest) loadTablePage(id);
+    return;
+  }
   if(id==="overview")   renderOverview();
   if(id==="issued")     renderIssued();
   if(id==="available")  renderAvailable();
@@ -545,6 +681,7 @@ function renderCurrentPage(){
 /* ── APP CONTROLLER ── */
 window.adminApp={
   navigate(page){
+    if (tableView?.id !== page) closeTableView();
     document.querySelectorAll(".page-view").forEach(v=>v.classList.remove("active"));
     document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
     const view=document.getElementById("page-"+page);
@@ -571,10 +708,17 @@ window.adminApp={
     if(page==="notifications"){renderAdminSent();adminApp.loadLibrarianMessages();}
   },
   refresh(){
+    closeTableView();
     renderCurrentPage();
     showToast("Refreshed ✓","success",1500);
   },
   filterTable(tbodyId,q){
+    const id = tbodyId.replace('-tbody', '');
+    if (tableKeys[id]) {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => loadTablePage(id, 0, q), 300);
+      return;
+    }
     const tbody=document.getElementById(tbodyId);if(!tbody)return;
     tbody.querySelector('.filter-empty')?.remove();
     q=q.trim().toLowerCase();
@@ -788,6 +932,7 @@ window.doAdminGoogleSignIn = async function() {
 };
 
 window.doAdminSignOut = async function() {
+  closeTableView();
   await signOut(auth);
 };
 
@@ -812,6 +957,7 @@ if (window.tomevaAdmin?.onOAuthCallback) {
 }
 
 onAuthStateChanged(auth, async (user) => {
+  closeTableView();
   _staffListeners.forEach(stop => stop()); _staffListeners = [];
   _adminCurrentUser = user;
   _isStaffVerified = false;
@@ -824,9 +970,9 @@ onAuthStateChanged(auth, async (user) => {
   document.getElementById('approval-save').disabled = true;
   if (user?.emailVerified && user.email?.toLowerCase().endsWith('@' + STAFF_DOMAIN)) {
     try {
-      const staff = await getDoc(doc(db, 'staff_accounts', user.email.toLowerCase()));
+      const [staff, identity] = await Promise.all([getDocFromServer(doc(db, 'staff_accounts', user.email.toLowerCase())), user.getIdTokenResult()]);
       if (auth.currentUser?.uid !== user.uid) return;
-      _isStaffVerified = staff.exists() && staff.data().active === true;
+      _isStaffVerified = identity.claims.firebase?.sign_in_provider === 'google.com' && staff.exists() && staff.data().active === true;
       if (_isStaffVerified && user.providerData?.some(provider => provider.providerId === 'google.com')) {
         const grant = await getDoc(doc(db, 'kiosk_admins', user.uid));
         if (auth.currentUser?.uid !== user.uid) return;
@@ -837,8 +983,11 @@ onAuthStateChanged(auth, async (user) => {
   refreshDashboardData();
   if (_isStaffVerified) {
     startRestrictedListener();
-    _staffListeners = [startApprovalListener(), startLibrarianNotifListener(), startRequestsListener(), startAuthorizedStudentsListener(), startPendingLoginsListener(), startAdmissionRosterListener()];
+    _staffListeners = [startApprovalListener(), startLibrarianNotifListener(), startRequestsListener(), startAuthorizedStudentsListener(), startPendingLoginsListener(), startAdmissionRosterListener(), startAdminAuditListener(), startDeletionRequestsListener()];
   } else {
+    _auditEntries = [];
+    document.getElementById('admin-audit-tbody').replaceChildren();
+    document.getElementById('account-deletion-list').replaceChildren();
     _allRequests = []; _allAuthorizedStudents = []; _allPendingLogins = []; _admissionRoster = [];
     renderAdminRequests(); updateRequestsBadge(0); updateAdminBadge(0);
     document.getElementById('admin-incoming-list').textContent = 'Sign in as verified staff to read library messages.';
@@ -1001,35 +1150,61 @@ document.getElementById('student-message-form').addEventListener('submit', async
    AUTHORIZED STUDENTS  (Firestore collection, staff-managed)
 ══════════════════════════════ */
 function startAuthorizedStudentsListener() {
-  return onSnapshot(collection(db, "libraries", LIBRARY_ID, "authorized_students"), (snap) => {
-    _allAuthorizedStudents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const active = document.querySelector(".page-view.active");
-    if (active && active.id === "page-access") { renderAuthorizedStudents(); renderPendingVerification(); }
-  }, err => console.warn("[AuthorizedStudents]", err.message));
+  return startDirectory('authorized_students', 'access', rows => { _allAuthorizedStudents = rows; renderAuthorizedStudents(); });
 }
 
 function startPendingLoginsListener() {
-  return onSnapshot(collection(db, "libraries", LIBRARY_ID, "student_logins"), (snap) => {
-    _allPendingLogins = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const active = document.querySelector(".page-view.active");
-    if (active && active.id === "page-access") renderPendingVerification();
-  }, err => console.warn("[PendingLogins]", err.message));
+  return startDirectory('student_logins', 'pending', rows => { _allPendingLogins = rows; renderPendingVerification(); }, async rows => Promise.all(rows.map(async row => {
+    const [access, roster] = await Promise.all([
+      getDocFromServer(doc(db, 'libraries', LIBRARY_ID, 'authorized_students', row.id)),
+      row.adm_no ? getDocFromServer(doc(db, 'libraries', LIBRARY_ID, 'admission_roster', encodeURIComponent(String(row.adm_no).trim().toLowerCase()))) : null,
+    ]);
+    return { ...row, authorized: access.exists(), roster: roster?.data() || null };
+  })));
 }
 
 function startAdmissionRosterListener() {
-  return onSnapshot(collection(db, "libraries", LIBRARY_ID, "admission_roster"), snap => {
-    _admissionRoster = snap.docs.map(item => ({ id: item.id, ...item.data() }));
-    document.getElementById('roster-count').textContent = _admissionRoster.length;
+  return startDirectory('admission_roster', 'roster', rows => {
+    _admissionRoster = rows;
+    document.getElementById('roster-count').textContent = `${rows.length} on this page`;
     renderAdmissionRoster();
     if (!_pendingRosterRows.length) document.getElementById('roster-status').textContent = 'Choose a CSV or JSON roster to pre-register admission numbers.';
-    const active = document.querySelector('.page-view.active');
-    if (active?.id === 'page-access') renderPendingVerification();
-  }, error => {
-    const message = rosterImportErrorMessage(error);
-    document.getElementById('roster-status').textContent = message;
-    console.warn('[AdmissionRoster]', message);
   });
 }
+
+const directoryViews = new Map();
+function startDirectory(kind, id, receive, enrich) {
+  const body = document.getElementById(id === 'access' ? 'access-tbody' : id === 'pending' ? 'pending-tbody' : 'roster-tbody');
+  const controls = document.createElement('div'); controls.className = 'list-card-header';
+  body.closest('.table-wrap').after(controls);
+  let rosterSearch;
+  if (id === 'roster') {
+    rosterSearch = document.createElement('input'); rosterSearch.type = 'search'; rosterSearch.maxLength = 128;
+    rosterSearch.placeholder = 'Find admission number by prefix…'; rosterSearch.setAttribute('aria-label', 'Find admission number by prefix');
+    rosterSearch.oninput = () => searchDirectory(id, encodeURIComponent(rosterSearch.value.trim().toLowerCase()));
+    controls.before(rosterSearch);
+  }
+  const view = { prefix: '' };
+  view.pager = createDirectoryPager({ sdk: firestoreSdk, reference: collection(db, 'libraries', LIBRARY_ID, kind), enrich,
+    receive(result) {
+      view.prefix = result.prefix; receive(result.rows); controls.replaceChildren();
+      const previous = document.createElement('button'), next = document.createElement('button'), label = document.createElement('span');
+      previous.className = next.className = 'btn btn-ghost btn-sm'; previous.textContent = 'Previous 25'; next.textContent = 'Next 25';
+      previous.disabled = result.page === 0; next.disabled = !result.hasMore;
+      previous.onclick = () => view.pager.load(result.page - 1); next.onclick = () => view.pager.load(result.page + 1);
+      label.textContent = `Page ${result.page + 1} · ${result.rows.length} records${id === 'pending' ? ' (verified profiles hidden)' : ''}`; label.setAttribute('role', 'status');
+      controls.append(previous, label, next);
+    }, failure(error) { body.textContent = 'Directory unavailable: ' + error.message; controls.replaceChildren(); },
+  });
+  directoryViews.set(id, view); view.pager.load();
+  return () => { clearTimeout(view.timer); view.pager.clear(); directoryViews.delete(id); controls.remove(); rosterSearch?.remove(); body.replaceChildren(); };
+}
+function searchDirectory(id, value) {
+  const view = directoryViews.get(id); if (!view) return;
+  clearTimeout(view.timer);
+  view.timer = setTimeout(() => { view.prefix = String(value).trim().toLowerCase(); view.pager.load(0, view.prefix); }, 200);
+}
+function refreshDirectories() { for (const view of directoryViews.values()) view.pager.load(0, view.prefix); }
 
 function rosterMatch(admissionNumber) {
   const wanted = String(admissionNumber || '').trim().toLowerCase();
@@ -1127,8 +1302,8 @@ document.getElementById('roster-import').addEventListener('click', async () => {
       }
     }
     let authorized = 0;
-    for (let offset = 0; offset < _pendingRosterRows.length; offset += 100) {
-      const rows = _pendingRosterRows.slice(offset, offset + 100);
+    for (let offset = 0; offset < _pendingRosterRows.length; offset += 1) {
+      const rows = _pendingRosterRows.slice(offset, offset + 1);
       await runTransaction(db, async transaction => {
         const refs = rows.map(row => {
           if (!row.adm_no || row.adm_no.length > 40) throw new Error('Invalid admission number: ' + row.adm_no);
@@ -1149,7 +1324,7 @@ document.getElementById('roster-import').addEventListener('click', async () => {
         }
       });
       if (authorize) authorized += rows.filter(row => row.email).length;
-      status.textContent = `Imported ${Math.min(offset + 100, _pendingRosterRows.length)} of ${_pendingRosterRows.length}…`;
+      status.textContent = `Imported ${Math.min(offset + 1, _pendingRosterRows.length)} of ${_pendingRosterRows.length}…`;
     }
     status.textContent = `Imported ${_pendingRosterRows.length} admission numbers${authorize ? ` and authorized ${authorized} students with email addresses` : ''}.`;
     showToast('Admission roster imported.', 'success');
@@ -1167,17 +1342,7 @@ function renderPendingVerification() {
   const badge = document.getElementById("pending-count-badge");
   if (!tbody) return;
 
-  const authorizedEmails = new Set(_allAuthorizedStudents.map(s => s.id));
-  const q = (document.getElementById("pending-search")?.value || "").toLowerCase().trim();
-
-  // Pending = anyone who's logged in but not yet in authorized_students.
-  let list = _allPendingLogins.filter(p => !authorizedEmails.has(p.id));
-  if (q) list = list.filter(p =>
-    (p.name||"").toLowerCase().includes(q) ||
-    (p.class||"").toLowerCase().includes(q) ||
-    (p.section||"").toLowerCase().includes(q) ||
-    (p.adm_no||"").toLowerCase().includes(q)
-  );
+  let list = _allPendingLogins.filter(p => !p.authorized);
   list.sort((a,b) => (a.name||"").localeCompare(b.name||""));
 
   if (badge) {
@@ -1186,12 +1351,12 @@ function renderPendingVerification() {
   }
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><span class="empty-icon">✅</span><h4>Nobody waiting</h4><p>All signed-in students have been verified.</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><h4>No waiting profiles on this page</h4><p>Use Next 25 or search by email prefix to check other profiles.</p></div></td></tr>`;
     return;
   }
 
   tbody.innerHTML = list.map(p => {
-    const roster = rosterMatch(p.adm_no); const group = roster?.group || 'Regular';
+    const roster = p.roster; const group = roster?.group || 'Regular';
     return `<tr>
     <td><strong>${_esc(roster?.name || p.name || "—")}</strong><br><span class="text-sm text-muted">${_esc(p.email || p.id)}</span></td>
     <td>${_esc(roster?.class || p.class || "—")}</td>
@@ -1233,7 +1398,7 @@ window.approvePendingStudent = async function(email, name) {
   const group = groupSelect ? groupSelect.value : "Regular";
   const pending = _allPendingLogins.find(student => student.id === email) || {};
   if (!String(pending.adm_no || '').trim()) { showToast('This student has no admission number in their portal profile.', 'error'); return; }
-  const roster = rosterMatch(pending.adm_no);
+  const roster = pending.roster;
   const owner = admissionOwner(pending.adm_no, email);
   if (owner) { showToast(`Admission number ${pending.adm_no} is already assigned to ${owner.name || owner.email || owner.id}.`, 'error', 7000); return; }
 
@@ -1248,6 +1413,7 @@ window.approvePendingStudent = async function(email, name) {
       updated_at: serverTimestamp(),
     });
     showToast(name + " approved as " + group + " ✓", "success");
+    refreshDirectories();
     // The authorized_students listener will re-render both lists automatically,
     // removing this row from Pending Verification.
   } catch (err) {
@@ -1259,13 +1425,7 @@ function renderAuthorizedStudents() {
   const tbody = document.getElementById("access-tbody");
   if (!tbody) return;
 
-  const q = (document.getElementById("access-search")?.value || "").toLowerCase().trim();
   let list = _allAuthorizedStudents.slice().sort((a,b) => (a.name||a.email||"").localeCompare(b.name||b.email||""));
-  if (q) list = list.filter(s =>
-    (s.email||"").toLowerCase().includes(q) ||
-    (s.name||"").toLowerCase().includes(q) ||
-    (s.adm_no||"").toLowerCase().includes(q)
-  );
 
   if (!list.length) {
     tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><span class="empty-icon">🔐</span><h4>No authorized students yet</h4><p>Add a student above to get started.</p></div></td></tr>`;
@@ -1339,14 +1499,15 @@ window.addAuthorizedStudent = async function() {
 window.removeAuthorizedStudent = async function(email) {
   if (!(await showConfirm("Delete Tomeva access and sign-in profile for " + email + "? Historical requests will remain."))) return;
   try {
-    const account = _allAuthorizedStudents.find(student => student.id === email);
-    const admission = String(account?.adm_no || '').trim();
-    const rosterRef = admission ? doc(db, 'libraries', LIBRARY_ID, 'admission_roster', encodeURIComponent(admission.toLowerCase())) : null;
-    const claimRef = admission ? doc(db, 'libraries', LIBRARY_ID, 'adm_claims', admissionKey(admission)) : null;
     await runTransaction(db, async transaction => {
+      const accessRef = doc(db, 'libraries', LIBRARY_ID, 'authorized_students', email);
+      const account = await transaction.get(accessRef);
+      const admission = String(account.data()?.adm_no || '').trim();
+      const rosterRef = admission ? doc(db, 'libraries', LIBRARY_ID, 'admission_roster', encodeURIComponent(admission.toLowerCase())) : null;
+      const claimRef = admission ? doc(db, 'libraries', LIBRARY_ID, 'adm_claims', admissionKey(admission)) : null;
       const roster = rosterRef ? await transaction.get(rosterRef) : null;
       const claim = claimRef ? await transaction.get(claimRef) : null;
-      transaction.delete(doc(db, "libraries", LIBRARY_ID, "authorized_students", email));
+      transaction.delete(accessRef);
       transaction.delete(doc(db, "libraries", LIBRARY_ID, "student_logins", email));
       if (claim?.exists() && claim.data().email === email) transaction.delete(claimRef);
       if (roster?.exists() && String(roster.data().email || '').trim().toLowerCase() === email) transaction.update(rosterRef, { email: '', updated_at: serverTimestamp() });
@@ -1386,8 +1547,8 @@ document.addEventListener('input', function(event) {
   switch (element.dataset.handlerInput) {
     case 'h1': result = (function(event) { adminApp.filterTable('issued-tbody',this.value) }).call(element, event); break;
     case 'h2': result = (function(event) { adminApp.filterTable('available-tbody',this.value) }).call(element, event); break;
-    case 'h6': result = (function(event) { renderPendingVerification() }).call(element, event); break;
-    case 'h7': result = (function(event) { renderAuthorizedStudents() }).call(element, event); break;
+    case 'h6': result = (function(event) { searchDirectory('pending', this.value) }).call(element, event); break;
+    case 'h7': result = (function(event) { searchDirectory('access', this.value) }).call(element, event); break;
   }
   if (result === false) event.preventDefault();
 });

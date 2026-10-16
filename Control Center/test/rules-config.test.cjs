@@ -12,6 +12,8 @@ test('institution rules use the selected staff domain with literal dots', () => 
     assert.ok(!result.includes('staff.example'));
     assert.ok(!result.includes('staff\\\\.example'));
     assert.ok(result.includes('request.auth.token.email_verified == true'));
+    assert.ok(result.includes("request.auth.token.firebase.sign_in_provider == 'google.com'"));
+    assert.equal(result, source.replaceAll('staff\\\\.example', domain.replace(/\./g, '\\\\.')).replaceAll('staff.example', domain));
   }
 });
 test('institution rules reject an unset or template domain', () => {

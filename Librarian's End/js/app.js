@@ -488,6 +488,30 @@ function _initReturnPage() {
    FINES  (Pending / Collected tabs)
 ══════════════════════════════════════════════ */
 var _currentFinesTab = 'pending';
+var _deskPages = {};
+function _deskRows(table, key, options, render, tbodyId) {
+  var signature = JSON.stringify(options);
+  var state = _deskPages[key];
+  if (!state || state.signature !== signature) state = _deskPages[key] = { page: 0, signature: signature };
+  var result;
+  if (LibraryDB.pageRows) result = LibraryDB.pageRows(table, Object.assign({}, options, { page: state.page, pageSize: 25 }));
+  else {
+    var rows = table === 'books' ? (options.query ? LibraryDB.searchBooks(options.query) : LibraryDB.getBooks()) : table === 'students' ? (options.query ? LibraryDB.searchStudents(options.query) : LibraryDB.getStudents()) : table === 'finePayments' ? LibraryDB.getFinePayments().slice().reverse() : LibraryDB.getTransactions().slice().reverse();
+    if (options.status && options.status !== 'all') rows = rows.filter(function(row) { return row.status === options.status; });
+    result = { rows: rows.slice(state.page * 25, state.page * 25 + 25), total: rows.length, page: state.page };
+  }
+  state.page = result.page;
+  var tbody = document.getElementById(tbodyId);
+  var id = tbodyId + '-pager', pager = document.getElementById(id);
+  if (!pager) { pager = document.createElement('div'); pager.id = id; pager.className = 'list-card-header'; tbody.closest('table').parentElement.parentElement.appendChild(pager); }
+  var previous = document.createElement('button'), next = document.createElement('button'), label = document.createElement('span');
+  previous.className = next.className = 'btn btn-ghost btn-sm'; previous.textContent = 'Previous 25'; next.textContent = 'Next 25';
+  previous.disabled = state.page === 0; next.disabled = (state.page + 1) * 25 >= result.total;
+  previous.onclick = function() { state.page--; render(); }; next.onclick = function() { state.page++; render(); };
+  label.textContent = result.total ? 'Showing ' + (state.page * 25 + 1) + '–' + (state.page * 25 + result.rows.length) + ' of ' + result.total : 'No records';
+  pager.replaceChildren(previous, label, next);
+  return result.rows;
+}
 
 window.switchFinesTab = function(tab) {
   _currentFinesTab = tab;
@@ -497,14 +521,15 @@ window.switchFinesTab = function(tab) {
 };
 
 function _renderFines() {
-  var pending   = LibraryDB.getPendingFines();
-  var collected = LibraryDB.getFinePayments().slice().sort(function(a,b){ return new Date(b.paid_at) - new Date(a.paid_at); });
+  var summary = LibraryDB.fineSummary ? LibraryDB.fineSummary() : null;
+  var pending = _currentFinesTab === 'pending' ? _deskRows('transactions', 'fines-pending', { status: 'FinePending' }, _renderFines, 'fines-tbody') : [];
+  var collected = _currentFinesTab === 'collected' ? _deskRows('finePayments', 'fines-collected', {}, _renderFines, 'fines-tbody') : [];
   var tbody     = document.getElementById('fines-tbody');
   var titleEl   = document.getElementById('fines-list-title');
   var subEl     = document.getElementById('fines-list-subtitle');
 
-  _setText('total-fines-due',       '₹' + pending.reduce(function(s,t){ return s+t.fine; }, 0));
-  _setText('total-fines-collected', '₹' + LibraryDB.getTotalCollected());
+  _setText('total-fines-due',       '₹' + (summary ? summary.pendingAmount : pending.reduce(function(s,t){ return s+t.fine; }, 0)));
+  _setText('total-fines-collected', '₹' + (summary ? summary.collectedAmount : LibraryDB.getTotalCollected()));
 
   if (!tbody) return;
 
@@ -519,11 +544,11 @@ function _renderFines() {
       var student = LibraryDB.getStudent(p.student_adm_no);
       var book    = LibraryDB.getBook(p.book_access_no);
       return '<tr>'
-        + '<td class="td-id">' + p.payment_id.slice(-8) + '</td>'
-        + '<td>' + _esc(student ? student.name : p.student_adm_no) + '<br><span class="td-id">' + p.student_adm_no + '</span></td>'
-        + '<td>' + _esc(book ? book.document : p.book_access_no)   + '<br><span class="td-id">' + p.book_access_no  + '</span></td>'
-        + '<td>' + LibraryDB.formatDate(p.paid_date) + '</td>'
-        + '<td><span class="fine-amount" style="color:var(--green-dark)">₹' + p.amount + '</span></td>'
+        + '<td class="td-id">' + _esc(p.payment_id.slice(-8)) + '</td>'
+        + '<td>' + _esc(student ? student.name : p.student_adm_no) + '<br><span class="td-id">' + _esc(p.student_adm_no) + '</span></td>'
+        + '<td>' + _esc(book ? book.document : p.book_access_no)   + '<br><span class="td-id">' + _esc(p.book_access_no) + '</span></td>'
+        + '<td>' + _esc(LibraryDB.formatDate(p.paid_date)) + '</td>'
+        + '<td><span class="fine-amount" style="color:var(--green-dark)">₹' + _esc(p.amount) + '</span></td>'
         + '<td><span class="badge badge-green">Paid</span></td>'
         + '</tr>';
     }).join('');
@@ -611,6 +636,7 @@ function _performSearch(q) {
   var div = document.getElementById('search-results');
   if (!div) return;
   if (!q || !q.trim()) { div.innerHTML = ''; return; }
+  q = String(q).slice(0, 128);
 
   var books    = LibraryDB.searchBooks(q);
   var students = LibraryDB.searchStudents(q);
@@ -628,10 +654,10 @@ function _performSearch(q) {
   if (students.length) {
     html += '<div class="section-title" style="margin-top:20px">🎓 Students (' + students.length + ')</div><div class="search-results-list">'
       + students.map(function(s) {
-          var active = LibraryDB.getActiveTransactions().filter(function(t){ return t.student_adm_no === s.adm_no; });
+          var activeCount = s.loanCounts ? s.loanCounts.active : LibraryDB.getActiveTransactions().filter(function(t){ return t.student_adm_no === s.adm_no; }).length;
           return '<div class="search-result-item"><div class="sr-left"><h4>' + _esc(s.name) + '</h4>'
             + '<p><span class="td-id">' + _esc(s.adm_no) + '</span> · Class ' + _esc(s.class) + _esc(s.section) + ' · Roll ' + _esc(s.roll_no) + '</p></div>'
-            + '<div class="text-sm text-muted">' + (active.length ? active.length + ' book(s) issued' : 'No active issues') + '</div></div>';
+            + '<div class="text-sm text-muted">' + (activeCount ? activeCount + ' book(s) issued' : 'No active issues') + '</div></div>';
         }).join('') + '</div>';
   }
   if (!html) html = '<div class="empty-state"><span class="empty-icon">🔍</span><h4>No results</h4><p>Nothing found for "' + _esc(q) + '"</p></div>';
@@ -653,8 +679,7 @@ function _initTopbarSearch() {
 ══════════════════════════════════════════════ */
 function _renderRecords() {
   var filter = document.getElementById('records-filter').value;
-  var txns   = LibraryDB.getTransactions().slice().reverse();
-  if (filter !== 'all') txns = txns.filter(function(t){ return t.status === filter; });
+  var txns = _deskRows('transactions', 'records', { status: filter }, _renderRecords, 'records-tbody');
   var tbody  = document.getElementById('records-tbody');
   if (!tbody) return;
   if (!txns.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><span class="empty-icon">📋</span><h4>No records</h4></div></td></tr>'; return; }
@@ -664,7 +689,7 @@ function _renderRecords() {
     var b         = _borrowerCell(txn);
     var isOverdue = txn.status === 'Active' && LibraryDB.calcLateDays(txn.due_date) > 0;
     return '<tr' + (isOverdue ? ' class="row-overdue"' : '') + '>'
-      + '<td class="td-id">' + txn.transaction_id.slice(-8) + '</td>'
+      + '<td class="td-id">' + _esc(txn.transaction_id.slice(-8)) + '</td>'
       + '<td>' + _esc(book ? book.document : txn.book_access_no) + '<br><span class="td-id">' + _esc(txn.book_access_no) + '</span></td>'
       + '<td>' + _esc(b.name) + '<br><span class="td-id">' + _esc(b.sub) + '</span></td>'
       + '<td>' + LibraryDB.formatDate(txn.issue_date)  + '</td>'
@@ -680,7 +705,7 @@ function _renderRecords() {
 ══════════════════════════════════════════════ */
 function _renderBookCatalogue() {
   var q      = (document.getElementById('book-search').value || '').trim();
-  var books  = q ? LibraryDB.searchBooks(q) : LibraryDB.getBooks();
+  var books = _deskRows('books', 'books', { query: q.slice(0, 128) }, _renderBookCatalogue, 'books-tbody');
   var tbody  = document.getElementById('books-tbody');
   if (!tbody) return;
   if (!books.length) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><span class="empty-icon">📚</span><h4>No books found</h4></div></td></tr>'; return; }
@@ -711,14 +736,17 @@ function _renderBookCatalogue() {
 ══════════════════════════════════════════════ */
 function _renderStudents() {
   var q        = (document.getElementById('student-search').value || '').trim();
-  var students = q ? LibraryDB.searchStudents(q) : LibraryDB.getStudents();
+  var students = _deskRows('students', 'students', { query: q.slice(0, 128) }, _renderStudents, 'students-tbody');
+  var activeLoans = LibraryDB.pageRows ? [] : LibraryDB.getActiveTransactions();
   var tbody    = document.getElementById('students-tbody');
   if (!tbody) return;
   if (!students.length) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><span class="empty-icon">🎓</span><h4>No students found</h4></div></td></tr>'; return; }
   var groupCls = { 'Regular':'regular', 'Literary Club':'literary-club', 'Editorial Board':'editorial-board' };
   tbody.innerHTML = students.map(function(s) {
-    var active  = LibraryDB.getActiveTransactions().filter(function(t){ return t.student_adm_no === s.adm_no; });
+    var active  = activeLoans.filter(function(t){ return t.student_adm_no === s.adm_no; });
     var overdue = active.filter(function(t){ return LibraryDB.calcLateDays(t.due_date) > 0; });
+    var activeCount = s.loanCounts ? s.loanCounts.active : active.length;
+    var overdueCount = s.loanCounts ? s.loanCounts.overdue : overdue.length;
     var group   = s.group || 'Regular';
     return '<tr>'
       + '<td class="td-id">' + _esc(s.adm_no) + '</td>'
@@ -726,8 +754,8 @@ function _renderStudents() {
       + '<td>Class ' + _esc(s.class) + ' ' + _esc(s.section) + '</td>'
       + '<td>' + _esc(s.roll_no) + '</td>'
       + '<td><span class="group-badge ' + (groupCls[group]||'regular') + '">' + _esc(group) + '</span></td>'
-      + '<td>' + (active.length  ? '<span class="badge badge-blue">'  + active.length  + ' issued</span>'  : '<span class="badge badge-gray">None</span>') + '</td>'
-      + '<td>' + (overdue.length ? '<span class="badge badge-coral">' + overdue.length + ' overdue</span>' : '—') + '</td>'
+      + '<td>' + (activeCount  ? '<span class="badge badge-blue">'  + activeCount  + ' issued</span>'  : '<span class="badge badge-gray">None</span>') + '</td>'
+      + '<td>' + (overdueCount ? '<span class="badge badge-coral">' + overdueCount + ' overdue</span>' : '—') + '</td>'
       + '<td><button class="btn btn-ghost btn-sm" data-edit-student="' + _esc(s.adm_no) + '">Edit</button> <button class="btn btn-ghost btn-sm" data-delete-student="' + _esc(s.adm_no) + '">Delete</button></td></tr>';
   }).join('');
   tbody.querySelectorAll('[data-edit-student]').forEach(function(button) {
@@ -873,7 +901,7 @@ function _initImports() {
   /* Books — catalogue page */
   document.getElementById('import-books-file').addEventListener('change', function() {
     _readJsonFile(this, function(res) {
-      if (res.ok) { showToast('✅ ' + res.count + ' books imported!', 'success'); _renderBookCatalogue(); checkSetupComplete(); }
+      if (res.ok) { showToast('✅ ' + res.count + ' books imported! Uploading in groups of 50 when connected.', 'success'); _renderBookCatalogue(); checkSetupComplete(); FirebaseSync.syncNow(false); }
       else        { showToast('❌ ' + res.msg, 'error'); }
     }, LibraryDB.importBooks);
   });
@@ -890,7 +918,7 @@ function _initImports() {
   var sb = document.getElementById('setup-import-books');
   if (sb) sb.addEventListener('change', function() {
     _readJsonFile(this, function(res) {
-      if (res.ok) { showToast('✅ ' + res.count + ' books imported!', 'success'); checkSetupComplete(); }
+      if (res.ok) { showToast('✅ ' + res.count + ' books imported! Uploading in groups of 50 when connected.', 'success'); checkSetupComplete(); FirebaseSync.syncNow(false); }
       else        { showToast('❌ ' + res.msg, 'error'); }
     }, LibraryDB.importBooks);
   });
@@ -908,10 +936,19 @@ function _initImports() {
 function _readJsonFile(inputEl, callback, dbFn) {
   var file = inputEl.files[0];
   if (!file) return;
-  var reader = new FileReader();
-  reader.onload = function(e) { callback(dbFn(e.target.result)); };
-  reader.readAsText(file);
   inputEl.value = '';
+  try { TomevaImportPolicy.validateFile(file); }
+  catch (error) { callback({ ok: false, msg: error.message }); return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      TomevaImportPolicy.parse(e.target.result);
+      callback(dbFn(e.target.result));
+    } catch (error) { callback({ ok: false, msg: error.message }); }
+  };
+  reader.onerror = function() { callback({ ok: false, msg: 'The file could not be read. Choose a readable JSON file.' }); };
+  reader.onabort = function() { callback({ ok: false, msg: 'Import cancelled. No records were changed.' }); };
+  reader.readAsText(file);
 }
 
 /* ══════════════════════════════════════════════

@@ -41,7 +41,9 @@ if (packagedRoot) {
   Object.defineProperty(app, 'isPackaged', { get: () => true });
   Object.defineProperty(process, 'resourcesPath', { value: path.join(packagedRoot, 'resources') });
 }
-const deadline = setTimeout(() => { console.error('Control Center smoke timed out'); app.exit(1); }, 60000);
+// Packaged acceptance repeatedly extracts complete handoff bundles. Give that
+// disk-heavy fixture its own bound; individual requests/screenshot limits stay.
+const deadline = setTimeout(() => { console.error('Control Center smoke timed out'); app.exit(1); }, packagedRoot ? 180000 : 60000);
 const bounded = (promise, ms) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('Optional screenshot timed out')), ms))]);
 app.whenReady().then(() => {
   console.log('Control smoke: Electron ready');

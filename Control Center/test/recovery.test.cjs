@@ -20,9 +20,10 @@ test('encrypted round trip, random salt/IV, wrong password, tamper and unsupport
   await assert.rejects(decrypt(JSON.stringify({ ...kit, version: 2 }), password), /Unsupported/);
 });
 test('verification leaves live configuration untouched; restore checkpoints; configuration changes mark kit stale', async () => {
-  const userData = await fs.mkdtemp(path.join(os.tmpdir(), 'tomeva-recovery-'));
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'tomeva-recovery-'));
+  const userData = path.join(directory, 'profile');
   const store = createConfigStore(userData); store.save(config);
-  const kit = path.join(userData, 'export.tomeva');
+  const kit = path.join(directory, 'export.tomeva');
   const recovery = createRecovery({ userData, store, version: '1.0.0', getWindow: () => null, dialog: {
     showSaveDialog: async () => ({ filePath: kit }),
     showOpenDialog: async () => ({ filePaths: [kit] }),

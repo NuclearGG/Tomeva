@@ -13,7 +13,7 @@ const digest = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const apps = [
   ['Control Center', ['main.js','preload.js','config-store.js','ui/index.html','ui/styles.css','ui/renderer.js','firebase-template/firestore.rules']],
   ["Admin's End", ['main.js','preload.js','oauth-flow.js','index.html','app.bundle.js']],
-  ["Librarian's End", ['main.js','preload.js','index.html','js/app.js','js/firebase-sync.js','js/dialogs.js','main/db-ipc.js','main/library-service.js','main/calendar.js','main/backup.js']],
+  ["Librarian's End", ['main.js','preload.js','index.html','js/app.js','js/firebase-sync.js','js/dialogs.js','js/import-policy.js','main/db-ipc.js','main/library-service.js','main/calendar.js','main/backup.js','main/sqlite-store.js','main/schema-migrations.js','main/query-plans.js','main/kiosk-credentials.js','main/safe-export.js']],
 ];
 function files(directory, prefix = '') {
   return fs.readdirSync(directory, {withFileTypes:true}).flatMap(item => item.isDirectory()
@@ -35,6 +35,7 @@ for (const variant of ['release','release-legacy']) {
     for (const filename of core) compare(read(filename),path.join(source,folder,filename),folder+' '+variant+' '+filename);
     for (const filename of interfaceFiles) compare(read('assets/interface/'+filename),path.join(root,'desktop-integration/interface',filename),folder+' '+variant+' interface/'+filename);
     compare(read('integration/oauth-flow.cjs'),path.join(root,'desktop-integration/oauth-flow.cjs'),folder+' '+variant+' shared sign-in');
+    compare(read('integration/structured-log.cjs'),path.join(root,'desktop-integration/structured-log.cjs'),folder+' '+variant+' structured diagnostics');
     console.log('Verified packaged source, version and interface: '+folder+' '+variant);
   }
 }

@@ -35,7 +35,7 @@ test('unverified email cannot cancel or create requests even with a matching quo
   await seed(path, { requester_email: email, status: 'Pending' });
   await seed(`libraries/main/authorized_students/${email}`, { group: 'Regular' });
   await assertFails(user(false).doc(path).update({ status: 'Cancelled' }));
-  await assertSucceeds(user(true).doc(path).update({ status: 'Cancelled' }));
+  await assertSucceeds(user(true).doc(path).update({ status: 'Cancelled', decision_note: 'Cancelled', decided_at: firebase.default.firestore.FieldValue.serverTimestamp(), decided_at_iso: new Date().toISOString(), decided_by: 'student' }));
   const db = user(false);
   const batch = db.batch();
   const now = firebase.default.firestore.FieldValue.serverTimestamp();
@@ -115,7 +115,7 @@ test('only approved writers publish bounded catalog pages', async () => {
   const anonymous = env.authenticatedContext('anonymous', {}).firestore();
   await assertFails(anonymous.doc(target).set(page));
   await assertFails(user(true).doc('libraries/main/public/catalog').set(manifest));
-  const staff = env.authenticatedContext('staff', { email: 'staff@staff.example', email_verified: true }).firestore();
+  const staff = env.authenticatedContext('staff', { email: 'staff@staff.example', email_verified: true, firebase: { sign_in_provider: 'google.com' } }).firestore();
   await seed('staff_accounts/staff@staff.example', { active: true });
   await assertSucceeds(staff.doc('libraries/main/public/catalog').set(manifest));
   await assertSucceeds(staff.doc(target).set(page));

@@ -9,27 +9,29 @@ const html = fs.readFileSync(path.join(__dirname, '../app.mjs'), 'utf8');
 const domainCode = html.slice(html.indexOf('const STAFF_DOMAIN ='), html.indexOf('let _data ='));
 const accessCode = html.slice(html.indexOf('onAuthStateChanged(auth, async (user) => {'), html.indexOf('const kioskManager ='));
 async function access(staffDomain, user, granted = true) {
+  if (user) user = { getIdTokenResult: async () => ({ claims: { firebase: { sign_in_provider: 'google.com' } } }), ...user };
   const nodes = new Map();
   const labels = [{}, {}];
   let onAuth;
   const context = {
     institution: { staffDomain }, auth: { currentUser: user }, db: {}, LIBRARY_ID: 'main',
     doc: (_, ...parts) => parts.join('/'), getDoc: async () => ({ exists: () => granted, data: () => ({ active: true }) }),
+    getDocFromServer: async () => ({ exists: () => granted, data: () => ({ active: true }) }),
     _staffListeners: [], _adminCurrentUser: null, _isStaffVerified: false,
     _restrictedUnsub: null, _restrictedData: null,
     _allRequests: [], _allAuthorizedStudents: [], _allPendingLogins: [], _admissionRoster: [],
     document: {
       querySelectorAll: () => labels,
       getElementById: id => {
-        if (!nodes.has(id)) nodes.set(id, { style: {}, textContent: '' });
+        if (!nodes.has(id)) nodes.set(id, { style: {}, textContent: '', replaceChildren() {} });
         return nodes.get(id);
       },
     },
     onAuthStateChanged: (_, callback) => { onAuth = callback; },
   };
-  for (const name of ['refreshDashboardData', 'startRestrictedListener', 'startApprovalListener',
+  for (const name of ['closeTableView', 'refreshDashboardData', 'startRestrictedListener', 'startApprovalListener',
     'startLibrarianNotifListener', 'startRequestsListener', 'startAuthorizedStudentsListener',
-    'startPendingLoginsListener', 'startAdmissionRosterListener', 'renderAdminRequests', 'updateRequestsBadge', 'updateAdminBadge',
+    'startPendingLoginsListener', 'startAdmissionRosterListener', 'startAdminAuditListener', 'startDeletionRequestsListener', 'renderAdminRequests', 'updateRequestsBadge', 'updateAdminBadge',
     'renderAuthorizedStudents', 'renderPendingVerification']) context[name] = () => () => {};
   vm.runInNewContext(domainCode + accessCode, context);
   await onAuth(user);

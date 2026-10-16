@@ -10,7 +10,8 @@ function createUpdateManager({ send, open, beforeInstall }) {
   let updater;
   let timer;
   let startupTimer;
-  let state = { state: 'idle', version: app.getVersion() };
+  const trust = verification.trustPolicy();
+  let state = { state: 'idle', version: app.getVersion(), updatePolicy: 'operator-managed-stable', ...trust };
   let busy = false;
   let signedManifest;
   let verifiedFiles = [];
@@ -76,8 +77,8 @@ function createUpdateManager({ send, open, beforeInstall }) {
       const name = `tomeva-control-center-${state.availableVersion}-${platform}-${process.arch}.${process.platform === 'win32' ? 'exe' : process.platform === 'linux' ? 'AppImage' : 'zip'}`;
       verifiedFiles = [];
       for (const file of files) { await verification.verifyFile(file, name, signedManifest); verifiedFiles.push({ path: file, name }); }
-      if (!verifiedFiles.length) throw new Error('No publisher-verified installer was downloaded.');
-      emit('ready');
+      if (!verifiedFiles.length) throw new Error('No checksum-verified installer was downloaded.');
+      emit('ready', { message: trust.publisherAuthenticated ? 'Publisher signature and installer checksum verified. Restart when ready.' : 'Unsigned pilot: installer checksum verified against GitHub. Publisher authenticity is not configured. Restart when ready.' });
     }
     catch (error) { emit('error', { message: error.message }); }
     finally { busy = false; }
@@ -86,11 +87,13 @@ function createUpdateManager({ send, open, beforeInstall }) {
     if (!updater || state.state !== 'ready' || busy) return;
     busy = true;
     try {
-      if (!signedManifest || !verifiedFiles.length) throw new Error('No publisher-verified installer is ready.');
+      if (!signedManifest || !verifiedFiles.length) throw new Error('No checksum-verified installer is ready.');
       for (const file of verifiedFiles) await verification.verifyFile(file.path, file.name, signedManifest);
-      await beforeInstall(); updater.quitAndInstall(false, true);
+      try { await beforeInstall(); }
+      catch (error) { emit('ready', { message: 'Update postponed: checkpoint failed. ' + error.message }); return; }
+      updater.quitAndInstall(false, true);
     }
-    catch (error) { emit('ready', { message: 'Update postponed: checkpoint failed. ' + error.message }); }
+    catch (error) { verifiedFiles = []; signedManifest = null; emit('error', { message: 'Update verification failed: ' + error.message }); }
     finally { busy = false; }
   }
   function stop() { clearInterval(timer); clearTimeout(startupTimer); }

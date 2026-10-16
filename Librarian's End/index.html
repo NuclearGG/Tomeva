@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com; img-src 'self' data:; base-uri 'self'; form-action 'self';">
+  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests; default-src 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com; img-src 'self' data:; base-uri 'self'; form-action 'self';">
   <title>Tomeva</title>
   <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="assets/interface/workspace.css">
@@ -816,7 +816,7 @@
           <div class="card-header">
             <div>
               <div class="card-title">☁️ Cloud Sync — Firebase</div>
-              <div class="card-subtitle">Read-only dashboard for Principal &amp; Vice Principal</div>
+              <div class="card-subtitle">One circulation desk per library. Other Librarian databases do not merge. Transfer a verified circulation backup before changing desks.</div>
             </div>
             <div class="flex gap-8 flex-center">
               <div id="sync-status-badge-settings" class="sync-badge sync-idle">Sync Ready</div>
@@ -1050,7 +1050,7 @@
           <div class="setup-step-num">1</div>
           <div class="setup-step-info">
             <div class="setup-step-title">📚 Load Book Catalogue</div>
-            <div class="setup-step-desc">Import your book database as a JSON file, or add books one by one.</div>
+            <div class="setup-step-desc">Import your book database as JSON (2 MiB, up to 1,000 rows), or add books one by one. Imports replace the catalogue. Use one circulation desk per library.</div>
           </div>
           <div class="setup-step-done" id="setup-books-done" style="display:none">
             <span class="done-icon">✅</span>
@@ -1084,7 +1084,7 @@
           <div class="setup-step-num">2</div>
           <div class="setup-step-info">
             <div class="setup-step-title">🎓 Load Student Records</div>
-            <div class="setup-step-desc">Import your student list as a JSON file, or add students one by one.</div>
+            <div class="setup-step-desc">Import your student list as JSON (2 MiB, up to 1,000 rows), or add students one by one. Imports replace the student list.</div>
           </div>
           <div class="setup-step-done" id="setup-students-done" style="display:none">
             <span class="done-icon">✅</span>
@@ -1136,7 +1136,7 @@
 <!-- Toast Container -->
 <div id="toast-container"></div>
 
-<script src="js/inline-1.js"></script>
+<script src="js/import-policy.js"></script>
 
 
 

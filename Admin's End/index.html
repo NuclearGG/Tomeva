@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com; img-src 'self' data:; base-uri 'self'; form-action 'self'; frame-src 'self' https://*.firebaseapp.com;">
+  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests; default-src 'self'; object-src 'none'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com; img-src 'self' data:; base-uri 'self'; form-action 'self'; frame-src 'self' https://*.firebaseapp.com;">
   <title>Tomeva Admin — Library Dashboard</title>
   <style>
     :root {
@@ -836,7 +836,7 @@
               </div>
               <div class="search-bar" style="padding:8px 14px">
                 <span>🔍</span>
-                <input type="text" id="pending-search" placeholder="Search by name, class, section, or ADM No…" data-handler-input="h6">
+                <input type="text" id="pending-search" maxlength="128" placeholder="Find profiles by email prefix…" data-handler-input="h6">
               </div>
             </div>
             <div class="table-wrap access-scroll-wrap">
@@ -857,7 +857,7 @@
               </div>
               <div class="search-bar" style="padding:8px 14px">
                 <span>🔍</span>
-                <input type="text" id="access-search" placeholder="Search name, email, or ADM No…" data-handler-input="h7">
+                <input type="text" id="access-search" maxlength="128" placeholder="Find access by email prefix…" data-handler-input="h7">
               </div>
             </div>
             <div class="table-wrap access-scroll-wrap">
@@ -868,10 +868,8 @@
             </div>
           </div>
 
-          <div class="alert alert-info">
-            <span class="alert-icon">ℹ️</span>
-            <span>Verified accounts in the institution's staff email domain can submit requests as soon as they sign in.</span>
-          </div>
+          <div class="list-card"><div class="list-card-header"><div><div class="card-title">Administration history &amp; recovery</div><div class="card-subtitle">Latest 50 changes. Deleted student records can be restored if their admission number is still free.</div></div></div><div class="table-wrap"><table><thead><tr><th>When</th><th>Administrator</th><th>Action / record</th><th>Recovery</th></tr></thead><tbody id="admin-audit-tbody"></tbody></table></div></div>
+          <div class="list-card"><div class="list-card-header"><div><div class="card-title">Account deletion requests</div><div class="card-subtitle">Review the request, remove access and profile, then mark it complete.</div></div></div><div id="account-deletion-list"></div></div>
         </div>
 
       </div>

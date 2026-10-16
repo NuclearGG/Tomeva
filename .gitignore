@@ -41,7 +41,21 @@ firebase-debug.log
 test-results/
 coverage/
 test-artifacts/
+/release-artifacts/
 /LinkedIn Screenshots/
+# Private installed-profile QA notes and locally generated diagnostic data
+/documentation/EXPLORATORY_QA_INSTALLED_*.md
+*.jsonl
+*.jsonl.[1-9]
+schema-backups/
+migration-backups/
+update-backups/
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+*.creds
+activity-key.enc
+*.tomeva.meta.json
 
 # Local config and secrets
 .env

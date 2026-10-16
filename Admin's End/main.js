@@ -4,6 +4,7 @@ const { pathToFileURL } = require('node:url');
 const { OAuthFlow } = require('./oauth-flow');
 const { createNativeUpdater } = require(app.isPackaged ? './integration/native-updater.cjs' : '../desktop-integration/native-updater.cjs');
 const institution = require(app.isPackaged ? './integration/institution-config.cjs' : '../desktop-integration/institution-config.cjs');
+const diagnostics = require(app.isPackaged ? './integration/structured-log.cjs' : '../desktop-integration/structured-log.cjs').createStructuredLogger({ directory: path.join(app.getPath('userData'), 'logs'), component: 'admin' });
 
 let mainWindow = null;
 let appUpdater;
@@ -28,9 +29,9 @@ const oauth = new OAuthFlow({
 function openHttpsUrl(url) {
   try {
     if (new URL(url).protocol !== 'https:') return;
-    shell.openExternal(url).catch((error) => console.error('[External link]', error));
+    shell.openExternal(url).catch((error) => diagnostics('warn', 'external.open.failed', { code: error.code || 'OPEN_FAILED' }));
   } catch (error) {
-    console.error('[External link] Invalid URL:', error);
+    diagnostics('warn', 'external.url.invalid', { code: 'INVALID_URL' });
   }
 }
 
@@ -92,7 +93,7 @@ ipcMain.on('sign-in-google', async (event) => {
   try {
     await oauth.start();
   } catch (error) {
-    console.error('[OAuth] Could not start sign-in:', error);
+    diagnostics('warn', 'oauth.start.failed', { code: error.code || 'OAUTH_START_FAILED' });
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('oauth-callback', {
         error: 'sign_in_start_failed',
@@ -138,6 +139,7 @@ if (!gotTheLock) {
     }
   });
   app.whenReady().then(() => {
+    diagnostics('info', 'app.ready');
     buildMenu();
     createWindow();
     appUpdater = createNativeUpdater({ getUpdater: () => require('electron-updater').autoUpdater, getWindow: () => mainWindow, protocol: 'tomeva-admin', legacyWindows: require('./build-variant.json').legacyWindows });

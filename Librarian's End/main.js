@@ -21,6 +21,7 @@ const institution = require(app.isPackaged ? './integration/institution-config.c
 // of the SQLite database. This is a durable audit trail that
 // survives even if the local database is ever cleared or corrupted.
 const LOG_DIR = path.join(app.getPath('userData'), 'logs');
+const diagnostics = require(app.isPackaged ? './integration/structured-log.cjs' : '../desktop-integration/structured-log.cjs').createStructuredLogger({ directory: LOG_DIR, component: 'librarian' });
 
 function ensureLogDir() {
   if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
@@ -135,19 +136,20 @@ ipcMain.on('desktop-alert', (event, type) => {
 
 if (hasInstanceLock) app.whenReady().then(() => {
   store = new SqliteStore(app.getPath('userData'));
+  diagnostics('info', 'database.schema.ready', { from: store.schemaMigration.from, to: store.schemaMigration.to });
   workstationLock = createWorkstationLock(store, safeStorage);
   activityLog = createActivityLog(LOG_DIR, safeStorage, store);
   getLibraryService = registerDatabaseIpc(ipcMain, store, event =>
     event.sender === mainWindow?.webContents &&
     event.senderFrame === mainWindow.webContents.mainFrame &&
     event.senderFrame.url.split('#')[0] === pathToFileURL(path.join(__dirname, 'index.html')).href,
-  (line, event) => activityLog.append(line, event), () => workstationLock.isLocked());
+  (line, event) => activityLog.append(line, event), () => workstationLock.isLocked(), diagnostics);
   try {
     for (const event of store.database.prepare('SELECT * FROM audit_events WHERE exported = 0 ORDER BY created_at, rowid').all()) {
       activityLog.append(event.line, event);
       store.database.prepare('UPDATE audit_events SET exported = 1 WHERE id = ?').run(event.id);
     }
-  } catch (error) { console.warn('[ActivityLog] Pending events retained:', error.message); }
+  } catch (error) { diagnostics('warn', 'audit.replay.deferred', { code: error.code || 'AUDIT_REPLAY_FAILED' }); }
   createWindow();
   appUpdater = createNativeUpdater({
     getUpdater: () => require('electron-updater').autoUpdater,
@@ -162,6 +164,7 @@ if (hasInstanceLock) app.whenReady().then(() => {
   appUpdater.start();
   if (appUpdater.accepts(process.argv)) appUpdater.check();
 }).catch(error => {
+  diagnostics('error', 'database.start.failed', { code: error.code || 'DATABASE_OPEN_FAILED' });
   dialog.showErrorBox('Tomeva could not open its database', error.message);
   app.quit();
 });
@@ -215,7 +218,7 @@ ipcMain.handle('backup-database', async event => {
     });
     if (!filePath) return { ok: false, cancelled: true };
     workstationAccess.assertUnlocked(event);
-    fs.writeFileSync(filePath, getLibraryService().exportData(), { encoding: 'utf8', mode: 0o600 });
+    await require('./main/safe-export').writeBackup(app.getPath('userData'), filePath, getLibraryService().exportData());
     return { ok: true, filePath };
   } catch (err) {
     return { ok: false, msg: err.message };
@@ -307,87 +310,14 @@ ipcMain.handle('read-current-log', async (event, maxLines) => {
 // Email/password stored encrypted in the OS keychain during library provisioning.
 // Never written to disk in plaintext, never in source control.
 
-const KIOSK_CREDS_KEY = 'tomeva_kiosk_creds_';
-
-function _getCredsKey(workstationId) {
-  return KIOSK_CREDS_KEY + workstationId;
-}
-
-ipcMain.handle('get-kiosk-creds', async (event, workstationId) => {
-  workstationAccess.assertUnlocked(event);
-  try {
-    if (!workstationId || typeof workstationId !== 'string') {
-      return null;
-    }
-    if (!/^[a-zA-Z0-9_-]+$/.test(workstationId) || workstationId.length > 64) {
-      return null;
-    }
-
-    if (!safeStorage.isEncryptionAvailable() || safeStorage.getSelectedStorageBackend?.() === 'basic_text') {
-      console.warn('[KioskAuth] safeStorage not available on this platform');
-      return null;
-    }
-
-    const key = _getCredsKey(workstationId);
-    const credsPath = path.join(app.getPath('userData'), `${key}.creds`);
-
-    if (!fs.existsSync(credsPath)) {
-      return null; // Not provisioned yet
-    }
-
-    const encryptedBase64 = fs.readFileSync(credsPath, 'utf-8');
-    const encryptedBuffer = Buffer.from(encryptedBase64, 'base64');
-    const decryptedBuffer = safeStorage.decryptString(encryptedBuffer);
-    const decrypted = decryptedBuffer.toString('utf-8');
-    
-    // Parse JSON: { email, password }
-    try {
-      return JSON.parse(decrypted);
-    } catch {
-      console.error('[KioskAuth] Failed to parse credentials JSON');
-      return null;
-    }
-  } catch (err) {
-    console.error('[KioskAuth] Failed to retrieve credentials:', err.message);
-    return null;
-  }
+const kioskCredentials = require('./main/kiosk-credentials').createCredentialStore({
+  userData: app.getPath('userData'), getProject: () => institution.read()?.firebase?.projectId, protection: safeStorage,
 });
-
-ipcMain.handle('set-kiosk-creds', async (event, workstationId, email, password) => {
+ipcMain.handle('get-kiosk-creds', (event, workstationId) => {
   workstationAccess.assertUnlocked(event);
-  try {
-    if (!workstationId || typeof workstationId !== 'string') {
-      return { ok: false, msg: 'Invalid workstationId' };
-    }
-    if (typeof email !== 'string' || !/^kiosk-[a-f0-9]{32}@kiosk\.tomeva\.invalid$/.test(email)) {
-      return { ok: false, msg: 'Invalid email' };
-    }
-    if (typeof password !== 'string' || password.length < 12 || password.length > 256) {
-      return { ok: false, msg: 'Invalid password' };
-    }
-    if (!/^[a-zA-Z0-9_-]+$/.test(workstationId) || workstationId.length > 64) {
-      return { ok: false, msg: 'Invalid workstationId format' };
-    }
-
-    if (!safeStorage.isEncryptionAvailable() || safeStorage.getSelectedStorageBackend?.() === 'basic_text') {
-      return { ok: false, msg: 'safeStorage not available on this platform' };
-    }
-
-    const key = _getCredsKey(workstationId);
-    const credsPath = path.join(app.getPath('userData'), `${key}.creds`);
-
-    // Encrypt and store as JSON
-    const credsJson = JSON.stringify({ email, password });
-    const encryptedBuffer = safeStorage.encryptString(credsJson);
-    const encryptedBase64 = Buffer.from(encryptedBuffer).toString('base64');
-    fs.writeFileSync(credsPath, encryptedBase64, 'utf-8');
-
-    // Restrict file permissions (best effort)
-    try { fs.chmodSync(credsPath, 0o600); } catch {}
-
-    return { ok: true };
-  } catch (err) {
-    console.error('[KioskAuth] Failed to store credentials:', err.message);
-    return { ok: false, msg: err.message };
-  }
+  return kioskCredentials.get(workstationId);
+});
+ipcMain.handle('set-kiosk-creds', (event, workstationId, email, password) => {
+  workstationAccess.assertUnlocked(event);
+  return kioskCredentials.set(workstationId, email, password);
 });

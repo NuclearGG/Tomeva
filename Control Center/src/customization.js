@@ -1,6 +1,9 @@
-import { initializeApp, deleteApp } from 'firebase/app';
-import { initializeAuth, inMemoryPersistence, GoogleAuthProvider, signInWithCredential, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, getDoc, onSnapshot, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { GoogleAuthProvider, signInWithCredential, signOut, onAuthStateChanged } from 'firebase/auth';
+import { openAppearanceSession, closeAppearanceSession } from './appearance-session.js';
+import { getFirestore, doc, getDocFromServer, onSnapshot, runTransaction as rawTransaction, serverTimestamp } from 'firebase/firestore';
+import { createAuditedFirestore } from '../../desktop-integration/admin-audit.mjs';
+import appearanceAccess from './appearance-access.cjs';
+const { checkAppearanceAccess } = appearanceAccess;
 
 export function initializeCustomization({ getConfig, bridge, notice }) {
   const byId = id => document.getElementById(id);
@@ -9,6 +12,7 @@ export function initializeCustomization({ getConfig, bridge, notice }) {
   const fields = appearance.fields.filter(key => key !== 'schemaVersion');
   let context = null, stop = null, stopAuth = null, generation = 0;
   let dirty = false, baseRevision = 0, latest = null, serverReady = false, canPublish = false, busy = false;
+  let accessRequest = 0, checkingAccess = false, signingIn = false;
   const status = text => { byId('appearance-status').textContent = text; };
   function readForm() {
     return appearance.validate(Object.fromEntries(appearance.fields.map(key => [key,
@@ -25,8 +29,9 @@ export function initializeCustomization({ getConfig, bridge, notice }) {
   }
   function buttons() {
     byId('appearance-publish').disabled = !canPublish || !serverReady || !navigator.onLine || busy;
-    byId('appearance-sign-in').disabled = !context || busy;
-    byId('appearance-sign-out').disabled = !context?.auth.currentUser || busy;
+    byId('appearance-sign-in').disabled = !context || context.restoring || busy || signingIn;
+    byId('appearance-sign-out').disabled = !context?.auth.currentUser || busy || signingIn;
+    byId('appearance-recheck').disabled = !context?.auth.currentUser || busy || checkingAccess;
     byId('appearance-project').textContent = getConfig()?.firebase.projectId || 'Save Firebase project settings first';
   }
   function preview() {
@@ -54,13 +59,16 @@ export function initializeCustomization({ getConfig, bridge, notice }) {
     stop?.(); stopAuth?.(); stop = null; stopAuth = null;
     const old = context; context = null;
     canPublish = false; serverReady = false; latest = null; baseRevision = 0; dirty = false;
-    if (old) await deleteApp(old.app);
+    if (old) {
+      try { await closeAppearanceSession(old, config); }
+      catch (_) { context = old; status('Could not close the previous institution session. Reconnect and try again.'); buttons(); return; }
+    }
     if (token !== generation) return;
     try {
-      const app = initializeApp(config.firebase, 'tomeva-control-appearance');
-      const auth = initializeAuth(app, { persistence:inMemoryPersistence });
+      const { app, auth } = openAppearanceSession(config);
       const db = getFirestore(app), ref = doc(db,'libraries','main','public','appearance');
-      context = { app, auth, db, ref, signature, config };
+      context = { app, auth, db, ref, signature, config, restoring:true };
+      byId('appearance-account').textContent = 'Restoring your sign-in…';
       fill(appearance.load(config.firebase.projectId, { institutionName:config.institutionName })); preview();
       status('Connecting to the institution’s live appearance settings…');
       stop = onSnapshot(ref, { includeMetadataChanges:true }, snapshot => {
@@ -81,26 +89,32 @@ export function initializeCustomization({ getConfig, bridge, notice }) {
       }, error => {
         serverReady = false; status('Could not read live settings. Keep your preview; check connectivity and publish the current Firestore rules. ' + error.code); buttons();
       });
-      stopAuth = onAuthStateChanged(auth, async user => {
-        canPublish = false; buttons();
+      stopAuth = onAuthStateChanged(auth, user => {
+        if (token !== generation) return;
+        context.restoring = false;
         byId('appearance-account').textContent = user?.email || 'Not signed in';
-        if (!user) return;
-        const claims = await user.getIdTokenResult().catch(() => null);
-        if (token !== generation || auth.currentUser?.uid !== user.uid) return;
-        const eligible = !!claims && user.emailVerified && user.email?.toLowerCase().endsWith('@' + config.staffDomain.toLowerCase())
-          && claims.signInProvider === 'google.com';
-        if (eligible) {
-          try {
-            const [staff, grant] = await Promise.all([getDoc(doc(db,'staff_accounts',user.email.toLowerCase())),getDoc(doc(db,'kiosk_admins',user.uid))]);
-            if (token !== generation || auth.currentUser?.uid !== user.uid) return;
-            canPublish = staff.exists() && staff.data().active === true && grant.exists() && grant.data().enabled === true && grant.data().libraryId === 'main';
-          } catch (_) { canPublish = false; }
-        }
-        if (!canPublish) status('Use a verified institution Google account with an enabled library administrator grant.');
-        buttons();
+        recheckAccess();
       });
     } catch (error) { status(error.message); }
     buttons();
+  }
+  async function recheckAccess() {
+    const active = context, request = ++accessRequest, user = active?.auth.currentUser;
+    canPublish = false; checkingAccess = true; buttons();
+    byId('appearance-access-status').textContent = user ? 'Checking administrator access with Firebase…' : 'Sign in to check administrator access.';
+    try {
+      const result = await checkAppearanceAccess(user, active?.config || getConfig(), {
+        getStaff: email => getDocFromServer(doc(active.db,'staff_accounts',email)),
+        getGrant: uid => getDocFromServer(doc(active.db,'kiosk_admins',uid)),
+      });
+      if (request !== accessRequest || context !== active || active?.auth.currentUser?.uid !== user?.uid) return;
+      canPublish = result.allowed;
+      byId('appearance-access-status').textContent = result.message;
+    } catch (_) {
+      if (request === accessRequest && context === active) byId('appearance-access-status').textContent = 'Could not check administrator access. Check your connection and try again.';
+    } finally {
+      if (request === accessRequest) { checkingAccess = false; buttons(); }
+    }
   }
   fill(appearance.defaults);
   form.addEventListener('input', () => {
@@ -115,15 +129,18 @@ export function initializeCustomization({ getConfig, bridge, notice }) {
     catch (error) { status('Sign-in could not start: ' + error.message); }
   });
   byId('appearance-sign-out').addEventListener('click', async () => {
-    try { if (context) await signOut(context.auth); } catch (error) { status(error.message); }
+    try { await bridge.cancelAppearanceSignIn(); if (context) await signOut(context.auth); } catch (error) { status(error.message); }
   });
+  byId('appearance-recheck').addEventListener('click', recheckAccess);
   bridge.onAppearanceOAuth(async result => {
     try {
       if (result.error) throw new Error(result.errorDescription || result.error);
       if (!context || JSON.stringify(getConfig()) !== context.signature) throw new Error('Project changed. Sign in again for the current project.');
       if (!result.credential && !result.accessToken) throw new Error('No sign-in credential received.');
+      signingIn = true; buttons();
       await signInWithCredential(context.auth, GoogleAuthProvider.credential(result.credential || null,result.accessToken || null));
     } catch (error) { status('Sign-in failed: ' + error.message); }
+    finally { signingIn = false; buttons(); }
   });
   form.addEventListener('submit', async event => {
     event.preventDefault();
@@ -131,6 +148,7 @@ export function initializeCustomization({ getConfig, bridge, notice }) {
       if (!context || !canPublish || !serverReady || !navigator.onLine || busy) throw new Error('Connect and sign in before publishing.');
       const value = readForm(), active = context, expectedRevision = baseRevision;
       busy = true; buttons(); status('Publishing appearance…');
+      const { runTransaction } = createAuditedFirestore({ db: active.db, actor: () => active.auth.currentUser, sdk: { doc, serverTimestamp, runTransaction: rawTransaction } });
       await runTransaction(active.db, async transaction => {
         const snapshot = await transaction.get(active.ref);
         const revision = snapshot.exists() ? snapshot.data().revision : 0;

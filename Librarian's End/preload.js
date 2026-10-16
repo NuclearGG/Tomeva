@@ -12,6 +12,8 @@ function databaseCall(channel, ...args) {
   return response.value;
 }
 const db = {
+  pageRows: (name, options) => databaseCall('db:call', 'pageRows', [name, options]),
+  fineSummary: () => databaseCall('db:call', 'fineSummary', []),
   initialize: raw => databaseCall('db:initialize', raw),
   updateStudent: (...args) => databaseCall('db:call', 'updateStudent', args),
   deleteStudent: (...args) => databaseCall('db:call', 'deleteStudent', args),

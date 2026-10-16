@@ -36,7 +36,16 @@ let testEnv;
  * Helper: create authenticated context with custom claims
  */
 function auth(claims = {}) {
-  return testEnv.authenticatedContext('user-' + Date.now(), claims);
+  claims = { firebase: { sign_in_provider: 'google.com' }, ...claims };
+  const uid = 'user-' + (claims.email || 'anonymous');
+  const context = testEnv.authenticatedContext(uid, claims);
+  const original = context.firestore.bind(context);
+  context.firestore = () => {
+    const database = original();
+    if (['teacher@staff.example', 'librarian@staff.example'].includes(claims.email)) return require('./audit-helper.cjs').audited(database, uid, claims.email);
+    database.testUid = uid; return database;
+  };
+  return context;
 }
 
 /**
@@ -70,11 +79,14 @@ function staff(overrides = {}) {
  * Helper: create a kiosk user (custom token with kiosk: true)
  */
 function kiosk(overrides = {}) {
-  return testEnv.authenticatedContext('kiosk-main', {
+  const context = testEnv.authenticatedContext('kiosk-main', {
     email: 'kiosk-' + 'a'.repeat(32) + '@kiosk.tomeva.invalid',
     firebase: { sign_in_provider: 'password' },
     ...overrides,
   });
+  const original = context.firestore.bind(context);
+  context.firestore = () => { const database = original(); database.testUid = 'kiosk-main'; return database; };
+  return context;
 }
 
 /**
@@ -463,8 +475,8 @@ describe('Tomeva Firestore Rules', () => {
         await assertFails(createRequestAsStudent(db, { requester_email: 'unauthorized@gmail.com' }));
       });
 
-      test('ALLOW: staff (auto-verified by domain)', async () => {
-        const db = testEnv.authenticatedContext('quota-user', { email: staffEmail, email_verified: true }).firestore();
+      test('ALLOW: verified Google staff with an explicit active grant', async () => {
+        const db = testEnv.authenticatedContext('quota-user', { email: staffEmail, email_verified: true, firebase: { sign_in_provider: 'google.com' } }).firestore();
         await assertSucceeds(createRequestAsStudent(db, {
           requester_email: staffEmail,
           group: 'Staff',
@@ -473,7 +485,7 @@ describe('Tomeva Firestore Rules', () => {
       });
 
       test('DENY: staff with group != Staff', async () => {
-        const db = testEnv.authenticatedContext('quota-user', { email: staffEmail, email_verified: true }).firestore();
+        const db = testEnv.authenticatedContext('quota-user', { email: staffEmail, email_verified: true, firebase: { sign_in_provider: 'google.com' } }).firestore();
         await assertFails(createRequestAsStudent(db, {
           requester_email: staffEmail,
           group: 'Regular',
@@ -519,8 +531,9 @@ describe('Tomeva Firestore Rules', () => {
           db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).update({
             status: 'Approved',
             decision_note: 'OK',
-            decided_at: Timestamp.now(),
+            decided_at: firebase.default.firestore.FieldValue.serverTimestamp(),
             decided_at_iso: new Date().toISOString(),
+            decided_by: db.testUid,
           })
         );
       });
@@ -531,8 +544,9 @@ describe('Tomeva Firestore Rules', () => {
           db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).update({
             status: 'Declined',
             decision_note: 'Not available',
-            decided_at: Timestamp.now(),
+            decided_at: firebase.default.firestore.FieldValue.serverTimestamp(),
             decided_at_iso: new Date().toISOString(),
+            decided_by: db.testUid,
           })
         );
       });
@@ -543,8 +557,9 @@ describe('Tomeva Firestore Rules', () => {
           db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).update({
             status: 'Issued',
             decision_note: 'Issued',
-            decided_at: Timestamp.now(),
+            decided_at: firebase.default.firestore.FieldValue.serverTimestamp(),
             decided_at_iso: new Date().toISOString(),
+            decided_by: db.testUid,
           })
         );
       });
@@ -555,8 +570,9 @@ describe('Tomeva Firestore Rules', () => {
           db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).update({
             status: 'Approved',
             decision_note: 'OK',
-            decided_at: Timestamp.now(),
+            decided_at: firebase.default.firestore.FieldValue.serverTimestamp(),
             decided_at_iso: new Date().toISOString(),
+            decided_by: db.testUid,
           })
         );
       });
@@ -581,8 +597,9 @@ describe('Tomeva Firestore Rules', () => {
           db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).update({
             status: 'Approved',
             decision_note: 'self-approval attempt',
-            decided_at: Timestamp.now(),
+            decided_at: firebase.default.firestore.FieldValue.serverTimestamp(),
             decided_at_iso: new Date().toISOString(),
+            decided_by: db.testUid,
           })
         );
       });
@@ -593,8 +610,9 @@ describe('Tomeva Firestore Rules', () => {
           db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).update({
             status: 'Issued',
             decision_note: 'self-issue attempt',
-            decided_at: Timestamp.now(),
+            decided_at: firebase.default.firestore.FieldValue.serverTimestamp(),
             decided_at_iso: new Date().toISOString(),
+            decided_by: db.testUid,
           })
         );
       });
@@ -605,8 +623,9 @@ describe('Tomeva Firestore Rules', () => {
           db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).update({
             status: 'Declined',
             decision_note: 'anonymous attempt',
-            decided_at: Timestamp.now(),
+            decided_at: firebase.default.firestore.FieldValue.serverTimestamp(),
             decided_at_iso: new Date().toISOString(),
+            decided_by: db.testUid,
           })
         );
       });
@@ -617,8 +636,9 @@ describe('Tomeva Firestore Rules', () => {
           db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).update({
             status: 'Cancelled',
             decision_note: 'anonymous attempt',
-            decided_at: Timestamp.now(),
+            decided_at: firebase.default.firestore.FieldValue.serverTimestamp(),
             decided_at_iso: new Date().toISOString(),
+            decided_by: db.testUid,
           })
         );
       });
@@ -644,8 +664,9 @@ describe('Tomeva Firestore Rules', () => {
           db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).update({
             status: 'Cancelled',
             decision_note: 'Changed my mind',
-            decided_at: Timestamp.now(),
+            decided_at: firebase.default.firestore.FieldValue.serverTimestamp(),
             decided_at_iso: new Date().toISOString(),
+            decided_by: db.testUid,
           })
         );
       });
@@ -660,8 +681,9 @@ describe('Tomeva Firestore Rules', () => {
           db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).update({
             status: 'Approved',
             decision_note: 'Hack attempt',
-            decided_at: Timestamp.now(),
+            decided_at: firebase.default.firestore.FieldValue.serverTimestamp(),
             decided_at_iso: new Date().toISOString(),
+            decided_by: db.testUid,
           })
         );
       });
@@ -676,8 +698,9 @@ describe('Tomeva Firestore Rules', () => {
           db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).update({
             status: 'Issued',
             decision_note: 'Hack attempt',
-            decided_at: Timestamp.now(),
+            decided_at: firebase.default.firestore.FieldValue.serverTimestamp(),
             decided_at_iso: new Date().toISOString(),
+            decided_by: db.testUid,
           })
         );
       });
@@ -692,8 +715,9 @@ describe('Tomeva Firestore Rules', () => {
           db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).update({
             status: 'Declined',
             decision_note: 'Hack attempt',
-            decided_at: Timestamp.now(),
+            decided_at: firebase.default.firestore.FieldValue.serverTimestamp(),
             decided_at_iso: new Date().toISOString(),
+            decided_by: db.testUid,
           })
         );
       });
@@ -708,8 +732,9 @@ describe('Tomeva Firestore Rules', () => {
           db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).update({
             status: 'Cancelled',
             decision_note: 'Hack attempt',
-            decided_at: Timestamp.now(),
+            decided_at: firebase.default.firestore.FieldValue.serverTimestamp(),
             decided_at_iso: new Date().toISOString(),
+            decided_by: db.testUid,
           })
         );
       });
@@ -729,8 +754,9 @@ describe('Tomeva Firestore Rules', () => {
           db.collection('libraries').doc(LIBRARY_ID).collection('book_requests').doc(requestId).update({
             status: 'Cancelled',
             decision_note: 'Too late',
-            decided_at: Timestamp.now(),
+            decided_at: firebase.default.firestore.FieldValue.serverTimestamp(),
             decided_at_iso: new Date().toISOString(),
+            decided_by: db.testUid,
           })
         );
       });
@@ -1118,12 +1144,12 @@ describe('Tomeva Firestore Rules', () => {
       );
     });
 
-    test('ALLOW: student can delete own access but not another student access', async () => {
+    test('DENY: a student cannot delete authorization records', async () => {
       await testEnv.withSecurityRulesDisabled(async ctx => {
         await ctx.firestore().collection('libraries').doc(LIBRARY_ID).collection('authorized_students').doc(studentEmail).set(validStudent);
       });
       const own = auth({ email: studentEmail, email_verified: true }).firestore();
-      await assertSucceeds(own.collection('libraries').doc(LIBRARY_ID).collection('authorized_students').doc(studentEmail).delete());
+      await assertFails(own.collection('libraries').doc(LIBRARY_ID).collection('authorized_students').doc(studentEmail).delete());
       await assertFails(own.collection('libraries').doc(LIBRARY_ID).collection('authorized_students').doc('other@gmail.com').delete());
     });
   });
@@ -1188,7 +1214,7 @@ describe('Tomeva Firestore Rules', () => {
         await ctx.firestore().collection('libraries').doc(LIBRARY_ID).collection('student_logins').doc(studentEmail).set(validLogin);
       });
       const own = auth({ email: studentEmail, email_verified: true }).firestore();
-      await assertSucceeds(own.collection('libraries').doc(LIBRARY_ID).collection('student_logins').doc(studentEmail).delete());
+      await assertFails(own.collection('libraries').doc(LIBRARY_ID).collection('student_logins').doc(studentEmail).delete());
       await assertFails(own.collection('libraries').doc(LIBRARY_ID).collection('student_logins').doc('other@gmail.com').delete());
     });
   });

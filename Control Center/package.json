@@ -1,6 +1,6 @@
 {
   "name": "tomeva-control-center",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Institution-owned setup, deployment and update center for Tomeva",
   "private": true,
   "license": "MIT",
@@ -12,7 +12,10 @@
     "build:mac": "npm run build:ui && node scripts/prepare-rules.cjs && node scripts/prepare-release-channels.cjs && electron-builder --config electron-builder.config.cjs --mac",
     "build:linux": "npm run build:ui && node scripts/prepare-rules.cjs && node scripts/prepare-release-channels.cjs && electron-builder --config electron-builder.config.cjs --linux",
     "test": "node --test test/*.test.cjs",
-    "test:desktop": "npm run build:ui && electron test/desktop-smoke.cjs"
+    "test:desktop": "npm run build:ui && electron test/desktop-smoke.cjs",
+    "test:recovery:desktop": "npm run build:ui && electron test/recovery-desktop.cjs",
+    "test:session": "node test/session-persistence.cjs",
+    "test:session:emulator": "firebase emulators:exec --config test/firebase-session.json --only auth --project demo-tomeva \"npm run test:session\""
   },
   "dependencies": {
     "electron-updater": "^6.8.9",
@@ -53,7 +56,8 @@
         "to": "integration",
         "filter": [
           "release-*.cjs",
-          "oauth-flow.cjs"
+          "oauth-flow.cjs",
+          "structured-log.cjs"
         ]
       },
       "web-distribution.js",

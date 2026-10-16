@@ -1,12 +1,14 @@
 {
   "name": "tomeva-project",
   "private": true,
-  "version": "1.0.9",
+  "version": "1.0.10",
   "license": "MIT",
   "engines": {
     "node": ">=22.12.0"
   },
   "scripts": {
+    "sbom": "node scripts/generate-sbom.cjs",
+    "release:preflight": "node scripts/release-preflight.cjs",
     "install:all": "node scripts/project.cjs install",
     "test": "node scripts/project.cjs test",
     "test:desktop": "node scripts/project.cjs desktop",

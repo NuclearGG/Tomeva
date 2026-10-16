@@ -1,0 +1,28 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createDirectoryPager } from '../directory-pages.mjs';
+test('directory cursors bound every read and discard late enrichment after navigation or logout', async () => {
+  const subscriptions = [], results = [], failures = [];
+  let resolveOld;
+  const sdk = Object.fromEntries(['orderBy','where','startAfter','limit','query'].map(name => [name, (...args) => ({ name, args })]));
+  sdk.documentId = () => '__name__';
+  sdk.onSnapshot = (query, receive, failure) => { const entry = { query, receive, failure, stopped: false }; subscriptions.push(entry); return () => { entry.stopped = true; }; };
+  const pager = createDirectoryPager({ sdk, reference: 'profiles', receive: result => results.push(result), failure: error => failures.push(error), enrich: rows => rows[0]?.id === 'old' ? new Promise(resolve => { resolveOld = resolve; }) : rows });
+  const snapshot = (prefix, count) => ({ docs: Array.from({ length: count }, (_, i) => ({ id: i === 0 ? prefix : `${prefix}${String(i).padStart(3,'0')}`, data: () => ({ email: prefix + i }) })) });
+  pager.load();
+  assert.equal(subscriptions[0].query.args.at(-1).args[0], 26);
+  await subscriptions[0].receive(snapshot('a', 26));
+  assert.equal(results[0].rows.length, 25); assert.equal(results[0].hasMore, true);
+  pager.load(1);
+  assert.equal(subscriptions[0].stopped, true);
+  assert.deepEqual(subscriptions[1].query.args.find(item => item?.name === 'startAfter').args, ['a024']);
+  const pending = subscriptions[1].receive(snapshot('old', 1));
+  pager.load(0, 'Student@');
+  assert.equal(subscriptions[2].query.args.filter(item => item?.name === 'where').length, 2);
+  await subscriptions[2].receive(snapshot('student@', 1));
+  resolveOld([{ id: 'private-old' }]); await pending;
+  assert.equal(results.length, 2); assert.equal(results[1].prefix, 'student@');
+  pager.clear(); await subscriptions[2].receive(snapshot('late-private', 1));
+  subscriptions[2].failure(new Error('late')); pager.load();
+  assert.equal(results.length, 2); assert.equal(failures.length, 0); assert.equal(subscriptions.length, 3);
+});

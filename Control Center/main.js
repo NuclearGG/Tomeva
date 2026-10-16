@@ -9,6 +9,7 @@ const { exportSetupBundle, copyRules, getRules } = require('./setup-export');
 const { checkDesktopReleases } = require('./desktop-releases');
 const { pathToFileURL } = require('node:url');
 const verification = require(app.isPackaged ? './integration/release-verification.cjs' : '../desktop-integration/release-verification.cjs');
+const diagnostics = require(app.isPackaged ? './integration/structured-log.cjs' : '../desktop-integration/structured-log.cjs').createStructuredLogger({ directory: path.join(app.getPath('userData'), 'logs'), component: 'control-center' });
 
 let window = null;
 let updater = null;
@@ -66,10 +67,19 @@ function createWindow() {
 const fromWindow = event => window && event.sender === window.webContents
   && event.senderFrame === window.webContents.mainFrame
   && event.senderFrame?.url.split('#')[0] === pathToFileURL(path.join(__dirname, 'ui', 'index.html')).href;
-function handle(name, fn) { ipcMain.handle(name, (event, ...args) => { if (!fromWindow(event)) throw new Error('Untrusted window.'); return fn(...args); }); }
+function handle(name, fn) { ipcMain.handle(name, async (event, ...args) => {
+  try {
+    if (!fromWindow(event)) throw new Error('Untrusted window.');
+    const result = await fn(...args);
+    if (['recovery:run', 'config:save', 'setup:export', 'setup:install', 'web:export'].includes(name)) diagnostics('info', 'ipc.operation.resolved', { channel: name });
+    return result;
+  }
+  catch (error) { diagnostics('warn', 'ipc.operation.failed', { channel: name, code: error.code || 'IPC_OPERATION_FAILED' }); throw error; }
+}); }
 handle('config:read', () => configStore.read());
 handle('config:save', value => { const saved = configStore.save(value); appearanceAuth.stop(); return saved; });
 handle('appearance:sign-in', () => appearanceAuth.start());
+handle('appearance:cancel-sign-in', () => appearanceAuth.stop());
 handle('recovery:status', () => recovery.status());
 handle('recovery:run', (action, password) => { if (action === 'restore') appearanceAuth.stop(); return recovery.run(action, password); });
 handle('app:version', () => app.getVersion());
@@ -111,6 +121,7 @@ if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => open());
   app.whenReady().then(() => {
+    diagnostics('info', 'app.ready');
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       { label: 'File', submenu: [{ label: 'Open Control Center', click: () => open() }, { role: 'quit' }] },
       { label: 'View', submenu: [{ role: 'reload' }, ...(!app.isPackaged ? [{ role: 'toggleDevTools' }] : [])] },

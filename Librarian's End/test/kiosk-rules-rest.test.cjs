@@ -32,12 +32,22 @@ async function request(endpoint, auth, method = 'GET', body) {
   }, ...(body ? { body: JSON.stringify(body) } : {}) });
   return { status: response.status, body: await response.text() };
 }
-function write(docPath, data, auth, { merge = false, times = [] } = {}) {
-  return request(`/v1/${database}/documents:commit`, auth, 'POST', { writes: [{
+async function write(docPath, data, auth, { merge = false, times = [] } = {}) {
+  const writes = [{
     update: { name: `${database}/documents/${docPath}`, fields: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, value(v)])) },
     ...(merge ? { updateMask: { fieldPaths: Object.keys(data) } } : {}),
     ...(times.length ? { updateTransforms: times.map(fieldPath => ({ fieldPath, setToServerValue: 'REQUEST_TIME' })) } : {}),
-  }] });
+  }];
+  if (auth === admin && docPath.startsWith('kiosk_accounts/')) {
+    const prior = await request(`/v1/${database}/documents/${docPath}`, 'owner');
+    const before = prior.status === 200 ? JSON.parse(prior.body).fields || {} : {};
+    const after = { ...(merge ? before : {}), ...writes[0].update.fields };
+    const documentId = docPath.split('/')[1], eventId = require('node:crypto').randomUUID();
+    const event = { actorUid: 'rest-admin', actorEmail: 'owner@staff.example', target: docPath, kind: 'kiosk_accounts', documentId, operation: merge ? 'UPDATE' : 'SET' };
+    writes.push({ update: { name: `${database}/documents/libraries/main/admin_audit/${eventId}`, fields: { ...Object.fromEntries(Object.entries(event).map(([key, item]) => [key, value(item)])), before: { mapValue: { fields: before } }, after: { mapValue: { fields: after } } } }, updateTransforms: [{ fieldPath: 'at', setToServerValue: 'REQUEST_TIME' }, ...times.map(fieldPath => ({ fieldPath: 'after.' + fieldPath, setToServerValue: 'REQUEST_TIME' }))] });
+    writes.push({ update: { name: `${database}/documents/libraries/main/audit_heads/kiosk_accounts--${documentId}`, fields: { eventId: value(eventId) } }, updateTransforms: [{ fieldPath: 'at', setToServerValue: 'REQUEST_TIME' }] });
+  }
+  return request(`/v1/${database}/documents:commit`, auth, 'POST', { writes });
 }
 const read = (p, auth) => request(`/v1/${database}/documents/${p}`, auth);
 const ok = result => assert.equal(result.status, 200, result.body);
@@ -69,7 +79,7 @@ test('kiosk can read only its own registry entry', async () => {
 test('active password account can sync protected data and approve requests', async () => {
   ok(await write('libraries/main/restricted/circulation', { stats: {}, generation: 'test-generation', shard_count: 0, sync_version: 7, last_synced_iso: new Date().toISOString() }, kiosk, { times: ['last_synced'] }));
   ok(await write('libraries/main/book_requests/rest-request', { status: 'Pending', requester_email: 'student@example.org' }, 'owner'));
-  ok(await write('libraries/main/book_requests/rest-request', { status: 'Approved' }, kiosk, { merge: true }));
+  ok(await write('libraries/main/book_requests/rest-request', { status: 'Approved', decision_note: 'Approved', decided_by: 'rest-desk', decided_at_iso: new Date().toISOString() }, kiosk, { merge: true, times: ['decided_at'] }));
 });
 test('registry approval is scoped to library, email, and sign-in provider', async () => {
   denied(await write('libraries/other/restricted/circulation', {}, kiosk));

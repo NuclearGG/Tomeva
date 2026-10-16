@@ -10,8 +10,9 @@ function adminHarness({ failRegister = false, failDeleteApp = false, email = 'ow
   const source = fs.readFileSync(path.join(root, "Admin's End/kiosk-management.js"), 'utf8');
   const code = source.slice(source.indexOf('export async function createCredential'), source.indexOf('export function setupKioskManagement')).replace('export ', '');
   const calls = [];
-  const auth = { currentUser: { uid: 'admin', email, emailVerified: true, providerData: [{ providerId: provider }] } };
+  const auth = { currentUser: { uid: 'admin', email, emailVerified: true, providerData: [{ providerId: provider }], getIdTokenResult: async () => ({ claims: { firebase: { sign_in_provider: provider } } }) } };
   const deps = {
+    firestoreSdk: {}, createAuditedFirestore: () => ({ setDoc: (...args) => deps.setDoc(...args) }),
     crypto: webcrypto, Uint8Array,
     initializeApp: (options, name) => { calls.push(['app', name]); return {}; },
     initializeAuth: (_, options) => { calls.push(['persistence', options.persistence]); return {}; },
