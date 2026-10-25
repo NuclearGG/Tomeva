@@ -204,7 +204,9 @@
   }
 
   function setReleaseAsset(asset, key) {
-    if (!asset) return;
+    // Legacy suspension is independent of whatever the release API returns.
+    if (key !== "new" || !asset || !/^tomeva-control-center-[\d.]+-win-x64\.exe$/i.test(asset.name)) return;
+    if (!/^https:\/\/github\.com\/NuclearGG\/Tomeva\/releases\/download\//.test(asset.browser_download_url)) return;
     document.querySelectorAll(".js-dl-" + key).forEach(function (link) { link.href = asset.browser_download_url; });
     document.querySelectorAll(".js-file-" + key).forEach(function (node) { node.textContent = asset.name; });
     document.querySelectorAll(".js-size-" + key).forEach(function (node) { node.textContent = Math.round(asset.size / 1048576) + " MB"; });
@@ -220,11 +222,24 @@
       const version = String(release.tag_name || "").replace(/^v/, "");
       document.querySelectorAll(".js-ver").forEach(function (node) { if (version) node.textContent = version; });
       setReleaseAsset(assets.find(function (asset) { return /control-center.*-win-x64\.exe$/i.test(asset.name); }), "new");
-      setReleaseAsset(assets.find(function (asset) { return /control-center.*-win7-x64\.exe$/i.test(asset.name); }), "old");
     })
     .catch(function () {
       document.querySelectorAll(".js-ver").forEach(function (node) { node.textContent = "View release"; });
     });
+
+  // Also neutralize old card markup when this script is loaded by cached HTML.
+  document.querySelectorAll(".js-dl-old").forEach(function (link) {
+    link.href = "legacy-paused.html";
+    link.removeAttribute("download");
+    const label = link.querySelector("span");
+    if (label) label.textContent = "Why are downloads paused?";
+  });
+  document.addEventListener("click", function (event) {
+    const link = event.target.closest?.("a.js-dl-old, a[href*='-win7-'], a[href*='-legacy.yml']");
+    if (!link) return;
+    event.preventDefault();
+    window.location.assign("legacy-paused.html");
+  }, true);
 
   const footerYear = document.getElementById("footer-year");
   if (footerYear) footerYear.textContent = String(new Date().getFullYear());

@@ -555,3 +555,40 @@ main, .site-footer { width: min(92rem, calc(100% - 2rem)); margin-inline: auto; 
 @media (prefers-reduced-transparency: reduce) {
   .nav-shell, .nav-links { background: var(--paper-soft); backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
+
+/* Temporary legacy distribution pause; existing Tomeva palette and typography. */
+.edition-legacy .suspension-status { opacity: 1; font-weight: 600; }
+.suspension-page { --pause-ink: #714100; --pause-surface: #fce8bd; }
+[data-theme="dark"] .suspension-page { --pause-ink: #ffcf78; --pause-surface: #392c19; }
+.notice-nav { display: flex; align-items: center; gap: 1.5rem; }
+.notice-nav > a { font-size: .9rem; text-decoration: none; }
+main.suspension-main { width: min(64rem, calc(100% - 3rem)); padding: clamp(3rem, 7vw, 7rem) 0 2rem; }
+.suspension-message { text-align: center; }
+.notice-symbol { display: grid; place-items: center; width: 5rem; height: 5rem; margin: 0 auto 1.8rem; border-radius: 1.6rem; color: var(--pause-ink); background: var(--pause-surface); }
+.notice-symbol span { width: 3rem; height: 3rem; background: currentColor; mask: url('shield-check.svg') center / contain no-repeat; -webkit-mask: url('shield-check.svg') center / contain no-repeat; }
+.notice-kicker { color: var(--ink-soft); font: 500 .7rem/1.5 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.suspension-message h1 { margin: 1.3rem 0 1.8rem; font: 700 clamp(2.9rem, 6.8vw, 5.8rem)/1.08 var(--display); letter-spacing: -.045em; }
+.suspension-message h1 em { font-style: normal; color: var(--ink); box-shadow: inset 0 -.12em var(--gold-soft); }
+.suspension-message > .suspension-status { display: inline-flex; align-items: center; justify-content: center; gap: .65rem; max-width: 100%; padding: .65rem 1.1rem; border-radius: 1.25rem; color: var(--pause-ink); background: var(--pause-surface); font-size: .91rem; font-weight: 600; }
+.suspension-status > span { flex: 0 0 .5rem; width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; }
+.notice-copy { max-width: 43rem; margin: 2.5rem auto 0; color: var(--ink-soft); font-size: 1.07rem; line-height: 1.85; }
+.notice-copy p + p { margin-top: 1.15rem; }
+.notice-copy strong { color: var(--ink); font-weight: 600; }
+.notice-copy .notice-signature { margin-top: 1.65rem; color: var(--ink); font-weight: 600; }
+.notice-actions { display: flex; flex-direction: column; align-items: center; gap: 1.1rem; margin-top: 2.3rem; }
+.notice-actions .button { white-space: normal; justify-content: center; text-align: center; max-width: 100%; }
+.notice-modern { color: var(--ink-soft); font-size: .92rem; text-underline-offset: .3em; }
+.suspension-faq { max-width: 48rem; margin: 6rem auto 0; padding-top: 2.5rem; border-top: 1px solid var(--line-strong); }
+.suspension-faq h2 { margin: .65rem 0 2rem; font: 600 clamp(2rem, 4vw, 3rem)/1.15 var(--display); letter-spacing: -.03em; }
+.suspension-faq details { border-top: 1px solid var(--line); padding: 1.3rem 0; }
+.suspension-faq summary { cursor: pointer; font-weight: 600; padding-right: .7rem; }
+.suspension-faq details p { margin-top: .9rem; color: var(--ink-soft); font-size: .98rem; }
+.notice-footer { width: min(64rem, calc(100% - 3rem)); padding-top: 4rem; padding-bottom: 3rem; gap: 1rem; border-top: 1px solid var(--line); margin-top: 4rem; color: var(--ink-soft); font-size: .85rem; }
+@media (max-width: 600px) {
+  .edition-legacy .edition-topline { flex-direction: column; gap: .5rem; }
+  .suspension-message h1 { font-size: clamp(2.6rem, 10.8vw, 3.8rem); }
+  .notice-copy { text-align: left; font-size: 1rem; }
+  .notice-actions .button { font-size: .85rem; padding: 1rem 1.2rem; }
+  .notice-nav { gap: .8rem; }
+  .notice-footer { grid-template-columns: 1fr; }
+}
