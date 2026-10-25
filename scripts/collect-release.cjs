@@ -6,6 +6,7 @@ const root = path.resolve(__dirname, '..');
 const apps = [['control-center', 'Control Center'], ['admin', "Admin's End"], ['librarian', "Librarian's End"]];
 const platform = process.argv[2];
 if (!['win', 'win-legacy', 'linux'].includes(platform)) throw new Error('Usage: node scripts/collect-release.cjs win|win-legacy|linux');
+if (platform === 'win-legacy') throw new Error('Legacy Windows 7/8.1 distribution is temporarily suspended. See documentation/LEGACY_DOWNLOAD_SUSPENSION.md.');
 const target = path.join(root, 'packages');
 fs.mkdirSync(target, { recursive: true });
 const version = require('../Control Center/package.json').version;

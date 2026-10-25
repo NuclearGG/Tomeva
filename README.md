@@ -25,16 +25,16 @@ Use one authoritative Librarian workstation for issuing, returning, collecting f
 
 ### Download only Control Center
 
-Open the [latest release](https://github.com/NuclearGG/Tomeva/releases/latest). Download **`tomeva-control-center-X.Y.Z-win-x64.exe`** for Windows 10/11, or **`tomeva-control-center-X.Y.Z-win7-x64.exe`** for a Windows 7/8.1 legacy computer. You do not need source code, Node.js, npm, Git, or separate manual downloads of Admin and Librarian.
+Open the [latest release](https://github.com/NuclearGG/Tomeva/releases/latest). Download **`tomeva-control-center-X.Y.Z-win-x64.exe`** for Windows 10/11. **Windows 7/8.1 legacy downloads are temporarily paused** while we prepare a safer alternative. You do not need source code, Node.js, npm, Git, or separate manual downloads of Admin and Librarian.
 
 Control Center contains only Control Center. When you request Admin, Librarian, or the Student Portal, it downloads that package from the official GitHub Release, verifies its SHA-256 checksum and size, and then adds the institution configuration to the exported folder. It first uses the GitHub API and automatically falls back to the public release page and `SHA256SUMS` if API access is unavailable. Application updates also come from GitHub Releases.
 
 Windows downloads are separated by operating-system generation:
 
 - **Windows 10/11 x64** (`win-x64`) is the default build and uses the maintained Electron line.
-- **Windows 7/8/8.1 x64 legacy** (`win7-x64`) uses Electron 22, the final compatible runtime. Electron stopped security support for this line on October 10, 2023, so use it only where an operating-system upgrade is not yet possible. Legacy apps update only from the separate legacy feeds.
+- **Windows 7/8.1 legacy: downloads temporarily paused.** Older installers and update feeds have been withdrawn from GitHub Releases. Keep a secure backup and avoid online features in an already installed legacy edition.
 
-Choose the matching Windows line in Control Center. These labels describe operating-system compatibility; both current Windows packages target 64-bit processors. Linux packages, when provided, use `.AppImage`. macOS build scripts are available to developers, but CC does not currently distribute macOS packages. See Electron's [Windows 7/8/8.1 support notice](https://www.electronjs.org/blog/electron-22-0) and [end-of-support notice](https://www.electronjs.org/blog/electron-27-0).
+Use the modern Windows line in Control Center. Current Windows packages target 64-bit processors. Linux packages, when provided, use `.AppImage`. macOS build scripts are available to developers, but CC does not currently distribute macOS packages. See Electron's [Windows 7/8/8.1 support notice](https://www.electronjs.org/blog/electron-22-0) and [end-of-support notice](https://www.electronjs.org/blog/electron-27-0).
 
 Installers include Electron and application dependencies. Internet access is needed for initial downloads, Firebase setup, Admin sign-in, and synchronization. Librarian's local circulation remains available offline. Builds without a publisher signing certificate are unsigned.
 
@@ -133,9 +133,7 @@ npm test
 npm run test:desktop
 npm run test:rules
 npm run build:win
-npm run build:legacy-win
 npm run release:win
-npm run release:legacy-win
 npm run verify:packages
 ```
 
@@ -152,12 +150,8 @@ Use a matching `vX.Y.Z` GitHub Release and upload every collected package:
 | `tomeva-control-center-X.Y.Z-win-x64.exe` | Windows 10/11 user's initial download |
 | `tomeva-admin-X.Y.Z-win-x64.exe` | Windows 10/11 Admin package downloaded by CC |
 | `tomeva-librarian-X.Y.Z-win-x64.exe` | Windows 10/11 Librarian package downloaded by CC |
-| `tomeva-control-center-X.Y.Z-win7-x64.exe` | Windows 7/8.1 legacy Control Center |
-| `tomeva-admin-X.Y.Z-win7-x64.exe` | Windows 7/8.1 legacy Admin package |
-| `tomeva-librarian-X.Y.Z-win7-x64.exe` | Windows 7/8.1 legacy Librarian package |
 | `tomeva-student-X.Y.Z.zip` | Student site downloaded and configured by CC |
 | `latest.yml`, `admin.yml`, `librarian.yml` | Windows 10/11 update feeds |
-| `latest-legacy.yml`, `admin-legacy.yml`, `librarian-legacy.yml` | Windows 7/8.1 update feeds |
 | `*.blockmap`, `SHA256SUMS` | Update data and integrity checks |
 
 Linux filenames use `linux-x64.AppImage`; feed names end in `-linux.yml`. CC downloads components at runtime and never embeds the Admin or Librarian installers. It uses GitHub asset metadata when the API is available and the release's `SHA256SUMS` manifest as its public fallback. See [distribution architecture](documentation/SOFTWARE_DISTRIBUTION.md) and [verification notes](documentation/RELEASE_VERIFICATION.md).

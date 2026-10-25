@@ -2,7 +2,7 @@
 
 ## Downloads
 
-Start with `tomeva-control-center-1.0.10-win-x64.exe` for Windows 10/11 x64. The legacy Windows 7/8/8.1 line is `tomeva-control-center-1.0.10-win7-x64.exe`. Control Center downloads the corresponding Admin and Librarian installers. The Student Portal is `tomeva-student-1.0.10.zip`; dependency inventories are in `tomeva-1.0.10-sbom.zip`.
+Start with `tomeva-control-center-1.0.10-win-x64.exe` for Windows 10/11 x64. Update, 25 October 2026: Windows 7/8.1 legacy downloads and feeds are temporarily suspended for security review. Control Center downloads the corresponding Admin and Librarian installers. The Student Portal is `tomeva-student-1.0.10.zip`; dependency inventories are in `tomeva-1.0.10-sbom.zip`.
 
 ## Security and circulation
 

@@ -1,0 +1,285 @@
+{
+  "date": "2026-10-25",
+  "repository": "NuclearGG/Tomeva",
+  "removedReleaseAssets": 54,
+  "removedInstallers": 18,
+  "removedBlockmaps": 18,
+  "removedFeeds": 18,
+  "releasesPreserved": 11,
+  "nonlegacyAssetsUnchanged": true,
+  "removedCurrentTreeFiles": 39,
+  "websiteDeployment": "not authorized; changes prepared locally",
+  "historyRewritten": false,
+  "removed": [
+    {
+      "tag": "v1.0.10",
+      "id": 646423862,
+      "name": "admin-legacy.yml"
+    },
+    {
+      "tag": "v1.0.10",
+      "id": 646423926,
+      "name": "latest-legacy.yml"
+    },
+    {
+      "tag": "v1.0.10",
+      "id": 646423988,
+      "name": "librarian-legacy.yml"
+    },
+    {
+      "tag": "v1.0.10",
+      "id": 646424566,
+      "name": "tomeva-admin-1.0.10-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.10",
+      "id": 646424889,
+      "name": "tomeva-admin-1.0.10-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.10",
+      "id": 646425336,
+      "name": "tomeva-control-center-1.0.10-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.10",
+      "id": 646425703,
+      "name": "tomeva-control-center-1.0.10-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.10",
+      "id": 646426180,
+      "name": "tomeva-librarian-1.0.10-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.10",
+      "id": 646426528,
+      "name": "tomeva-librarian-1.0.10-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.9",
+      "id": 639640670,
+      "name": "admin-legacy.yml"
+    },
+    {
+      "tag": "v1.0.9",
+      "id": 639640724,
+      "name": "latest-legacy.yml"
+    },
+    {
+      "tag": "v1.0.9",
+      "id": 639640793,
+      "name": "librarian-legacy.yml"
+    },
+    {
+      "tag": "v1.0.9",
+      "id": 639641295,
+      "name": "tomeva-admin-1.0.9-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.9",
+      "id": 639641607,
+      "name": "tomeva-admin-1.0.9-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.9",
+      "id": 639642013,
+      "name": "tomeva-control-center-1.0.9-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.9",
+      "id": 639642339,
+      "name": "tomeva-control-center-1.0.9-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.9",
+      "id": 639642987,
+      "name": "tomeva-librarian-1.0.9-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.9",
+      "id": 639643400,
+      "name": "tomeva-librarian-1.0.9-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.8",
+      "id": 637890466,
+      "name": "admin-legacy.yml"
+    },
+    {
+      "tag": "v1.0.8",
+      "id": 637890555,
+      "name": "latest-legacy.yml"
+    },
+    {
+      "tag": "v1.0.8",
+      "id": 637890604,
+      "name": "librarian-legacy.yml"
+    },
+    {
+      "tag": "v1.0.8",
+      "id": 637891176,
+      "name": "tomeva-admin-1.0.8-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.8",
+      "id": 637891456,
+      "name": "tomeva-admin-1.0.8-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.8",
+      "id": 637891940,
+      "name": "tomeva-control-center-1.0.8-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.8",
+      "id": 637892158,
+      "name": "tomeva-control-center-1.0.8-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.8",
+      "id": 637892867,
+      "name": "tomeva-librarian-1.0.8-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.8",
+      "id": 637893322,
+      "name": "tomeva-librarian-1.0.8-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.7",
+      "id": 618152470,
+      "name": "admin-legacy.yml"
+    },
+    {
+      "tag": "v1.0.7",
+      "id": 618152537,
+      "name": "latest-legacy.yml"
+    },
+    {
+      "tag": "v1.0.7",
+      "id": 618152591,
+      "name": "librarian-legacy.yml"
+    },
+    {
+      "tag": "v1.0.7",
+      "id": 618153401,
+      "name": "tomeva-admin-1.0.7-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.7",
+      "id": 618153789,
+      "name": "tomeva-admin-1.0.7-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.7",
+      "id": 618154400,
+      "name": "tomeva-control-center-1.0.7-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.7",
+      "id": 618154705,
+      "name": "tomeva-control-center-1.0.7-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.7",
+      "id": 618155230,
+      "name": "tomeva-librarian-1.0.7-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.7",
+      "id": 618155572,
+      "name": "tomeva-librarian-1.0.7-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.6",
+      "id": 612681324,
+      "name": "admin-legacy.yml"
+    },
+    {
+      "tag": "v1.0.6",
+      "id": 612681385,
+      "name": "latest-legacy.yml"
+    },
+    {
+      "tag": "v1.0.6",
+      "id": 612681435,
+      "name": "librarian-legacy.yml"
+    },
+    {
+      "tag": "v1.0.6",
+      "id": 612682029,
+      "name": "tomeva-admin-1.0.6-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.6",
+      "id": 612682434,
+      "name": "tomeva-admin-1.0.6-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.6",
+      "id": 612683063,
+      "name": "tomeva-control-center-1.0.6-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.6",
+      "id": 612683290,
+      "name": "tomeva-control-center-1.0.6-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.6",
+      "id": 612683947,
+      "name": "tomeva-librarian-1.0.6-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.6",
+      "id": 612684213,
+      "name": "tomeva-librarian-1.0.6-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.5",
+      "id": 609595013,
+      "name": "admin-legacy.yml"
+    },
+    {
+      "tag": "v1.0.5",
+      "id": 609595043,
+      "name": "latest-legacy.yml"
+    },
+    {
+      "tag": "v1.0.5",
+      "id": 609595089,
+      "name": "librarian-legacy.yml"
+    },
+    {
+      "tag": "v1.0.5",
+      "id": 609595396,
+      "name": "tomeva-admin-1.0.5-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.5",
+      "id": 609595553,
+      "name": "tomeva-admin-1.0.5-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.5",
+      "id": 609595857,
+      "name": "tomeva-control-center-1.0.5-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.5",
+      "id": 609596026,
+      "name": "tomeva-control-center-1.0.5-win7-x64.exe.blockmap"
+    },
+    {
+      "tag": "v1.0.5",
+      "id": 609596459,
+      "name": "tomeva-librarian-1.0.5-win7-x64.exe"
+    },
+    {
+      "tag": "v1.0.5",
+      "id": 609596746,
+      "name": "tomeva-librarian-1.0.5-win7-x64.exe.blockmap"
+    }
+  ]
+}

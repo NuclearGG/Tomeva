@@ -4,7 +4,7 @@ Tomeva is an institution-owned, offline-first library system. Use synthetic data
 
 ## Setup and checks
 
-Use Node.js 22.12 or newer and the committed npm lockfiles. On Windows, install dependencies with `npm run install:all`; the Librarian native SQLite dependency must match its Electron runtime. Application users install a packaged app and do not run npm.
+Use a currently patched, supported Node.js release and the committed npm lockfiles. The October 21, 2026 security releases fix CVE-2026-111497 in the bundled Brotli decoder. Before building or distributing, read the [developer security note and legacy suspension](documentation/LEGACY_DOWNLOAD_SUSPENSION.md). The declared engine minimum alone does not establish a patched host or embedded Electron runtime. On Windows, install dependencies with `npm run install:all`; the Librarian native SQLite dependency must match its Electron runtime. Application users install a packaged app and do not run npm.
 
 Before submitting a change:
 
@@ -28,6 +28,8 @@ Before submitting a change:
 `Librarian's End/firestore.rules` is canonical. Keep `firestore.txt` and Control Center's `firebase-template` copies synchronized. Add emulator tests for the actual generated institution rules as well as the template. A new required field or journal protocol needs coordinated clients and rules deployment; document the safe rollout order.
 
 ## Release procedure
+
+**Legacy Windows distribution is temporarily suspended.** Do not upload or republish Windows 7/8.1 installers, blockmaps or legacy update feeds. Modern distribution remains available. See the [suspension decision](documentation/LEGACY_DOWNLOAD_SUSPENSION.md).
 
 1. Choose a new version across the root and three desktop package files/lockfiles. Published release assets are immutable.
 2. Review dependency changes and third-party notices, then pass app, emulator, desktop and build checks.

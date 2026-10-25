@@ -21,6 +21,9 @@ async function main() {
     return;
   }
   const version = require('../package.json').version;
+  if (fs.readdirSync(path.join(root, 'packages')).some(name => /-win7-(?:x64|ia32)\.exe(?:\.blockmap)?$/.test(name) || /^(?:admin|latest|librarian)-legacy\.yml$/.test(name))) {
+    throw new Error('Legacy distribution is suspended. Remove legacy installers, blockmaps and update feeds from the publication directory before publishing modern packages.');
+  }
   require('./release-preflight.cjs').assertPublishable(root);
   execFileSync(process.execPath, [path.join(root, 'scripts/check-packages.cjs')], { cwd: root, stdio: 'pipe' });
   const tag = 'v' + version;
